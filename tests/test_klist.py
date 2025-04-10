@@ -24,8 +24,10 @@ import unittest
 import random
 import json
 import os
+import statistics
 
 from packages.jhehemann.customs.klist.klist import KList
+from packages.jhehemann.customs.gtree.gtree import calculate_item_rank
 
 class TestKList(unittest.TestCase):
 
@@ -57,19 +59,21 @@ class TestKList(unittest.TestCase):
         ]
         # Shuffle entries to simulate unordered input.
         random.shuffle(entries)
-        # Print the keys for debugging
-        print("Random order keys:", [key for key, _ in entries])
+        
         
         for key, value in entries:
             self.klist.insert(key, value)
+        
+        # Print the keys for debugging
+        print("Inserted keys order:", [(key, value) for key, value in entries])
         
         # # Print the klist for debugging
         # print("Random order keys:", [key for key, _ in entries])
         # print(self.klist)
 
         # Retrieve keys from the klist.
-        stored_keys = [key for key, _ in self.klist]
-        expected_keys = sorted([key for key, _ in entries])
+        stored_keys = [(k, v) for (k, v), _ in self.klist]
+        expected_keys = sorted([(key, value) for key, value in entries])
 
         # Validate that the keys are in the expected (sorted) order.
         self.assertEqual(stored_keys, expected_keys, "Keys should be stored in lexicographic order after insertion.")
@@ -141,7 +145,43 @@ class TestKList(unittest.TestCase):
         keys = [key for key, _ in self.klist]
         self.assertNotIn("key1", keys)
 
-# --- End: Unit tests for KList ---
+
+class TestRankStatistics(unittest.TestCase):
+    def test_rank_statistics_from_file(self):
+        """
+        For each element in dummy_vector_data_A.json, check whether there is a 'rank'
+        in the value dictionary. If not, calculate the rank using calculate_gnode_rank with k=8.
+        Then, output the maximum rank, mean, and standard deviation of all ranks.
+        """
+        # Locate the file; adjust the path if needed.
+        file_path = "tests/dummy_vector_data_A.json"
+        self.assertTrue(os.path.exists(file_path), f"File {file_path} not found")
+        
+        with open(file_path, "r") as f:
+            data = json.load(f)
+        
+        # Test rounds for different values of k.
+        for k in [2, 4, 8, 16]:
+            ranks = []
+            for key, value in data.items():
+                if "rank" in value:
+                    rank_value = value["rank"]
+                else:
+                    rank_value = calculate_item_rank(key, k)
+                ranks.append(rank_value)
+
+            max_rank = max(ranks) if ranks else None
+            mean_rank = statistics.mean(ranks) if ranks else 0.0
+            stdev_rank = statistics.stdev(ranks) if len(ranks) > 1 else 0.0
+
+            print(f"\nRank Statistics for k={k}:")
+            print("  Maximum Rank:", max_rank)
+            print("  Mean Rank:", mean_rank)
+            print("  Standard Deviation:", stdev_rank)
+
+            # Ensure that a rank is at least 1.
+            self.assertIsNotNone(max_rank)
+            self.assertGreaterEqual(max_rank, 1)
 
 
 if __name__ == "__main__":
