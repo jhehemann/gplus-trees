@@ -28,8 +28,8 @@ import statistics
 import datetime
 
 from packages.jhehemann.customs.gtree.klist import KList
-from packages.jhehemann.customs.gtree.item import Item
-from packages.jhehemann.customs.gtree.item import calculate_item_rank
+from packages.jhehemann.customs.gtree.base import Item
+from packages.jhehemann.customs.gtree.base import calculate_item_rank
 
 BASE_TIMESTAMP = datetime.datetime(2021, 1, 1, tzinfo=datetime.timezone.utc)
 
@@ -152,6 +152,67 @@ class TestKList(unittest.TestCase):
         # Verify the deleted key is no longer present
         keys = [item.key for item, _ in self.klist]
         self.assertNotIn("key1", keys)
+
+    def test_retrieve_existing(self):
+        """
+        Insert several items and test retrieve for a key that exists.
+        The test verifies that the returned value is correct and that the "next entry"
+        corresponds to the entry immediately following the found item.
+        """
+        items = [
+            Item("alpha", "A", BASE_TIMESTAMP),
+            Item("bravo", "B", BASE_TIMESTAMP),
+            Item("charlie", "C", BASE_TIMESTAMP),
+            Item("delta", "D", BASE_TIMESTAMP)
+        ]
+        for i in items:
+            self.klist.insert(i)
+        
+        # Retrieve an existing key "bravo"
+        item, next_entry = self.klist.retrieve("bravo")
+        self.assertEqual(item, items[1], "Retrieve should return the correct item for 'bravo'.")
+        # Expect the next entry to be the one with key "charlie"
+        next_item, _ = next_entry
+        self.assertIsNotNone(next_item, "Next entry should not be None.")
+        self.assertEqual(next_item.key, "charlie",
+                         "The next entry after 'bravo' should be 'charlie'.")
+
+    def test_retrieve_nonexistent(self):
+        """
+        Insert several items and test retrieve for keys that do not exist.
+        The test verifies that retrieve returns None for the item and
+        an appropriate "next entry" (or (None, None) if no such entry exists).
+        """
+        items = [
+            Item("alpha", "A", BASE_TIMESTAMP),
+            Item("bravo", "B", BASE_TIMESTAMP),
+            Item("charlie", "C", BASE_TIMESTAMP),
+            Item("delta", "D", BASE_TIMESTAMP)
+        ]
+        for i in items:
+            self.klist.insert(i)
+        
+        # Test a key that is less than the smallest key.
+        item, next_entry = self.klist.retrieve("aardvark")
+        self.assertIsNone(item, "Retrieving 'aardvark' should return None.")
+        next_item, _ = next_entry
+        self.assertIsNotNone(next_item, "There should be a next entry for 'aardvark'.")
+        self.assertEqual(next_item.key, "alpha",
+                         "The next entry for 'aardvark' should be 'alpha'.")
+
+        # Test a key that lies between two items (e.g., between 'bravo' and 'charlie').
+        item, next_entry = self.klist.retrieve("bri")
+        self.assertIsNone(item, "Retrieving a non-existent key 'bri' should return None.")
+        next_item, _ = next_entry
+        self.assertIsNotNone(next_item, "There should be a next entry for key 'bri'.")
+        self.assertEqual(next_item.key, "charlie",
+                         "The next entry for 'bri' should be 'charlie'.")
+
+        # Test a key that is greater than the maximum key.
+        item, next_entry = self.klist.retrieve("zeta")
+        self.assertIsNone(item, "Retrieving 'zeta' should return None.")
+        self.assertEqual(next_entry, (None, None),
+                         "The next entry for 'zeta' should be (None, None), since it is greater than all keys.")
 
 
 class TestRankStatistics(unittest.TestCase):

@@ -19,10 +19,11 @@
 
 """K-list implementation"""
 
-from typing import Optional
+from typing import Optional, Tuple
 
-from packages.jhehemann.customs.gtree.item import Item
-from packages.jhehemann.customs.gtree.gtree import GTree
+from packages.jhehemann.customs.gtree.base import AbstractSetDataStructure
+from packages.jhehemann.customs.gtree.base import Item
+from packages.jhehemann.customs.gtree.gplus_tree import GPlusTree
 
 class KListNode:
     """
@@ -39,7 +40,7 @@ class KListNode:
         self.entries = []  # List of entries: each is (item, left_subtree)
         self.next = None
 
-    def insert_entry(self, item: Item, left_subtree: Optional[GTree] = None):
+    def insert_entry(self, item: Item, left_subtree: Optional[GPlusTree] = None):
         """
         Inserts the item pair (with an optional left_subtree) into this node in sorted order.
 
@@ -49,7 +50,7 @@ class KListNode:
         Parameters:
             key (str): The key used to order entries.
             value (any): The associated value.
-            left_subtree (GTree or None): An optional g-tree to attach as the left subtree.
+            left_subtree (GPlusTree or None): An optional G+-tree to attach as the left subtree.
 
         Returns:
             tuple or None: The overflow entry (item, left_subtree) if the node exceeds capacity; otherwise, None.
@@ -64,18 +65,18 @@ class KListNode:
         return None
 
 
-class KList:
+class KList(AbstractSetDataStructure):
     """
     A k-list implemented as a linked list of nodes.
     Each node holds up to CAPACITY (4) sorted entries.
-    An entry is of the form (item, left_subtree), where left_subtree is a g-tree (or None).
+    An entry is of the form (item, left_subtree), where left_subtree is a G+-tree (or None).
     The overall order is maintained lexicographically by key.
     """
 
     def __init__(self):
         self.head = KListNode()
 
-    def insert(self, item: Item, left_subtree: Optional[GTree] = None):
+    def insert(self, item: Item, left_subtree: Optional[GPlusTree] = None):
         """
         Inserts a key-value pair (with an optional left subtree) into the k-list.
         The entry is stored as (item, left_subtree).
@@ -85,7 +86,7 @@ class KList:
 
         Parameters:
             item (Item): The item to insert.
-            left_subtree (GTree or None): Optional g-tree to attach as the left subtree.
+            left_subtree (GPlusTree or None): Optional G+-tree to attach as the left subtree.
         """
         node = self.head
         # Traverse nodes if the key should come later.
@@ -145,6 +146,48 @@ class KList:
                 break
 
         return True
+    
+    def retrieve(
+        self, key: str
+    ) -> Tuple[Optional[Item], Tuple[Optional[Item], Optional[GPlusTree]]]:
+        """
+        Retrieve the item associated with the given key from the KList.
+        
+        Parameters:
+            key (str): The key of the item to retrieve.
+        
+        Returns:
+            A tuple of two elements:
+            - item (Optional[Item]): The value associated with the key, or None if not found.
+            - next_entry (Tuple[Optional[Item], Optional[GPlusTree]]): 
+                    A tuple containing:
+                    * The next item in the sorted order (if any),
+                    * The left subtree associated with the next item (if any).
+                    If no subsequent entry exists, returns (None, None).
+        """
+        current_node = self.head
+        while current_node is not None:
+            # Iterate over the entries in the current KListNode.
+            for i, (item, left_subtree) in enumerate(current_node.entries):
+                if item.key == key:
+                    # Item found; determine the next entry.
+                    if i + 1 < len(current_node.entries):
+                        # There is a subsequent entry in the same node.
+                        next_entry = current_node.entries[i + 1]
+                    elif current_node.next is not None and current_node.next.entries:
+                        # Otherwise, take the first entry from the next node.
+                        next_entry = current_node.next.entries[0]
+                    else:
+                        # No further entry exists.
+                        next_entry = (None, None)
+                    return (item, next_entry)
+                elif item.key > key:
+                    # Since entries are sorted, if we hit an item with a key greater
+                    # than the search key, the key is not present; return the "next entry".
+                    return (None, (item, left_subtree))
+            current_node = current_node.next
+        # If we have traversed all nodes and found nothing, return (None, (None, None)).
+        return (None, (None, None))
 
     def __iter__(self):
         """

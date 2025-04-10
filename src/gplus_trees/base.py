@@ -17,8 +17,8 @@
 #
 # ------------------------------------------------------------------------------
 
-"""Item implementation"""
-
+from abc import ABC, abstractmethod
+from typing import Optional, Tuple
 import math
 import hashlib
 
@@ -80,6 +80,57 @@ class Item:
     def __str__(self):
         return (f"Item(key={self.key}, value={self.value}, "
                 f"last_updated={self.timestamp.isoformat()})")
+
+
+class AbstractSetDataStructure(ABC):
+    @abstractmethod
+    def insert(self, item: 'Item', rank: int) -> bool:
+        """
+        Insert an item into the set with the provided rank.
+        
+        Parameters:
+            item (Item): The item to be inserted.
+            rank (int): The rank for the item.
+        
+        Returns:
+            bool: True if insertion is successful, False otherwise.
+        """
+        pass
+
+    @abstractmethod
+    def delete(self, key: str) -> bool:
+        """
+        Delete the item corresponding to the given key by inserting a tombstone.
+        
+        Instead of physically removing the item, this method places a tombstone
+        with a maximal timestamp (e.g. datetime.datetime.max) so that the item cannot
+        be updated in the future.
+        
+        Parameters:
+            key (str): The key of the item to be deleted.
+        
+        Returns:
+            bool: True if deletion (tombstone insertion) is successful, False otherwise.
+        """
+        pass
+
+    @abstractmethod
+    def retrieve(
+        self, key: str
+    ) -> Tuple[Optional[Item], Tuple[Optional[Item], Optional['AbstractSetDataStructure']]]:
+        """
+        Retrieve the item associated with the given key.
+        
+        Parameters:
+            key (str): The key of the item to retrieve.
+        
+        Returns:
+            item (Optional[Item]): The item associated with the key, or None if not found.
+            next_entry (Tuple[Optional[Item], Optional['AbstractSetDataStructure']]): A tuple containing:
+                - The next item in the dataset (if any).
+                - The left subtree of the next item (if any).
+        """
+        pass
 
 
 def calculate_item_rank(key, k):
