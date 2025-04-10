@@ -25,9 +25,13 @@ import random
 import json
 import os
 import statistics
+import datetime
 
-from packages.jhehemann.customs.klist.klist import KList
-from packages.jhehemann.customs.gtree.gtree import calculate_item_rank
+from packages.jhehemann.customs.gtree.klist import KList
+from packages.jhehemann.customs.gtree.item import Item
+from packages.jhehemann.customs.gtree.item import calculate_item_rank
+
+BASE_TIMESTAMP = datetime.datetime(2021, 1, 1, tzinfo=datetime.timezone.utc)
 
 class TestKList(unittest.TestCase):
 
@@ -46,34 +50,38 @@ class TestKList(unittest.TestCase):
         """
         Insert entries in random order and verify that the k-list stores them in lexicographic order.
         """
+
         # Define key-value pairs (keys not in sorted order)
         entries = [
-            ("delta", 4),
-            ("alpha", 1),
-            ("charlie", 3),
-            ("bravo", 2),
-            ("echo", 5),
-            ("foxtrot", 6),
-            ("golf", 7),
-            ("hotel", 8)
+            ("delta", 4, BASE_TIMESTAMP),
+            ("alpha", 1, BASE_TIMESTAMP),
+            ("charlie", 3, BASE_TIMESTAMP),
+            ("bravo", 2, BASE_TIMESTAMP),
+            ("echo", 5, BASE_TIMESTAMP),
+            ("foxtrot", 6, BASE_TIMESTAMP),
+            ("golf", 7, BASE_TIMESTAMP),
+            ("hotel", 8, BASE_TIMESTAMP)
         ]
+        
+        # Create an Item instance for each (key, value) pair.
+        #items = [Item(k, v, timestamp) for k, v, timestamp in entries]
+        
         # Shuffle entries to simulate unordered input.
         random.shuffle(entries)
         
-        
-        for key, value in entries:
-            self.klist.insert(key, value)
+        for k, v, timestamp in entries:
+            self.klist.insert(Item(k, v, timestamp))
         
         # Print the keys for debugging
-        print("Inserted keys order:", [(key, value) for key, value in entries])
-        
-        # # Print the klist for debugging
-        # print("Random order keys:", [key for key, _ in entries])
-        # print(self.klist)
+        print("\nInserted keys order:\n", [k for k, _, _ in entries])
 
         # Retrieve keys from the klist.
-        stored_keys = [(k, v) for (k, v), _ in self.klist]
-        expected_keys = sorted([(key, value) for key, value in entries])
+        stored_keys = [item.key for item, _ in self.klist]
+        expected_keys = sorted([k for k, _, _ in entries])
+
+        # Print the stored and expected keys for debugging
+        print("\nExpected keys order:\n", expected_keys)
+        print("\nStored keys order:\n", stored_keys)
 
         # Validate that the keys are in the expected (sorted) order.
         self.assertEqual(stored_keys, expected_keys, "Keys should be stored in lexicographic order after insertion.")
@@ -83,34 +91,34 @@ class TestKList(unittest.TestCase):
         """Test that inserting more than 4 entries creates new nodes."""
         # Insert 10 entries to force overflow into multiple nodes.
         for i in range(10):
-            self.klist.insert(f"key{i}", i)
+            self.klist.insert(Item(f"key{i}", i, BASE_TIMESTAMP))
         num_nodes = self._count_nodes(self.klist)
         self.assertGreater(num_nodes, 1, "Expected multiple nodes due to overflow")
 
     def test_delete_existent(self):
         """Test that deleting an existing key works correctly and rebalances nodes."""
         entries = [
-            ("a", 1),
-            ("b", 2),
-            ("c", 3),
-            ("d", 4),
-            ("e", 5)
+            ("a", 1, BASE_TIMESTAMP),
+            ("b", 2, BASE_TIMESTAMP),
+            ("c", 3, BASE_TIMESTAMP),
+            ("d", 4, BASE_TIMESTAMP),
+            ("e", 5, BASE_TIMESTAMP)
         ]
-        for key, value in entries:
-            self.klist.insert(key, value)
+        for k, v, timestamp in entries:
+            self.klist.insert(Item(k, v, timestamp))
         # Delete an entry and verify deletion
         result = self.klist.delete("c")
         self.assertTrue(result)
-        keys_after = [key for key, _ in self.klist]
+        keys_after = [item.key for item, _ in self.klist]
         self.assertNotIn("c", keys_after)
         # Total count should be one less than before.
         self.assertEqual(len(list(self.klist)), len(entries) - 1)
 
     def test_delete_nonexistent(self):
         """Test that deleting a nonexistent key returns False."""
-        entries = [("x", 10), ("y", 20)]
-        for key, value in entries:
-            self.klist.insert(key, value)
+        entries = [("x", 10, BASE_TIMESTAMP), ("y", 20, BASE_TIMESTAMP)]
+        for k, v, timestamp in entries:
+            self.klist.insert(Item(k, v, timestamp))
         result = self.klist.delete("z")
         self.assertFalse(result)
 
@@ -121,9 +129,9 @@ class TestKList(unittest.TestCase):
         with open(file_path, "r") as f:
             data = json.load(f)
         initial_count = len(data)
-        for key, value in data.items():
-            self.klist.insert(key, value)
-        inserted_keys = [key for key, _ in self.klist]
+        for k, v in data.items():
+            self.klist.insert(Item(k, v, BASE_TIMESTAMP))
+        inserted_keys = [item.key for item, _ in self.klist]
 
         # Check that the number of keys matches
         self.assertEqual(len(inserted_keys), initial_count)
@@ -134,7 +142,7 @@ class TestKList(unittest.TestCase):
         """Test that deleting an element properly rebalances the nodes."""
         # Insert enough entries to span multiple nodes.
         for i in range(12):
-            self.klist.insert(f"key{i}", i)
+            self.klist.insert(Item(f"key{i}", i, BASE_TIMESTAMP))
         nodes_before = self._count_nodes(self.klist)
         # Delete a key and expect rebalancing (nodes could merge)
         self.klist.delete("key1")
@@ -142,7 +150,7 @@ class TestKList(unittest.TestCase):
         self.assertLessEqual(nodes_after, nodes_before,
                              "Rebalancing should merge nodes if possible")
         # Verify the deleted key is no longer present
-        keys = [key for key, _ in self.klist]
+        keys = [item.key for item, _ in self.klist]
         self.assertNotIn("key1", keys)
 
 
