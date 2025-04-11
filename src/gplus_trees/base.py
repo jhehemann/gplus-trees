@@ -132,6 +132,21 @@ class AbstractSetDataStructure(ABC):
         """
         pass
 
+    @abstractmethod
+    def get_min(self) -> Tuple[Optional['Item'], Optional['AbstractSetDataStructure']]:
+        """
+        Retrieve the minimum entry from the set.
+
+        An entry is defined as a tuple consisting of:
+            - An Item, which represents the entry.
+            - A left subtree of type AbstractSetDataStructure.
+
+        Returns:
+            Optional[Tuple[Item, AbstractSetDataStructure]]:
+                The minimum entry if the set is non-empty; otherwise, None.
+        """
+        pass
+
 
 def calculate_item_rank(key, k):
     """

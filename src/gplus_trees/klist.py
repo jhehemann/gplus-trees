@@ -158,12 +158,12 @@ class KList(AbstractSetDataStructure):
         
         Returns:
             A tuple of two elements:
-            - item (Optional[Item]): The value associated with the key, or None if not found.
-            - next_entry (Tuple[Optional[Item], Optional[GPlusTree]]): 
+            - item: The value associated with the key, or None if not found.
+            - next_entry: 
                     A tuple containing:
                     * The next item in the sorted order (if any),
                     * The left subtree associated with the next item (if any).
-                    If no subsequent entry exists, returns (None, None).
+                    If no subsequent entry exists, returns None.
         """
         current_node = self.head
         while current_node is not None:
@@ -179,15 +179,37 @@ class KList(AbstractSetDataStructure):
                         next_entry = current_node.next.entries[0]
                     else:
                         # No further entry exists.
-                        next_entry = (None, None)
+                        next_entry = None
                     return (item, next_entry)
                 elif item.key > key:
                     # Since entries are sorted, if we hit an item with a key greater
                     # than the search key, the key is not present; return the "next entry".
                     return (None, (item, left_subtree))
             current_node = current_node.next
-        # If we have traversed all nodes and found nothing, return (None, (None, None)).
-        return (None, (None, None))
+        # If we have traversed all nodes and found nothing, return (None, None).
+        return (None, None)
+    
+    def get_min(self) -> Optional[Tuple['Item', 'AbstractSetDataStructure']]:
+        """
+        Retrieve the minimum entry from the set.
+
+        An entry is defined as a tuple consisting of:
+            - An Item, which represents the entry.
+            - A left subtree of type AbstractSetDataStructure.
+
+        Returns:
+            Optional[Tuple[Item, AbstractSetDataStructure]]:
+                The minimum entry if the set is non-empty; otherwise, None.
+        """
+        current_node = self.head
+        # Iterate through nodes until a node with entries is found.
+        while current_node is not None:
+            if current_node.entries:
+                # The first entry is the minimal one due to the lexicographic sorting.
+                return current_node.entries[0]
+            current_node = current_node.next
+        return None
+
 
     def __iter__(self):
         """

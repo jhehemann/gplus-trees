@@ -19,7 +19,7 @@
 
 """G+-tree implementation"""
 
-from typing import Optional
+from typing import Optional, Tuple
 
 from packages.jhehemann.customs.gtree.base import AbstractSetDataStructure
 from packages.jhehemann.customs.gtree.base import Item
@@ -104,11 +104,13 @@ class GPlusTree(AbstractSetDataStructure):
 
     
     
-    def retrieve(self, key: str) -> Optional[Item]:
+    def retrieve(
+        self, key: str
+    ) -> Tuple[Optional[Item], Tuple[Optional[Item], Optional['GPlusTree']]]:
         """
         Searches for an item with a matching key in the G+-tree.
 
-        Iteratively traverses the tree with O(1) additional memory.
+        Iteratively traverses the tree with O(k) additional memory, where k is the expected G+-node size.
         
         The search algorithm:
           - At each non-empty GPlusTree, let current_node = self.node.
@@ -121,34 +123,37 @@ class GPlusTree(AbstractSetDataStructure):
             key (str): The key to search for.
         
         Returns:
-            Item if found, or None if not found.
+            A tuple of two elements:
+            - item (Optional[Item]): The value associated with the key, or None if not found.
+            - next_entry (Tuple[Optional[Item], Optional[GPlusTree]]): 
+                    A tuple containing:
+                    * The next item in the sorted order (if any),
+                    * The left subtree associated with the next item (if any).
+                    If no subsequent entry exists, returns (None, None).
         """
         cur_tree = self
+        item = None
+        next_entry = None
         while not cur_tree.is_empty():
             cur_node = cur_tree.node
-            # A flag to know if we take a left-subtree branch
-            descended = False
 
-            # Iterate over the set entries.
-            for entry in cur_node.set:
-                item, left_subtree = entry
-                if key == item.key:
-                    return item
-                elif key < item.key:
-                    # The target key is less than this entry's key.
-                    # Therefore, if a left subtree exists, search it.
-                    if left_subtree is not None and not left_subtree.is_empty():
-                        cur_tree = left_subtree
-                        descended = True
-                        break  # Stop scanning entries; we found our branch.
-                    else:
-                        # No left subtree exists to go into, key not present.
-                        return None
-            if not descended:
-                # If we didn't descend by a left subtree, search the right subtree.
-                if cur_node.right is not None and not cur_node.right.is_empty():
-                    cur_tree = cur_node.right
-                else:
-                    return None
-        return None
-    
+            # Retrieve possibly non existent item and next entry from current node.
+            item, next_entry = cur_node.set.retrieve(key)
+            #(next_item, left_subtree) = next_entry
+            
+            # Determine where to descend.
+            if next_entry is not None:
+                # An item greater than key exists, so we descend into its left subtree.
+                cur_tree = next_entry[1]
+                continue
+            else:
+                # No next item exists in the current node, so we must descend into the node's right subtree.
+                # If the node has a next pointer, it is a leaf node and we can use it to find the next entry within the tree, before descending
+                if cur_node.next is not None:
+                    # The next entry is the first entry in the next node.
+                    next_entry = cur_node.next.set.get_min()
+                cur_tree = cur_node.right_subtree
+                continue
+        
+        # By the traversal logic and the key ordering in a G+tree, if we reach here, it means that we have reached a leaf node's empty subtree and we can return the last seen item and next entry.
+        return (item, next_entry)    
