@@ -147,6 +147,28 @@ class AbstractSetDataStructure(ABC):
         """
         pass
 
+    @abstractmethod
+    def split_inplace(
+            self, key: str
+    ) -> Tuple['AbstractSetDataStructure', Optional['AbstractSetDataStructure'], 'AbstractSetDataStructure']:
+        """
+        Split the set into two parts based on the provided key.
+        
+        The first part contains all items less than or equal to the key,
+        and the second part contains all items greater than the key.
+        
+        Parameters:
+            key (str): The key to split the set by.
+        
+        Returns:
+            Tuple[AbstractSetDataStructure, Optional[AbstractSetDataStructure], AbstractSetDataStructure]:
+                A tuple containing:
+                    - The left set (items < key).
+                    - The left subtree of the item (item = key).
+                    - The right subtree (items > key).
+        """
+        pass
+
 
 def calculate_item_rank(key, k):
     """

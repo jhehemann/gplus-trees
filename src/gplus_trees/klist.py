@@ -76,6 +76,9 @@ class KList(AbstractSetDataStructure):
     def __init__(self):
         self.head = KListNode()
 
+    def is_empty(self) -> bool:
+        return not self.head.entries
+
     def insert(self, item: Item, left_subtree: Optional[GPlusTree] = None):
         """
         Inserts a key-value pair (with an optional left subtree) into the k-list.
@@ -209,6 +212,73 @@ class KList(AbstractSetDataStructure):
                 return current_node.entries[0]
             current_node = current_node.next
         return None
+    
+    def split_inplace(
+            self, key: str
+    ) -> Tuple['KList', Optional[GPlusTree], 'KList']:
+        """
+        Partitions the current KList in place based on the provided key.
+        
+        This method splits the KList into:
+        - A left partition containing all entries with keys < key.
+        - The left subtree of the entry with key == key (if found), otherwise None.
+        - A right partition containing all entries with keys > key.
+        
+        The original KList is modified (its nodes are re-wired).
+        
+        Returns:
+            A tuple (left_klist, left_subtree, right_klist)
+        """
+        # Create new KLists for the partitions.
+        left_klist = KList()
+        right_klist = KList()
+        left_subtree = None
+
+        # We will rewire nodes into the new lists.
+        left_tail = None
+        right_tail = None
+
+        current = self.head
+        while current is not None:
+            # Temporary lists to hold entries of the current node for each partition.
+            left_entries = []
+            right_entries = []
+            # Process each entry in the current node.
+            for entry in current.entries:
+                item, subtree = entry
+                if item.key < key:
+                    left_entries.append(entry)
+                elif item.key == key:
+                    # Mark that we found an exact match and store its left subtree.
+                    # (We do not include this entry in either partition.)
+                    if left_subtree is None:
+                        left_subtree = subtree
+                else:  # item.key > key
+                    right_entries.append(entry)
+            # If there are entries for the left partition, create a node and append it.
+            if left_entries:
+                new_left_node = KListNode()
+                new_left_node.entries = left_entries
+                if left_klist.head is None:
+                    left_klist.head = new_left_node
+                    left_tail = new_left_node
+                else:
+                    left_tail.next = new_left_node
+                    left_tail = new_left_node
+            # Similarly for the right partition.
+            if right_entries:
+                new_right_node = KListNode()
+                new_right_node.entries = right_entries
+                if right_klist.head is None:
+                    right_klist.head = new_right_node
+                    right_tail = new_right_node
+                else:
+                    right_tail.next = new_right_node
+                    right_tail = new_right_node
+            current = current.next
+
+        # At this point the new left_klist and right_klist represent the in-place partitioning.
+        return (left_klist, left_subtree, right_klist)
 
 
     def __iter__(self):
