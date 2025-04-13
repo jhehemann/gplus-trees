@@ -74,12 +74,12 @@ class Item:
         return calculate_item_rank(self.key, k)
 
     def __repr__(self):
-        return (f"Item(key={self.key!r}, value={self.value!r}, "
-                f"timestamp={self.timestamp.isoformat()})")
+        ts = self.timestamp.isoformat() if self.timestamp is not None else "None"
+        return (f"Item(key={self.key!r}, value={self.value!r}, timestamp={ts})")
 
     def __str__(self):
-        return (f"Item(key={self.key}, value={self.value}, "
-                f"last_updated={self.timestamp.isoformat()})")
+        ts = self.timestamp.isoformat() if self.timestamp is not None else "None"
+        return (f"Item(key={self.key}, value={self.value}, last_updated={ts})")
 
 
 class AbstractSetDataStructure(ABC):

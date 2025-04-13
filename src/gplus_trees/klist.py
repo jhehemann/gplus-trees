@@ -19,11 +19,13 @@
 
 """K-list implementation"""
 
-from typing import Optional, Tuple
+from typing import TYPE_CHECKING, Optional, Tuple
 
-from packages.jhehemann.customs.gtree.base import AbstractSetDataStructure
 from packages.jhehemann.customs.gtree.base import Item
-from packages.jhehemann.customs.gtree.gplus_tree import GPlusTree
+from packages.jhehemann.customs.gtree.base import AbstractSetDataStructure
+
+if TYPE_CHECKING:
+    from packages.jhehemann.customs.gtree.gplus_tree import GPlusTree
 
 class KListNode:
     """
@@ -40,7 +42,7 @@ class KListNode:
         self.entries = []  # List of entries: each is (item, left_subtree)
         self.next = None
 
-    def insert_entry(self, item: Item, left_subtree: Optional[GPlusTree] = None):
+    def insert_entry(self, item: Item, left_subtree: Optional['GPlusTree'] = None):
         """
         Inserts the item pair (with an optional left_subtree) into this node in sorted order.
 
@@ -78,8 +80,16 @@ class KList(AbstractSetDataStructure):
 
     def is_empty(self) -> bool:
         return not self.head.entries
+    
+    def item_count(self) -> int:
+        count = 0
+        current = self.head
+        while current is not None:
+            count += len(current.entries)
+            current = current.next
+        return count
 
-    def insert(self, item: Item, left_subtree: Optional[GPlusTree] = None):
+    def insert(self, item: Item, left_subtree: Optional['GPlusTree'] = None):
         """
         Inserts a key-value pair (with an optional left subtree) into the k-list.
         The entry is stored as (item, left_subtree).
@@ -152,7 +162,7 @@ class KList(AbstractSetDataStructure):
     
     def retrieve(
         self, key: str
-    ) -> Tuple[Optional[Item], Tuple[Optional[Item], Optional[GPlusTree]]]:
+    ) -> Tuple[Optional[Item], Tuple[Optional[Item], Optional['GPlusTree']]]:
         """
         Retrieve the item associated with the given key from the KList.
         
@@ -215,7 +225,7 @@ class KList(AbstractSetDataStructure):
     
     def split_inplace(
             self, key: str
-    ) -> Tuple['KList', Optional[GPlusTree], 'KList']:
+    ) -> Tuple['KList', Optional['GPlusTree'], 'KList']:
         """
         Partitions the current KList in place based on the provided key.
         

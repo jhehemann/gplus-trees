@@ -19,7 +19,8 @@
 
 """G+-tree implementation"""
 
-from typing import Optional, Tuple
+from typing import Dict, Optional, Tuple, Any
+from dataclasses import dataclass
 
 from packages.jhehemann.customs.gtree.base import AbstractSetDataStructure
 from packages.jhehemann.customs.gtree.base import Item
@@ -29,6 +30,7 @@ DUMMY_ITEM_KEY = "0" * 64
 DUMMY_ITEM_VALUE = None
 DUMMY_ITEM_TIMESTAMP = None
 
+@dataclass
 class GPlusNode:
     """
     A G+-node is the core component of a G+-tree.
@@ -38,27 +40,19 @@ class GPlusNode:
         set (AbstractSetDataStructure): A k-list that stores elements which are item subtree pairs (item, left_subtree).
         right_subtree (GPlusTree): The right subtree (a GPlusTree) of this G+-node.
     """
-    def __init__(
-        self,
-        rank: int,
-        set: AbstractSetDataStructure,
-        right_subtree: 'GPlusTree',
-        next: 'GPlusTree',
-    ):
-        if rank <= 0:
+    rank: int
+    set: 'AbstractSetDataStructure'
+    right_subtree: 'GPlusTree'
+    next: Optional['GPlusTree'] = None
+
+    def __post_init__(self):
+        if self.rank <= 0:
             raise ValueError("Rank must be a natural number greater than 0.")
-        self.rank = rank
-        self.set = set
-        self.right_subtree = right_subtree
-        self.next = next
 
     def __str__(self):
-        return f"GPlusNode(rank={self.rank}, klist=[\n{str(self.set)}\n], right_subtree={self.right_subtree}, next={self.next})"
-
-    def __repr__(self):
-        return self.__str__()
-
-
+        return (f"GPlusNode(rank={self.rank}, klist=[\n{str(self.set)}\n], "
+                f"right_subtree={self.right_subtree}, next={self.next})")
+    
 class GPlusTree(AbstractSetDataStructure):
     """
     A G+-tree is a recursively defined structure that is either empty or contains a single G+-node.
@@ -67,7 +61,7 @@ class GPlusTree(AbstractSetDataStructure):
     """
     def __init__(
         self,
-        node: Optional[GPlusNode],
+        node: Optional[GPlusNode] = None,
         dim: int = 1,
     ):
         """
@@ -83,6 +77,15 @@ class GPlusTree(AbstractSetDataStructure):
     def is_empty(self) -> bool:
         return self.node is None
     
+    def delete(self, item):
+        raise NotImplementedError("delete not implemented yet")
+
+    def get_min(self):
+        raise NotImplementedError("get_min not implemented yet")
+
+    def split_inplace(self):
+        raise NotImplementedError("split_inplace not implemented yet")
+    
     def instantiate_dummy_item(self):
         """
         Instantiate a dummy item with a key of 64 zero bits.
@@ -97,7 +100,7 @@ class GPlusTree(AbstractSetDataStructure):
 
     def __repr__(self):
         return self.__str__()
-    
+        
     def insert(self, x_item: Item, rank: int) -> bool:
         """
         Insert an item into the G+-tree.
@@ -118,7 +121,7 @@ class GPlusTree(AbstractSetDataStructure):
             leaf_set = KList()
             leaf_set.insert(self.instantiate_dummy_item())
             leaf_set.insert(x_item)
-            self.node = GPlusNode(rank, leaf_set, GPlusTree(), None)
+            self.node = GPlusNode(rank, leaf_set, GPlusTree())
             return True
 
         # Rank > 1: create a root node with a dummy, an item replica, 
@@ -144,6 +147,9 @@ class GPlusTree(AbstractSetDataStructure):
             right_subtree = GPlusTree(
                 GPlusNode(1, right_subtree_set, GPlusTree())
             )
+
+            # Link leaf nodes
+            left_subtree.node.next = right_subtree
 
             self.node = GPlusNode(rank, root_set, right_subtree)
             return True
@@ -567,4 +573,173 @@ class GPlusTree(AbstractSetDataStructure):
                 continue
         
         # By the traversal logic and the key ordering in a G+tree, if we reach here, it means that we have reached a leaf node's empty subtree and we can return the last seen item and next entry.
-        return (item, next_entry)    
+        return (item, next_entry)
+    
+    def print_tree(self, indent: int = 0):
+        def short_key(key: str) -> str:
+            return key if len(key) <= 6 else f"{key[:3]}...{key[-3:]}"
+
+        def print_klist_entries(klist, indent: int):
+            node = klist.head
+            while node:
+                for item, _ in node.entries:
+                    print(f"{' ' * indent}• key: {short_key(item.key)}, value: {item.value}")
+                node = node.next
+
+        prefix = ' ' * indent
+        if self.is_empty():
+            print(f"{prefix}Empty GPlusTree")
+            return
+
+        node = self.node
+        print(f"{prefix}GPlusNode(rank={node.rank})")
+
+        # Print own entries
+        print(f"{prefix}  Entries:")
+        current_klist_node = node.set.head
+        while current_klist_node:
+            for item, left_subtree in current_klist_node.entries:
+                print(f"{prefix}    - key: {short_key(item.key)}, value: {item.value}")
+
+                # Print left subtree’s root and its entries
+                if left_subtree and not left_subtree.is_empty():
+                    child_node = left_subtree.node
+                    print(f"{prefix}      Left subtree: GPlusNode(rank={child_node.rank})")
+                    print(f"{prefix}        Entries:")
+                    print_klist_entries(child_node.set, indent + 10)
+                else:
+                    print(f"{prefix}      Left subtree: Empty")
+            current_klist_node = current_klist_node.next
+
+        # Print right subtree
+        print(f"{prefix}  Right subtree:")
+        if node.right_subtree and not node.right_subtree.is_empty():
+            right_node = node.right_subtree.node
+            print(f"{prefix}    GPlusNode(rank={right_node.rank})")
+            print(f"{prefix}      Entries:")
+            print_klist_entries(right_node.set, indent + 8)
+        else:
+            print(f"{prefix}    Empty")
+
+        # Print next node if rank == 1
+        if node.rank == 1 and hasattr(node, 'next') and node.next:
+            print(f"{prefix}  Next:")
+            if not node.next.is_empty():
+                next_node = node.next.node
+                print(f"{prefix}    GPlusNode(rank={next_node.rank})")
+                print(f"{prefix}      Entries:")
+                print_klist_entries(next_node.set, indent + 8)
+            else:
+                print(f"{prefix}    Empty")
+
+
+@dataclass
+class Stats:
+    gnode_height: int
+    gnode_count: int
+    item_count: int
+    item_slot_count: int
+    rank: int
+    is_heap: bool
+    least_item: Optional[Any]
+    greatest_item: Optional[Any]
+    is_search_tree: bool
+
+def gtree_stats_(t: GPlusTree, rank_distribution: Dict[int, int]) -> Stats:
+    if t is None or t.is_empty():
+        return Stats(
+            gnode_height=0,
+            gnode_count=0,
+            item_count=0,
+            item_slot_count=0,
+            rank=-1,
+            is_heap=True,
+            least_item=None,
+            greatest_item=None,
+            is_search_tree=True
+        )
+
+    node = t.node
+    pairs = node.set
+    rank_distribution[node.rank] = (
+        rank_distribution.get(node.rank, 0) + pairs.item_count()
+    )
+
+    pair_stats = [(item, gtree_stats_(subtree, rank_distribution)) for item, subtree in pairs]
+    right_stats = gtree_stats_(node.right_subtree, rank_distribution)
+
+    stats = Stats(**vars(right_stats))
+    max_child_height = max((s.gnode_height for _, s in pair_stats), default=0)
+    stats.gnode_height = 1 + max(max_child_height, right_stats.gnode_height)
+    stats.gnode_count += 1
+    for _, s in pair_stats:
+        stats.gnode_count += s.gnode_count
+
+    stats.item_count += pairs.item_count()
+    stats.item_slot_count += pairs.item_count()
+    for _, s in pair_stats:
+        stats.item_count += s.item_count
+        stats.item_slot_count += s.item_slot_count
+    stats.item_count += right_stats.item_count
+    stats.item_slot_count += right_stats.item_slot_count
+
+    # A: Local check: parent.rank <= child.rank
+    heap_local = True
+    for _, subtree in pairs:
+        if subtree is not None and not subtree.is_empty():
+            if node.rank > subtree.node.rank:
+                heap_local = False
+                break
+
+    if node.right_subtree is not None and not node.right_subtree.is_empty():
+        if node.rank > node.right_subtree.node.rank:
+            heap_local = False
+
+    # B: All left subtrees are heaps
+    heap_left_subtrees = all(s.is_heap for _, s in pair_stats)
+
+    # C: Right subtree is a heap
+    heap_right_subtree = right_stats.is_heap
+
+    # Combine
+    stats.is_heap = heap_local and heap_left_subtrees and heap_right_subtree
+
+    stats.is_search_tree = all(s.is_search_tree for _, s in pair_stats) and right_stats.is_search_tree
+
+    # Search tree property: right subtree >= last key
+    if right_stats.least_item is not None:
+        last_key = pair_stats[-1][0]
+        if right_stats.least_item == last_key:
+            stats.is_search_tree = False
+            print("\n\nsearch tree property: right too small\n", t.print_tree())
+
+    for i, (item, left_stats) in enumerate(pair_stats):
+        if left_stats.least_item is not None and i > 0:
+            prev_key = pair_stats[i - 1][0]
+            exit
+            if left_stats.least_item.key < prev_key.key:
+                stats.is_search_tree = False
+                print(f"\n\nsearch tree property: left {i} too small\n", t.print_tree())
+                print("\npair_stats", pair_stats)
+
+        if left_stats.greatest_item is not None:
+            if left_stats.greatest_item.key >= item.key:
+                stats.is_search_tree = False
+                print(f"\n\nsearch tree property: left {i} too great\n", t.print_tree())
+
+    # Set least and greatest
+    least_pair = pair_stats[0]
+    stats.least_item = (
+        least_pair[1].least_item if least_pair[1].least_item is not None
+        else least_pair[0]
+    )
+
+    stats.greatest_item = (
+        right_stats.greatest_item if right_stats.greatest_item is not None
+        else pair_stats[-1][0]
+    )
+
+    stats.rank = node.rank
+    return stats
+
+
