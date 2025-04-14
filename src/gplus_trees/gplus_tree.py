@@ -169,6 +169,7 @@ class GPlusTree(AbstractSetDataStructure):
         current_tree = self
         parent_tree = None  # Track the previously visited tree when descending.
         parent_entry = None  # The parent's "next larger item" entry we used.
+        print(f"\nTree structure before insertion:\n{self.print_structure()}")
 
         # Descend until we find a matching rank or run out of subtrees.
         while current_tree.node.rank > rank:
@@ -188,12 +189,15 @@ class GPlusTree(AbstractSetDataStructure):
             current_tree = self._handle_rank_mismatch(
                 current_tree, parent_tree, parent_entry, rank
             )
+            self.node = current_tree.node
 
         # At this point, current_tree.node.rank == rank.
         # Check if the item exists at this node. 
         existing_item, next_larger_entry = (
             current_tree.node.set.retrieve(x_item.key)
         )
+        print("\nCurrent tree structure:\n", current_tree.print_structure())
+        print("\nFound item:", existing_item, "next larger entry:", next_larger_entry)
         if existing_item is not None:
             # Item key already exists: update its value in the leaf node.
             self._update_existing_item(current_tree, x_item, next_larger_entry)
@@ -219,11 +223,11 @@ class GPlusTree(AbstractSetDataStructure):
             # No parent => we are at the root. Create a new root with dummy.
             root_set = KList()
             root_set.insert(self.instantiate_dummy_item())
+            print("\nCurrent tree:", current_tree.print_structure())
             # Point new root's right subtree to the current node.
             new_root = GPlusTree(
-                GPlusNode(rank, root_set, current_tree)
+                GPlusNode(rank, root_set, self)  # self is the old tree
             )
-            self.node = new_root.node
             return new_root
         else:
             # Unfold a layer in between parent and current node.
@@ -234,6 +238,7 @@ class GPlusTree(AbstractSetDataStructure):
             new_tree = GPlusTree(
                 GPlusNode(rank, new_set, current_tree)
             )
+            new_tree
 
             # Update the parent's reference to this subtree:
             if parent_entry is not None:
@@ -288,7 +293,16 @@ class GPlusTree(AbstractSetDataStructure):
         parent_right_tree = None
         parent_right_entry = None
 
+        visited = set()
+
         while True:
+            # --- loop guard: prevent infinite descent into the same tree ---
+            id_current = id(current_tree)
+            if id_current in visited:
+                raise RuntimeError("Infinite loop detected in _insert_new_item — revisiting same tree")
+            visited.add(id_current)
+            print(f"\nDescending into GPlusTree with rank {current_tree.node.rank} with insert item key {x_item.key}")
+
             is_leaf = (current_tree.node.rank == 1)
 
             # Use an "internal replica" if not a leaf
@@ -296,7 +310,13 @@ class GPlusTree(AbstractSetDataStructure):
 
             if parent_right_tree is None:
                 # First insertion step at this level
+                print("\nFirst Iteration")
+                print(f"Self: {self.print_structure()}")
+                print(f"Current tree: {current_tree.print_structure()}")
+                print(f"Next entry: {next_entry}")
+                print(f"Right subtree: {current_tree.node.right_subtree.print_structure()}")
                 subtree = next_entry[1] if next_entry else current_tree.node.right_subtree
+                print(f"\nDescent subtree: {subtree.print_structure()}")
                 current_tree.node.set.insert(insert_instance, subtree)
 
                 # Prepare for possible next iteration
@@ -305,6 +325,14 @@ class GPlusTree(AbstractSetDataStructure):
                 parent_right_entry = next_entry
 
             else:
+                print("\nSubsequent Iteration")
+                print(f"Self: {self.print_structure()}")
+                print(f"Current tree: {current_tree.print_structure()}")
+                print(f"Next entry: {next_entry}")
+                print(f"Right subtree: {current_tree.node.right_subtree.print_structure()}")
+                print(f"Parent right tree: {parent_right_tree.print_structure()}")
+                print(f"Parent right entry: {parent_right_entry}")
+                
                 # We need to split the current node at x_item.key
                 left_split, _, right_split = current_tree.node.set.split_inplace(x_item.key)
 
@@ -318,6 +346,7 @@ class GPlusTree(AbstractSetDataStructure):
                             current_tree.node.right_subtree
                         )
                     )
+                    print("\nNew tree created (right):\n", new_tree.print_structure())
                     # Update the parent's reference
                     if parent_right_entry:
                         parent_right_entry[1] = new_tree
@@ -336,192 +365,18 @@ class GPlusTree(AbstractSetDataStructure):
                     # (This may vary with your G+ tree's design.)
                     new_tree.node.next = current_tree.node.next
                     current_tree.node.next = new_tree.node.next
+                print(f"\nNew current tree (left): {current_tree.print_structure()}")
                 current_tree = current_tree.node.right_subtree
+                print(f"\nDescend Subtree: {current_tree.print_structure()}")
+
+                print("\nSelf:", self.print_structure())
+                print("\nParent right tree:", parent_right_tree.print_structure())
 
             # Descend further if it’s not a leaf, otherwise we’re done
             if is_leaf:
                 return True
 
             found_item, next_entry = current_tree.node.set.retrieve(x_item.key)
-
-            
-    #def old_insert(self, x_item: Item, rank: int) -> bool:
-        # """
-        # Insert an item into the G+-tree.
-        # The insertion algorithm:
-        #   - If the tree is empty, create a new node with the item and a dummy item.
-        #   - If the tree is not empty, traverse the tree to find the appropriate place for the item.
-        #   - If the item already exists, update its value in the leaf node.
-        #   - If the item does not exist, insert replicas in internal nodes if necessary and the item into the appropriate leaf node.
-        # Parameters:
-        #     x_item (Item): The item to insert.
-        #     rank (int): The rank of the item to insert.
-        # Returns:
-        #     bool: True if the item was inserted successfully, False otherwise.
-        # """
-        
-        # cur_tree = self
-        # if self.is_empty():
-        #     # If the tree is empty, create initial nodes
-        #     if rank > 1:
-        #         # The rank of the item is greater than 1, so we need to build a root node along with its left and right subtrees, containing leaf nodes.
-        #         # Create root set and insert dummy item.
-        #         root_set = KList()
-        #         root_set.insert(self.instantiate_dummy_item())
-
-        #         # Create an item replica for the root node only containing the key.
-        #         replica = Item(x_item.key, None, None)
-
-        #         # Create left subtree for item (only containing a dummy item) and insert pair into root node.
-        #         left_subtree_set = KList()
-        #         left_subtree_set.insert(self.instantiate_dummy_item())
-        #         left_subtree = GPlusTree(GPlusNode(1, left_subtree_set, GPlusTree()))
-        #         root_set.insert(replica, left_subtree)
-
-        #         # Create the root node's right subtree (only containing the insert item)
-        #         right_subtree_set = KList()
-        #         right_subtree_set.insert(x_item)
-        #         right_subtree = GPlusTree(GPlusNode(1, right_subtree_set, GPlusTree()))
-
-        #         # Create the root node and return
-        #         cur_tree.node = GPlusNode(rank, root_set, right_subtree)
-        #         return True
-            
-        #     elif rank == 1:
-        #         # The item's rank is 1, so we can create a single leaf node for the item and a dummy item.
-        #         # This node will be the only node in the tree and will also be the root.
-        #         leaf_set = KList()
-        #         leaf_set.insert(self.instantiate_dummy_item())
-        #         leaf_set.insert(item)
-        #         cur_tree.node = GPlusNode(rank, leaf_set, GPlusTree(), None)
-        #         return True
-
-        # else:
-        #     # The tree is not empty, so we can traverse it to find the appropriate place for the item.
-        #     prev_tree = None # Track the previously visited tree.
-
-        #     # While the rank of the item is less than the current node's rank, we need to traverse down until we find a node with a rank equal to or smaller than rank.
-        #     while cur_tree.node.rank > rank:
-        #         # Check if an item larger than the insert item exists in the current node.
-        #         _ , next_entry = cur_tree.node.set.retrieve(x_item.key)
-        #         if next_entry is not None:
-        #             # Next entry exists - descend into its left subtree.
-        #             prev_tree = cur_tree
-        #             cur_tree = next_entry[1]
-        #         else:
-        #             # No next entry exists - descend into the node's right subtree.
-        #             prev_tree = cur_tree
-        #             cur_tree = cur_tree.node.right_subtree
-
-            # # Check if the rank of the item is greater than the node's rank
-            # if cur_tree.node.rank < rank:
-            #     # The rank of the item is greater than the current node's rank.
-            #     # Check if there was a previous tree node.
-            #     if prev_tree is None:
-            #         # We are at the current root node of the tree 
-            #         # Create a new root node with a single dummy item and its right subtree pointing to the current node.
-            #         root_set = KList()
-            #         root_set.insert(self.instantiate_dummy_item())
-            #         root_tree = GPlusTree(GPlusNode(rank, root_set, cur_tree))
-            #         cur_tree = root_tree
-            #         cur_tree.node = cur_tree.node
-            #     else:
-            #         # A previous tree node exists and a collapsed layer at the current subtree needs to be unfolded.
-            #         # Add the the current node's first entry to a new node's set. This is the required replica which has been collapsed at during a past tree operation. 
-            #         # Create a new tree node in between the current node and the previous node.
-            #         new_set = KList()
-            #         new_set.insert(cur_tree.node.get_min())
-            #         new_tree = GPlusTree(GPlusNode(rank, new_set, cur_tree))
-            #         # Assign new tree as the corresponding subtree of the previous node.
-            #         if next_entry is not None:
-            #             next_entry[1] = new_tree
-            #         else:
-            #             prev_tree.node.right_subtree = new_tree
-            #         cur_tree = new_tree
-                        
-            # # Now we are at a non-empty tree (node) with the same rank as the item.
-            # # Retrieve the item based key and the next larger item from the current node.
-            # item, next_entry = cur_tree.node.set.retrieve(x_item.key)
-            # if item is not None:
-            #     # Update branch: item exists in the tree
-            #     # Traverse the tree and update the item in the leaf layer.
-            #     while True:
-            #         if cur_tree.node.rank == 1:
-            #             item.value = x_item.value
-            #             return True
-
-            #         # Descend into the left subtree of the next larger item if it exists.
-            #         if next_entry is not None:
-            #             cur_tree = next_entry[1]
-            #             continue
-
-            #         # Descend into the node's right subtree.
-            #         cur_tree = cur_tree.node.right_subtree
-            # else:
-            #     # Insert branch: item does not exist in the tree.
-            #     prev_r_tree = None # Last visited right tree from a node split.
-            #     prev_r_next_entry = None # Entry with next larger item than the last inserted item instance.
-            #     while True:
-            #         is_leaf = cur_tree.node.rank == 1
-            #         # Prepare the item variant to insert in the current node
-            #         insert_instance = (
-            #             x_item if is_leaf 
-            #             else Item(x_item.key, None, None)
-            #         )
-            #         if prev_r_tree is None:
-            #             # First iteration: insert item paired with the subtree of the next larger entry or the node's right subtree.
-            #             left_subtree = (
-            #                 next_entry[1] if next_entry is not None 
-            #                 else cur_tree.node.right_subtree
-            #             )
-            #             cur_tree.node.set.insert(
-            #                 insert_instance, left_subtree
-            #             )
-            #             # Update variables to prepare for the next iteration.
-            #             prev_r_tree = cur_tree
-            #             cur_tree = left_subtree
-            #             prev_r_next_entry = next_entry
-                        
-            #         else:                      
-            #             # Subsequent iterations: split the current node's set at the insert item.
-            #             l_split, _, r_split = (
-            #                 cur_tree.node.set.split_inplace(x_item.key)
-            #             )
-                        
-            #             # Handle right split
-            #             if not r_split.is_empty() or is_leaf:
-            #                 # Create new tree node for the right split and insert the item.
-            #                 r_split.insert(insert_instance)
-            #                 r_tree = GPlusTree(
-            #                     GPlusNode(
-            #                         cur_tree.node.rank,
-            #                         r_split,
-            #                         cur_tree.node.right_subtree
-            #                     )
-            #                 )
-            #                 if prev_r_next_entry is not None:
-            #                     prev_r_next_entry[1] = r_tree
-            #                 else:
-            #                     prev_r_tree.node.right_subtree = r_tree
-            #                 prev_r_tree = r_tree
-            #                 prev_r_next_entry = next_entry
-
-            #             # Handle left split
-            #             cur_tree.node.set = l_split # Reuse current node
-            #             if next_entry is not None:
-            #                 cur_tree.node.right_subtree = next_entry[1]
-                        
-            #             # Update node's next pointers if they are leaf nodes.
-            #             if is_leaf:
-            #                 r_tree.node.next = cur_tree.node.next
-            #                 cur_tree.node.next = r_tree.node.next
-            #             cur_tree = cur_tree.node.right_subtree
-
-            #         if is_leaf:
-            #             return True
-                    
-            #         item, next_entry = cur_tree.node.set.retrieve(item.key)
-
 
     def retrieve(
         self, key: str
@@ -585,27 +440,8 @@ class GPlusTree(AbstractSetDataStructure):
         result = []
         node = self.node
         result.append(f"{prefix}GPlusNode(rank={node.rank}, set={type(node.set).__name__})")
-
-        # Print own entries
-        # #result.append(f"{prefix}  Entries:")
-        # current_klist_node = node.set.head
-        # while current_klist_node:
-        #     for item, left_subtree in current_klist_node.entries:
-        #         result.append(f"{prefix}    • key: {item.short_key()}, value: {item.value}")
-
-        #         # Print left subtree’s root and its entries
-        #         if left_subtree and not left_subtree.is_empty():
-        #             child_node = left_subtree.node
-        #             result.append(f"{prefix}      Left subtree: GPlusNode(rank={child_node.rank}, set={type(child_node.set).__name__})")
-        #             #result.append(f"{prefix}        Entries:")
-        #             # print_klist_entries(child_node.set, indent + 10)
-        #             result.append(child_node.set.print_structure(indent + 10))
-        #         else:
-        #             result.append(f"{prefix}      Left subtree: Empty")
-        #     current_klist_node = current_klist_node.next
         
         result.append(node.set.print_structure(indent + 4))
-
 
         # Print right subtree
         if node.right_subtree and not node.right_subtree.is_empty():
@@ -631,64 +467,6 @@ class GPlusTree(AbstractSetDataStructure):
             else:
                 result.append(f"{prefix}    Next: Empty")
         return "\n".join(result)
-        
-
-    # def print_structure_old(self, indent: int = 0):
-    #     def short_key(key: str) -> str:
-    #         return key if len(key) <= 6 else f"{key[:3]}...{key[-3:]}"
-
-    #     def print_klist_entries(klist, indent: int):
-    #         node = klist.head
-    #         while node:
-    #             for item, _ in node.entries:
-    #                 print(f"{' ' * indent}• key: {item.short_key()}, value: {item.value}")
-    #             node = node.next
-
-    #     prefix = ' ' * indent
-    #     if self.is_empty() or self is None:
-    #         print(f"{prefix}Empty GPlusTree")
-    #         return
-
-    #     node = self.node
-    #     print(f"{prefix}GPlusNode(rank={node.rank})")
-
-    #     # Print own entries
-    #     print(f"{prefix}  Entries:")
-    #     current_klist_node = node.set.head
-    #     while current_klist_node:
-    #         for item, left_subtree in current_klist_node.entries:
-    #             print(f"{prefix}    • key: {item.short_key()}, value: {item.value}")
-
-    #             # Print left subtree’s root and its entries
-    #             if left_subtree and not left_subtree.is_empty():
-    #                 child_node = left_subtree.node
-    #                 print(f"{prefix}      Left subtree: GPlusNode(rank={child_node.rank})")
-    #                 print(f"{prefix}        Entries:")
-    #                 print_klist_entries(child_node.set, indent + 10)
-    #             else:
-    #                 print(f"{prefix}      Left subtree: Empty")
-    #         current_klist_node = current_klist_node.next
-
-    #     # Print right subtree
-    #     print(f"{prefix}  Right subtree:")
-    #     if node.right_subtree and not node.right_subtree.is_empty():
-    #         right_node = node.right_subtree.node
-    #         print(f"{prefix}    GPlusNode(rank={right_node.rank})")
-    #         print(f"{prefix}      Entries:")
-    #         print_klist_entries(right_node.set, indent + 8)
-    #     else:
-    #         print(f"{prefix}    Empty")
-
-    #     # Print next node if rank == 1
-    #     if node.rank == 1 and hasattr(node, 'next') and node.next:
-    #         print(f"{prefix}  Next:")
-    #         if not node.next.is_empty():
-    #             next_node = node.next.node
-    #             print(f"{prefix}    GPlusNode(rank={next_node.rank})")
-    #             print(f"{prefix}      Entries:")
-    #             print_klist_entries(next_node.set, indent + 8)
-    #         else:
-    #             print(f"{prefix}    Empty")
 
 @dataclass
 class Stats:
@@ -806,23 +584,13 @@ def gtree_stats_(t: GPlusTree, rank_distribution: Dict[int, int]) -> Stats:
 
     stats.rank = node.rank
 
-    print(t.print_structure())
-    print("Stats:")
-    pprint(asdict(stats))
-    print("\n")
-
     return stats
 
     
 
-# print("\n\n\nNODE RANK:", node.rank)
-    # print("\npair_stats:")
-    # for i in pair_stats:
-    #     print(f"item: {i[0]}")
-    #     pprint(asdict(i[1]))
-    # print("\nEnd of pair_stats")
-
-    # print(f"\n\nGPlusTree:\n{t.print_tree()}")
-    # print(f"Adding {pairs.item_count()} items to stats.item_count")
+# print(t.print_structure())
+# print("Stats:")
+# pprint(asdict(stats))
+# print("\n")
 
 

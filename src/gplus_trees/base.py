@@ -18,6 +18,7 @@
 # ------------------------------------------------------------------------------
 
 from abc import ABC, abstractmethod
+import datetime
 from typing import Optional, Tuple
 import math
 import hashlib
@@ -29,7 +30,11 @@ class Item:
     This timestamp must be provided during initialization.
     """
 
-    def __init__(self, key, value, timestamp):
+    def __init__(
+            self,
+            key,
+            value,
+            timestamp: Optional[datetime.datetime] = None):
         """
         Initialize an Item.
 

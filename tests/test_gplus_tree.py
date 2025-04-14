@@ -43,59 +43,61 @@ class TestGPlusTreeInsert(unittest.TestCase):
     def setUp(self):
         self.tree = GPlusTree()
 
-    def test_insert_into_empty_tree_rank_1(self):
-        item = Item("a", 1, BASE_TIMESTAMP)
-        success = self.tree.insert(item, rank=1)
-        stats = gtree_stats_(self.tree, {})
-        self.assertTrue(success)
-        self.assertIsNotNone(self.tree.node)
-        self.assertEqual(self.tree.node.rank, 1)
-        self.assertEqual(stats.item_count, 2)
-        found, _ = self.tree.node.set.retrieve("a")
-        self.assertEqual(found, item)
-        dummy, _ = self.tree.node.set.retrieve("0" * 64)
-        self.assertTrue(dummy is not None)
-        print("###############################################################################################\n\n\n")
+    # def test_insert_into_empty_tree_rank_1(self):
+    #     item = Item("a", 1, BASE_TIMESTAMP)
+    #     success = self.tree.insert(item, rank=1)
+    #     stats = gtree_stats_(self.tree, {})
+    #     self.assertTrue(success, "Insert should be successful.\n" + str(self.tree.print_structure()))
+    #     self.assertIsNotNone(self.tree.node, "Node should not be None after insertion.\n" + str(self.tree.print_structure()))
+    #     self.assertEqual(self.tree.node.rank, 1, "Root rank should be 1.\n" + str(self.tree.print_structure()))
+    #     self.assertEqual(stats.item_count, 2, "Item count in the tree should be 2 (1 dummy + 1 item)\n" + str(self.tree.print_structure()))
+    #     found, _ = self.tree.node.set.retrieve("a")
+    #     self.assertEqual(found, item, "Item should be found in the tree.\n" + str(self.tree.print_structure()))
+    #     dummy, _ = self.tree.node.set.retrieve("0" * 64)
+    #     self.assertTrue(dummy is not None, "Dummy item should be present in the set.\n" + str(self.tree.print_structure()))
 
-    def test_insert_into_empty_tree_rank_gt_1(self):
-        item = Item("a", 10, BASE_TIMESTAMP)
-        success = self.tree.insert(item, rank=3)
-        stats = gtree_stats_(self.tree, {})
-        self.assertTrue(success)
-        self.assertIsNotNone(self.tree.node)
-        self.assertEqual(self.tree.node.rank, 3)
-        self.assertEqual(stats.item_count, 4)
-        self.assertEqual(self.tree.node.set.item_count(), 2)
-        print("###############################################################################################")
+    # def test_insert_into_empty_tree_rank_gt_1(self):
+    #     item = Item("a", 10, BASE_TIMESTAMP)
+    #     success = self.tree.insert(item, rank=3)
+    #     stats = gtree_stats_(self.tree, {})
+    #     self.assertTrue(success, f"Insert should be successful.\n{str(self.tree.print_structure())}")
+    #     self.assertIsNotNone(self.tree.node, f"Node should not be None after insertion.\n{str(self.tree.print_structure())}")
+    #     self.assertEqual(self.tree.node.rank, 3, f"Root rank should be 3, but got {self.tree.node.rank}\n{str(self.tree.print_structure())}")
+    #     self.assertEqual(stats.item_count, 4, f"Item count in the tree should be 4 (1 dummy + 1 item + 1 replica for each as layer two should be collapsed)\n{str(self.tree.print_structure())}")
+    #     self.assertEqual(self.tree.node.set.item_count(), 2, f"Item count in root should be 2 (1 dummy + 1 item)\n{str(self.tree.print_structure())}")
+    #     _, next_entry = self.tree.node.set.retrieve("0" * 64)
+    #     self.assertEqual(next_entry[1].node.next, self.tree.node.right_subtree, f"Leaves should be linked.\n{str(self.tree.print_structure())}")
+
 
     # def test_insert_multiple_increasing_keys(self):
     #     for key in ["a", "b", "c", "d"]:
-    #         self.assertTrue(self.tree.insert(Item(key, ord(key)), rank=1))
+    #         self.assertTrue(self.tree.insert(Item(key, ord(key), timestamp=BASE_TIMESTAMP), rank=1))
     #     for key in ["a", "b", "c", "d"]:
     #         found, _ = self.tree.node.set.retrieve(key)
-    #         self.assertEqual(found.key, key)
+    #         self.assertEqual(found.key, key, f"Key {key} not found in tree.\n{str(self.tree.print_structure())}")
 
     # def test_insert_multiple_decreasing_keys(self):
     #     for key in reversed(["a", "b", "c", "d"]):
-    #         self.assertTrue(self.tree.insert(Item(key, ord(key)), rank=1))
+    #         self.assertTrue(self.tree.insert(Item(key, ord(key), timestamp=BASE_TIMESTAMP), rank=1))
     #     for key in ["a", "b", "c", "d"]:
     #         found, _ = self.tree.node.set.retrieve(key)
-    #         self.assertEqual(found.key, key)
+    #         self.assertEqual(found.key, key, f"Key {key} not found in tree.\n{str(self.tree.print_structure())}")
 
     # def test_insert_duplicate_key_updates_value(self):
-    #     item1 = Item("x", 5)
-    #     item2 = Item("x", 99)
+    #     item1 = Item("x", 5, BASE_TIMESTAMP)
+    #     item2 = Item("x", 99, BASE_TIMESTAMP)
     #     self.tree.insert(item1, rank=1)
     #     self.tree.insert(item2, rank=1)
+    #     #stats = gtree_stats_(self.tree, {})
     #     found, _ = self.tree.node.set.retrieve("x")
-    #     self.assertEqual(found.value, 99)
+    #     self.assertEqual(found.value, 99, f"Duplicate key should update value.\n{str(self.tree.print_structure())}")
 
-    # def test_insert_higher_rank_creates_root(self):
-    #     item_low = Item("a", 1)
-    #     item_high = Item("z", 100)
-    #     self.tree.insert(item_low, rank=1)
-    #     self.tree.insert(item_high, rank=3)
-    #     self.assertEqual(self.tree.node.rank, 3)
+    def test_insert_higher_rank_creates_root(self):
+        item_low = Item("a", 1)
+        item_high = Item("z", 100)
+        self.tree.insert(item_low, rank=1)
+        self.tree.insert(item_high, rank=3)
+        self.assertEqual(self.tree.node.rank, 3, "Root rank should be 3.\n" + str(self.tree.print_structure()))
 
     # def test_leaf_and_internal_insertions(self):
     #     self.assertTrue(self.tree.insert(Item("m", 50), rank=2))

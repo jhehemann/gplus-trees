@@ -80,10 +80,10 @@ class KList(AbstractSetDataStructure):
     """
 
     def __init__(self):
-        self.head = KListNode()
+        self.head = None
 
     def is_empty(self) -> bool:
-        return not self.head.entries
+        return self.head is None
     
     def item_count(self) -> int:
         count = 0
@@ -105,22 +105,30 @@ class KList(AbstractSetDataStructure):
             item (Item): The item to insert.
             left_subtree (GPlusTree or None): Optional G+-tree to attach as the left subtree.
         """
+        if self.head is None:
+            self.head = KListNode()
+        
         node = self.head
         # Traverse nodes if the key should come later.
         # Compare with the last key in the current node (if any).
         while node.next is not None and node.entries and item.key > node.entries[-1][0].key:
             node = node.next
 
+        
         overflow = node.insert_entry(item, left_subtree)
+        MAX_OVERFLOW_DEPTH = 100
+        depth = 0
         # Propagate overflow if needed.
         while overflow is not None:
             if node.next is None:
                 node.next = KListNode()
             node = node.next
             # Overflow is of the form (item, left_subtree); insert it into the new node.
-            overflow_item = overflow[0]
-            overflow_left_subtree = overflow[1]
+            overflow_item, overflow_left_subtree = overflow
             overflow = node.insert_entry(overflow_item, overflow_left_subtree)
+            depth += 1
+            if depth > MAX_OVERFLOW_DEPTH:
+                raise RuntimeError("KList insert overflowed too deeply – likely infinite loop.")
 
     def delete(self, key):
         """
