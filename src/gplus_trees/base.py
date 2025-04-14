@@ -42,6 +42,9 @@ class Item:
         self.value = value
         self.timestamp = timestamp
 
+    def short_key(self) -> str:
+        return self.key if len(self.key) <= 10 else f"{self.key[:3]}...{self.key[-3:]}"
+
     def update_value(self, new_value, new_timestamp):
         """
         Update the item's value, provided the new timestamp differs from the current one.
@@ -74,12 +77,16 @@ class Item:
         return calculate_item_rank(self.key, k)
 
     def __repr__(self):
-        ts = self.timestamp.isoformat() if self.timestamp is not None else "None"
-        return (f"Item(key={self.key!r}, value={self.value!r}, timestamp={ts})")
+        # ts = self.timestamp.isoformat() if self.timestamp is not None else "None"
+        # return (f"Item(key={self.key!r}, value={self.value!r}, timestamp={ts})")
+        ts = self.timestamp is not None
+        return (f"Item(key={self.short_key()}, value={self.value}, timestamp={ts})")
 
     def __str__(self):
-        ts = self.timestamp.isoformat() if self.timestamp is not None else "None"
-        return (f"Item(key={self.key}, value={self.value}, last_updated={ts})")
+        # ts = self.timestamp.isoformat() if self.timestamp is not None else "None"
+        # return (f"Item(key={self.key}, value={self.value}, timestamp={ts})")
+        ts = self.timestamp is not None
+        return (f"Item(key={self.short_key()}, value={self.value}, timestamp={ts})")
 
 
 class AbstractSetDataStructure(ABC):

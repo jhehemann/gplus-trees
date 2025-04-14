@@ -42,7 +42,11 @@ class KListNode:
         self.entries = []  # List of entries: each is (item, left_subtree)
         self.next = None
 
-    def insert_entry(self, item: Item, left_subtree: Optional['GPlusTree'] = None):
+    def insert_entry(
+            self, 
+            item: Item,
+            left_subtree: Optional['GPlusTree'] = None
+    ):
         """
         Inserts the item pair (with an optional left_subtree) into this node in sorted order.
 
@@ -289,6 +293,29 @@ class KList(AbstractSetDataStructure):
 
         # At this point the new left_klist and right_klist represent the in-place partitioning.
         return (left_klist, left_subtree, right_klist)
+    
+    def print_structure(self, indent: int = 0):
+        """
+        Returns a string representation of the k-list for debugging.
+        """
+        if self.is_empty():
+            return f"{' ' * indent}Empty"
+            
+        result = []
+        node = self.head
+        index = 0
+        while node:
+            result.append(f"{' ' * indent}KListNode(idx={index}, K={KListNode.CAPACITY})")
+            for entry in node.entries:
+                result.append(f"{' ' * indent}• key: {entry[0].short_key()}, value: {entry[0].value}, timestamp: {entry[0].timestamp is not None}")
+                #result.append(f"{' ' * indent}  Left: None" if entry[1] is None else f"{' ' * indent}  Left:")
+                if entry[1] is None:
+                    result.append(f"{' ' * indent}  Left: None")
+                else:
+                     result.append(entry[1].print_structure(indent + 2))
+            node = node.next
+            index += 1
+        return "\n".join(result)
 
 
     def __iter__(self):

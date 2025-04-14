@@ -19,8 +19,10 @@
 
 """G+-tree implementation"""
 
+import time
 from typing import Dict, Optional, Tuple, Any
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
+from pprint import pprint
 
 from packages.jhehemann.customs.gtree.base import AbstractSetDataStructure
 from packages.jhehemann.customs.gtree.base import Item
@@ -575,63 +577,118 @@ class GPlusTree(AbstractSetDataStructure):
         # By the traversal logic and the key ordering in a G+tree, if we reach here, it means that we have reached a leaf node's empty subtree and we can return the last seen item and next entry.
         return (item, next_entry)
     
-    def print_tree(self, indent: int = 0):
-        def short_key(key: str) -> str:
-            return key if len(key) <= 6 else f"{key[:3]}...{key[-3:]}"
-
-        def print_klist_entries(klist, indent: int):
-            node = klist.head
-            while node:
-                for item, _ in node.entries:
-                    print(f"{' ' * indent}• key: {short_key(item.key)}, value: {item.value}")
-                node = node.next
-
+    def print_structure(self, indent: int = 0):
         prefix = ' ' * indent
-        if self.is_empty():
-            print(f"{prefix}Empty GPlusTree")
-            return
-
+        if self.is_empty() or self is None:
+            return f"{prefix}Empty GPlusTree"
+            
+        result = []
         node = self.node
-        print(f"{prefix}GPlusNode(rank={node.rank})")
+        result.append(f"{prefix}GPlusNode(rank={node.rank}, set={type(node.set).__name__})")
 
         # Print own entries
-        print(f"{prefix}  Entries:")
-        current_klist_node = node.set.head
-        while current_klist_node:
-            for item, left_subtree in current_klist_node.entries:
-                print(f"{prefix}    - key: {short_key(item.key)}, value: {item.value}")
+        # #result.append(f"{prefix}  Entries:")
+        # current_klist_node = node.set.head
+        # while current_klist_node:
+        #     for item, left_subtree in current_klist_node.entries:
+        #         result.append(f"{prefix}    • key: {item.short_key()}, value: {item.value}")
 
-                # Print left subtree’s root and its entries
-                if left_subtree and not left_subtree.is_empty():
-                    child_node = left_subtree.node
-                    print(f"{prefix}      Left subtree: GPlusNode(rank={child_node.rank})")
-                    print(f"{prefix}        Entries:")
-                    print_klist_entries(child_node.set, indent + 10)
-                else:
-                    print(f"{prefix}      Left subtree: Empty")
-            current_klist_node = current_klist_node.next
+        #         # Print left subtree’s root and its entries
+        #         if left_subtree and not left_subtree.is_empty():
+        #             child_node = left_subtree.node
+        #             result.append(f"{prefix}      Left subtree: GPlusNode(rank={child_node.rank}, set={type(child_node.set).__name__})")
+        #             #result.append(f"{prefix}        Entries:")
+        #             # print_klist_entries(child_node.set, indent + 10)
+        #             result.append(child_node.set.print_structure(indent + 10))
+        #         else:
+        #             result.append(f"{prefix}      Left subtree: Empty")
+        #     current_klist_node = current_klist_node.next
+        
+        result.append(node.set.print_structure(indent + 4))
+
 
         # Print right subtree
-        print(f"{prefix}  Right subtree:")
         if node.right_subtree and not node.right_subtree.is_empty():
             right_node = node.right_subtree.node
-            print(f"{prefix}    GPlusNode(rank={right_node.rank})")
-            print(f"{prefix}      Entries:")
-            print_klist_entries(right_node.set, indent + 8)
+            result.append(f"{prefix}    Right: GPlusNode(rank={right_node.rank}, set={type(right_node.set).__name__})")
+            #result.append(f"{prefix}    GPlusNode(rank={right_node.rank}, set={type(right_node.set).__name__})")
+            #result.append(f"{prefix}      Entries:")
+            # print_klist_entries(right_node.set, indent + 8)
+            result.append(right_node.set.print_structure(indent + 8))
         else:
-            print(f"{prefix}    Empty")
+            result.append(f"{prefix}    Right: Empty")
 
         # Print next node if rank == 1
         if node.rank == 1 and hasattr(node, 'next') and node.next:
-            print(f"{prefix}  Next:")
             if not node.next.is_empty():
+                
                 next_node = node.next.node
-                print(f"{prefix}    GPlusNode(rank={next_node.rank})")
-                print(f"{prefix}      Entries:")
-                print_klist_entries(next_node.set, indent + 8)
+                result.append(f"{prefix}    Next: GPlusNode(rank={next_node.rank}, set={(type(next_node.set).__name__)})")
+                # result.append(f"{prefix}    GPlusNode(rank={next_node.rank}, set={(type(next_node.set).__name__)})")
+                #result.append(f"{prefix}      Entries:")
+                # print_klist_entries(next_node.set, indent + 8)
+                result.append(next_node.set.print_structure(indent + 8))
             else:
-                print(f"{prefix}    Empty")
+                result.append(f"{prefix}    Next: Empty")
+        return "\n".join(result)
+        
 
+    # def print_structure_old(self, indent: int = 0):
+    #     def short_key(key: str) -> str:
+    #         return key if len(key) <= 6 else f"{key[:3]}...{key[-3:]}"
+
+    #     def print_klist_entries(klist, indent: int):
+    #         node = klist.head
+    #         while node:
+    #             for item, _ in node.entries:
+    #                 print(f"{' ' * indent}• key: {item.short_key()}, value: {item.value}")
+    #             node = node.next
+
+    #     prefix = ' ' * indent
+    #     if self.is_empty() or self is None:
+    #         print(f"{prefix}Empty GPlusTree")
+    #         return
+
+    #     node = self.node
+    #     print(f"{prefix}GPlusNode(rank={node.rank})")
+
+    #     # Print own entries
+    #     print(f"{prefix}  Entries:")
+    #     current_klist_node = node.set.head
+    #     while current_klist_node:
+    #         for item, left_subtree in current_klist_node.entries:
+    #             print(f"{prefix}    • key: {item.short_key()}, value: {item.value}")
+
+    #             # Print left subtree’s root and its entries
+    #             if left_subtree and not left_subtree.is_empty():
+    #                 child_node = left_subtree.node
+    #                 print(f"{prefix}      Left subtree: GPlusNode(rank={child_node.rank})")
+    #                 print(f"{prefix}        Entries:")
+    #                 print_klist_entries(child_node.set, indent + 10)
+    #             else:
+    #                 print(f"{prefix}      Left subtree: Empty")
+    #         current_klist_node = current_klist_node.next
+
+    #     # Print right subtree
+    #     print(f"{prefix}  Right subtree:")
+    #     if node.right_subtree and not node.right_subtree.is_empty():
+    #         right_node = node.right_subtree.node
+    #         print(f"{prefix}    GPlusNode(rank={right_node.rank})")
+    #         print(f"{prefix}      Entries:")
+    #         print_klist_entries(right_node.set, indent + 8)
+    #     else:
+    #         print(f"{prefix}    Empty")
+
+    #     # Print next node if rank == 1
+    #     if node.rank == 1 and hasattr(node, 'next') and node.next:
+    #         print(f"{prefix}  Next:")
+    #         if not node.next.is_empty():
+    #             next_node = node.next.node
+    #             print(f"{prefix}    GPlusNode(rank={next_node.rank})")
+    #             print(f"{prefix}      Entries:")
+    #             print_klist_entries(next_node.set, indent + 8)
+    #         else:
+    #             print(f"{prefix}    Empty")
 
 @dataclass
 class Stats:
@@ -665,7 +722,8 @@ def gtree_stats_(t: GPlusTree, rank_distribution: Dict[int, int]) -> Stats:
         rank_distribution.get(node.rank, 0) + pairs.item_count()
     )
 
-    pair_stats = [(item, gtree_stats_(subtree, rank_distribution)) for item, subtree in pairs]
+    pair_stats = [(item, gtree_stats_(subtree, rank_distribution))
+                  for item, subtree in pairs]
     right_stats = gtree_stats_(node.right_subtree, rank_distribution)
 
     stats = Stats(**vars(right_stats))
@@ -675,24 +733,31 @@ def gtree_stats_(t: GPlusTree, rank_distribution: Dict[int, int]) -> Stats:
     for _, s in pair_stats:
         stats.gnode_count += s.gnode_count
 
+    # print(f"Adding node's item count {pairs.item_count()} to current stats item count {stats.item_count}")
     stats.item_count += pairs.item_count()
+    # print(f"Resulting item count {stats.item_count}")
+    
     stats.item_slot_count += pairs.item_count()
     for _, s in pair_stats:
+        # print("Adding subtree item count", s.item_count, "to current stats item count", stats.item_count)
         stats.item_count += s.item_count
+        # print(f"Resulting item count {stats.item_count}")
         stats.item_slot_count += s.item_slot_count
-    stats.item_count += right_stats.item_count
+    # print("Adding right subtree item count", right_stats.item_count, "to current stats item count", stats.item_count)
+    # stats.item_count += right_stats.item_count
+    # print(f"Resulting item count {stats.item_count}")
     stats.item_slot_count += right_stats.item_slot_count
 
     # A: Local check: parent.rank <= child.rank
     heap_local = True
     for _, subtree in pairs:
         if subtree is not None and not subtree.is_empty():
-            if node.rank > subtree.node.rank:
+            if node.rank <= subtree.node.rank:
                 heap_local = False
                 break
 
     if node.right_subtree is not None and not node.right_subtree.is_empty():
-        if node.rank > node.right_subtree.node.rank:
+        if node.rank <= node.right_subtree.node.rank:
             heap_local = False
 
     # B: All left subtrees are heaps
@@ -711,7 +776,7 @@ def gtree_stats_(t: GPlusTree, rank_distribution: Dict[int, int]) -> Stats:
         last_key = pair_stats[-1][0]
         if right_stats.least_item == last_key:
             stats.is_search_tree = False
-            print("\n\nsearch tree property: right too small\n", t.print_tree())
+            print("\n\nsearch tree property: right too small\n", t.print_structure())
 
     for i, (item, left_stats) in enumerate(pair_stats):
         if left_stats.least_item is not None and i > 0:
@@ -719,13 +784,13 @@ def gtree_stats_(t: GPlusTree, rank_distribution: Dict[int, int]) -> Stats:
             exit
             if left_stats.least_item.key < prev_key.key:
                 stats.is_search_tree = False
-                print(f"\n\nsearch tree property: left {i} too small\n", t.print_tree())
+                print(f"\n\nsearch tree property: left {i} too small\n", t.print_structure())
                 print("\npair_stats", pair_stats)
 
         if left_stats.greatest_item is not None:
             if left_stats.greatest_item.key >= item.key:
                 stats.is_search_tree = False
-                print(f"\n\nsearch tree property: left {i} too great\n", t.print_tree())
+                print(f"\n\nsearch tree property: left {i} too great\n", t.print_structure())
 
     # Set least and greatest
     least_pair = pair_stats[0]
@@ -740,6 +805,24 @@ def gtree_stats_(t: GPlusTree, rank_distribution: Dict[int, int]) -> Stats:
     )
 
     stats.rank = node.rank
+
+    print(t.print_structure())
+    print("Stats:")
+    pprint(asdict(stats))
+    print("\n")
+
     return stats
+
+    
+
+# print("\n\n\nNODE RANK:", node.rank)
+    # print("\npair_stats:")
+    # for i in pair_stats:
+    #     print(f"item: {i[0]}")
+    #     pprint(asdict(i[1]))
+    # print("\nEnd of pair_stats")
+
+    # print(f"\n\nGPlusTree:\n{t.print_tree()}")
+    # print(f"Adding {pairs.item_count()} items to stats.item_count")
 
 

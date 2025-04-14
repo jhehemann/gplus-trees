@@ -55,6 +55,7 @@ class TestGPlusTreeInsert(unittest.TestCase):
         self.assertEqual(found, item)
         dummy, _ = self.tree.node.set.retrieve("0" * 64)
         self.assertTrue(dummy is not None)
+        print("###############################################################################################\n\n\n")
 
     def test_insert_into_empty_tree_rank_gt_1(self):
         item = Item("a", 10, BASE_TIMESTAMP)
@@ -65,6 +66,7 @@ class TestGPlusTreeInsert(unittest.TestCase):
         self.assertEqual(self.tree.node.rank, 3)
         self.assertEqual(stats.item_count, 4)
         self.assertEqual(self.tree.node.set.item_count(), 2)
+        print("###############################################################################################")
 
     # def test_insert_multiple_increasing_keys(self):
     #     for key in ["a", "b", "c", "d"]:
