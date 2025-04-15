@@ -40,6 +40,7 @@ from packages.jhehemann.customs.gtree.gplus_tree import (
 from packages.jhehemann.customs.gtree.base import Item
 
 BASE_TIMESTAMP = datetime.datetime(2021, 1, 1, tzinfo=datetime.timezone.utc)
+DUMMY_KEY = "0" * 64
 
 def geometric(p):
     u = random.random()
@@ -183,6 +184,152 @@ class TestGPlusTreeInsert(unittest.TestCase):
                 n1, n2,
                 f"Leaf node {i} differs between .next traversal and logical traversal"
             )
+
+    def test_dummy_element_in_layers(self):
+        """(6) A G⁺-Tree includes a dummy element ⊥ as the first item in each layer."""
+        # Insert a few items with different ranks so that multiple layers form.
+        for key, rank in [("a", 2), ("b", 2), ("c", 2)]:
+            self.tree.insert(Item(key, ord(key)), rank=rank)
+        # Check root's k-list: first entry must be the dummy.
+        root_kl = self.tree.node.set
+        first_entry = next(iter(root_kl), None)
+        self.assertIsNotNone(first_entry, "Root k-list is empty")
+        self.assertEqual(first_entry[0].key, DUMMY_KEY,
+                         "Root k-list first entry is not the dummy element")
+        # Check each leaf’s k-list.
+        for leaf in self.tree.iter_leaf_nodes():
+            first_entry = next(iter(leaf.set), None)
+            self.assertIsNotNone(first_entry, "Leaf k-list is empty")
+            self.assertEqual(first_entry[0].key, DUMMY_KEY,
+                             "Leaf k-list first entry is not the dummy element")
+
+    def test_leaf_stores_full_representation(self):
+        """(2) Leaf layer stores the full representation of each item."""
+        # Insert several items at rank 1; these should end up in the leaf layer.
+        keys = ["d", "a", "c", "b", "e"]
+        for key in keys:
+            self.tree.insert(Item(key, ord(key)), rank=1)
+        # In the leaves, check that each non-dummy item has a non-None value.
+        for leaf in self.tree.iter_leaf_nodes():
+            for entry in leaf.set:
+                # Skip dummy items.
+                if entry[0].key == DUMMY_KEY:
+                    continue
+                self.assertIsNotNone(entry[0].value,
+                                     f"Leaf entry for key {entry[0].key} does not have full representation")
+                self.assertEqual(entry[0].value, ord(entry[0].key),
+                                 f"Leaf entry for key {entry[0].key} has an incorrect value")
+
+    def test_internal_nodes_store_replicas(self):
+        """(1) A G⁺-Tree stores replicas of selected item’s keys in internal nodes.
+           (7) The item rank defines the maximum layer at which an item is stored.
+        """
+        # Insert items with rank > 1 so that internal nodes must store replicas.
+        items = [("x", 2), ("y", 2), ("z", 2)]
+        for key, rank in items:
+            self.tree.insert(Item(key, ord(key)), rank=rank)
+        # For an internal node (if tree rank > 1) check that non-dummy entries are replicas (i.e. value is None).
+        if self.tree.node.rank > 1:
+            for entry in self.tree.node.set:
+                if entry[0].key == DUMMY_KEY:
+                    continue
+                self.assertIsNone(entry[0].value,
+                                  f"Internal node entry for key {entry[0].key} should be a replica (value None)")
+        # Additionally, in the leaf layer, the item with key "x" (for example) should appear fully.
+        full_found = False
+        for leaf in self.tree.iter_leaf_nodes():
+            for entry in leaf.set:
+                if entry[0].key == "x" and entry[0].value is not None:
+                    full_found = True
+        self.assertTrue(full_found, "Item 'x' full representation not found in a leaf layer")
+
+    def test_total_order_by_key(self):
+        """(4) Items in a G⁺-Tree follow a total order by their key."""
+        # Insert keys in random order.
+        keys = ["g", "e", "f", "d", "i", "h", "b", "a", "c"]
+        for key in keys:
+            self.tree.insert(Item(key, ord(key)), rank=1)
+        # Traverse the leaves and collect non-dummy keys.
+        collected = []
+        for leaf in self.tree.iter_leaf_nodes():
+            for entry in leaf.set:
+                if entry[0].key == DUMMY_KEY:
+                    continue
+                collected.append(entry[0].key)
+        expected = sorted(collected)
+        self.assertEqual(collected, expected,
+                         f"Leaf keys are not in sorted order. Collected: {collected}, Expected: {expected}")
+
+    def test_lower_layers_sorted_right_of_replicas(self):
+        """(3) Items in lower layers are sorted to the right of their replicas in higher layers."""
+        # Insert items so that internal replicas are created.
+        for key, rank in [("a", 2), ("b", 2), ("c", 2), ("d", 2), ("e", 2)]:
+            self.tree.insert(Item(key, ord(key)), rank=2)
+        # For each entry in the root's k-list (except the dummy), if it has an associated left subtree,
+        # verify that the minimal key in that subtree is greater than or equal to the parent's key.
+        for entry in self.tree.node.set:
+            if entry[0].key == DUMMY_KEY:
+                continue
+            subtree = entry[1]
+            if subtree is None or subtree.is_empty():
+                continue
+            min_result = subtree.node.set.get_min()
+            # Guard against empty subtree.
+            self.assertIsNotNone(min_result, f"Subtree for key {entry[0].key} is empty")
+            min_item, _ = min_result
+            self.assertLessEqual(entry[0].key, min_item.key,
+                                 f"Replica key {entry[0].key} not less than or equal to minimum key {min_item.key} in its subtree")
+
+    def test_node_boundaries(self):
+        """(5) Node boundaries are defined by the items in the layer above."""
+        # Insert a sufficient number of items to produce multiple node splits.
+        for key in "abcdefghi":
+            self.tree.insert(Item(key, ord(key)), rank=2)
+        # For each entry in the parent's k-list, check that the left subtree's maximal key is less than the parent's boundary.
+        if self.tree.node.rank > 1:
+            for entry in self.tree.node.set:
+                subtree = entry[1]
+                if subtree is None or subtree.is_empty():
+                    continue
+                # Collect all keys from the subtree.
+                subtree_keys = []
+                for leaf in subtree.iter_leaf_nodes():
+                    for sub_entry in leaf.set:
+                        if sub_entry[0].key == DUMMY_KEY:
+                            continue
+                        subtree_keys.append(sub_entry[0].key)
+                if subtree_keys:
+                    max_key = max(subtree_keys)
+                    # The parent's key should be greater than max_key from the subtree.
+                    self.assertLess(max_key, entry[0].key,
+                                    f"Boundary violation: max key {max_key} in subtree is not less than parent's key {entry[0].key}")
+
+    def test_item_rank_limits_layer(self):
+        """(7) The item rank defines the maximum layer an item or replica is stored in.
+           An item inserted with rank r should appear as a full item in a leaf (rank 1)
+           and as a replica (value is None) in nodes of higher rank (up to r).
+        """
+        # Insert an item with a specific rank.
+        inserted = Item("z", ord("z"))
+        rank = 3
+        self.tree.insert(inserted, rank=rank)
+        # Traverse the tree, count appearances in leaf vs. higher layers.
+        full_count = 0
+        replica_count = 0
+        # Traverse all nodes by level. (For simplicity, assume iter_leaf_nodes() gives only leaves.)
+        for leaf in self.tree.iter_leaf_nodes():
+            for entry in leaf.set:
+                if entry[0].key == "z":
+                    # In a leaf, we expect a full item.
+                    if leaf.node.rank == 1 and entry[0].value is not None:
+                        full_count += 1
+                    # In an internal node, the replica should have a None value.
+                    elif leaf.node.rank > 1 and entry[0].value is None:
+                        replica_count += 1
+        # We expect at least one full occurrence and one replica (if the tree has layers above).
+        self.assertGreaterEqual(full_count, 1, "Full representation of inserted item not found in leaf layer")
+        if self.tree.node.rank > 1:
+            self.assertGreaterEqual(replica_count, 1, "Replica of inserted item not found in an internal node")
 
 if __name__ == "__main__":
     unittest.main()

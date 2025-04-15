@@ -84,14 +84,13 @@ class Item:
     def __repr__(self):
         # ts = self.timestamp.isoformat() if self.timestamp is not None else "None"
         # return (f"Item(key={self.key!r}, value={self.value!r}, timestamp={ts})")
-        ts = self.timestamp is not None
-        return (f"(key: {self.short_key()}, value: {self.value}, _)")
+        return self.__str__()
 
     def __str__(self):
         # ts = self.timestamp.isoformat() if self.timestamp is not None else "None"
         # return (f"Item(key={self.key}, value={self.value}, timestamp={ts})")
-        ts = self.timestamp is not None
-        return (f"(key: {self.short_key()}, value: {self.value}, _)")
+
+        return f"(key: {self.short_key()}, value: {self.value})"
 
 
 class AbstractSetDataStructure(ABC):

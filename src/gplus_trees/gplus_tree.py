@@ -41,6 +41,7 @@ class GPlusNode:
         rank (int): A natural number greater than 0.
         set (AbstractSetDataStructure): A k-list that stores elements which are item subtree pairs (item, left_subtree).
         right_subtree (GPlusTree): The right subtree (a GPlusTree) of this G+-node.
+        next (Optional[GPlusTree]): The next G+-node in the linked list of leaf nodes.
     """
     rank: int
     set: 'AbstractSetDataStructure'
@@ -58,8 +59,9 @@ class GPlusNode:
 class GPlusTree(AbstractSetDataStructure):
     """
     A G+-tree is a recursively defined structure that is either empty or contains a single G+-node.
-    
-    If the attribute 'node' is None, the G+-tree is considered empty.
+    Attributes:
+        node (Optional[GPlusNode]): The G+-node that the tree contains. If None, the tree is empty.
+        dim (int): The dimension of the G+-tree.
     """
     def __init__(
         self,
@@ -106,6 +108,9 @@ class GPlusTree(AbstractSetDataStructure):
     def insert(self, x_item: Item, rank: int) -> 'GPlusTree':
         """
         Insert an item into the G+-tree.
+        Attributes:
+            x_item (Item): The item to be inserted.
+            rank (int): The rank of the item.
         """
         # 1) If the tree is empty, handle the initial creation logic.
         if self.is_empty():
@@ -117,12 +122,17 @@ class GPlusTree(AbstractSetDataStructure):
     def _handle_empty_insertion(self, x_item: Item, rank: int) -> 'GPlusTree':
         """
         If the tree is empty, build the initial structure depending on rank.
+        Attributes:
+            x_item (Item): The item to be inserted.
+            rank (int): The rank of the item.
+        Returns:
+            GPlusTree: The updated G+-tree.
         """
         # Rank 1: single leaf node with dummy item.
         if rank == 1:
             leaf_set = KList()
-            leaf_set = leaf_set.insert(self.instantiate_dummy_item())
-            leaf_set = leaf_set.insert(x_item)
+            leaf_set = leaf_set.insert(self.instantiate_dummy_item(), GPlusTree())
+            leaf_set = leaf_set.insert(x_item, GPlusTree())
             self.node = GPlusNode(rank, leaf_set, GPlusTree())
             return self
 
@@ -130,14 +140,14 @@ class GPlusTree(AbstractSetDataStructure):
         # plus left and right subtrees.
         if rank > 1:
             root_set = KList()
-            root_set = root_set.insert(self.instantiate_dummy_item())
+            root_set = root_set.insert(self.instantiate_dummy_item(), GPlusTree())
 
             # Create replica (key only) for internal node
             replica = Item(x_item.key, None, None)
 
             # Left subtree with just a dummy
             left_subtree_set = KList()
-            left_subtree_set = left_subtree_set.insert(self.instantiate_dummy_item())
+            left_subtree_set = left_subtree_set.insert(self.instantiate_dummy_item(), GPlusTree())
             left_subtree = GPlusTree(
                 GPlusNode(1, left_subtree_set, GPlusTree())
             )
@@ -145,7 +155,7 @@ class GPlusTree(AbstractSetDataStructure):
 
             # Right subtree with the actual item
             right_subtree_set = KList()
-            right_subtree_set = right_subtree_set.insert(x_item)
+            right_subtree_set = right_subtree_set.insert(x_item, GPlusTree())
             right_subtree = GPlusTree(
                 GPlusNode(1, right_subtree_set, GPlusTree())
             )
@@ -156,7 +166,7 @@ class GPlusTree(AbstractSetDataStructure):
             self.node = GPlusNode(rank, root_set, right_subtree)
             return self
 
-        # If rank <= 0, or an unexpected condition occurs, return False.
+        # If rank <= 0, or an unexpected condition occurs, return self.
         return self
     
     def _insert_non_empty(self, x_item: Item, rank: int) -> 'GPlusTree':
@@ -165,6 +175,11 @@ class GPlusTree(AbstractSetDataStructure):
          - Descending until we find a node with rank >= the item rank.
          - Adjusting the tree if we overshoot (rank < item rank).
          - Updating existing item or inserting new leaf/internal node.
+        Attributes:
+            x_item (Item): The item to be inserted.
+            rank (int): The rank of the item.
+        Returns:
+            GPlusTree: The updated G+-tree.
         """
         current_tree = self
         parent_tree = None  # Track the previously visited tree when descending.
@@ -217,40 +232,48 @@ class GPlusTree(AbstractSetDataStructure):
         """
         If the current node's rank < rank, we need to create or unfold a 
         node to match the new rank.
+        This is done by creating a new G+-node and linking it to the parent.
+        Attributes:
+            current_tree (GPlusTree): The current G+-tree.
+            parent_tree (GPlusTree): The parent G+-tree.
+            parent_entry (tuple): The entry in the parent tree.
+            rank (int): The rank to match.
+        Returns:
+            GPlusTree: The updated G+-tree.
         """
         if parent_tree is None:
             # No parent => we are at the root. Create a new root with dummy.
             old_node = self.node
             root_set = KList()
-            root_set = root_set.insert(self.instantiate_dummy_item())
+            root_set = root_set.insert(self.instantiate_dummy_item(), GPlusTree())
             # print("\nCurrent tree:", current_tree.print_structure())
             self.node = GPlusNode(rank, root_set, GPlusTree(old_node))
-            
 
-            # # Point new root's right subtree to the current node.
-            # new_root = GPlusTree(
-            #     GPlusNode(rank, root_set, self)  # self is the old tree
-            # )
             # print("\nNew root created:\n", self.print_structure())
             return self
         else:
             # Unfold a layer in between parent and current node.
             new_set = KList()
             # Insert the current node's min (a "replica") to new node.
-            min_item, left = current_tree.node.set.get_min()
+            min_result = current_tree.node.set.get_min()
+            if min_result is None:
+                raise RuntimeError(f"Expected nonempty set during rank mismatch handling, but get_min() returned None.\n\nParent Tree:\n {parent_tree.print_structure()}\n\nCurrent tree:\n {current_tree.print_structure()}\n\nSelf:\n {self.print_structure()}")
+            min_item, left = min_result
+            
             new_set = new_set.insert(min_item, left)
 
             new_tree = GPlusTree(
                 GPlusNode(rank, new_set, current_tree)
             )
 
-            # Update the parent's reference to this subtree:
-            if parent_entry is not None:
-                parent_entry[1] = new_tree
+            if parent_entry:
+                parent_tree.node.set = parent_tree.node.set.update_left_subtree(
+                    parent_entry[0].key, new_tree
+                )
             else:
                 parent_tree.node.right_subtree = new_tree
 
-            return new_tree
+        return new_tree
         
     def _update_existing_item(
         self,
@@ -261,13 +284,15 @@ class GPlusTree(AbstractSetDataStructure):
         """
         Traverse down to the leaf layer (rank=1) where the real item is stored 
         and update its value.
+        Attributes:
+            current_tree (GPlusTree): The current G+-tree.
+            new_item (Item): The item to be updated.
+            next_entry (tuple): The next entry in the tree.
+        Returns:
+            GPlusTree: The updated G+-tree.
         """
         while True:
             if current_tree.node.rank == 1:
-                # Update the item in place.
-                # The retrieve() call gave us the same object, so:
-                #   existing_item.value = new_item.value
-                # but to be explicit, we can do it again:
                 old_item, _ = current_tree.node.set.retrieve(new_item.key)
                 if old_item:
                     old_item.value = new_item.value
@@ -292,6 +317,12 @@ class GPlusTree(AbstractSetDataStructure):
         """
         Insert a new item key. For internal nodes, we only store the key. 
         For leaf nodes, we store the full item.
+        Attributes:
+            current_tree (GPlusTree): The current G+-tree.
+            x_item (Item): The item to be inserted.
+            next_entry (tuple): The next entry in the tree.
+        Returns:
+            GPlusTree: The updated G+-tree.
         """
         # We may need to propagate splits while descending.
         parent_right_tree = None
@@ -340,7 +371,7 @@ class GPlusTree(AbstractSetDataStructure):
 
                 # Right side: if it has data or is a leaf, form a new node
                 if not right_split.is_empty() or is_leaf:
-                    right_split = right_split.insert(insert_instance)
+                    right_split = right_split.insert(insert_instance, GPlusTree())
                     
                     new_tree = GPlusTree(
                         GPlusNode(
