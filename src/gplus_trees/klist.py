@@ -62,6 +62,7 @@ class KListNode:
             tuple or None: The overflow entry (item, left_subtree) if the node exceeds capacity; otherwise, None.
         """
         new_entry = (item, left_subtree)
+        # print(f"Inserting Entry: {new_entry}")
         self.entries.append(new_entry)
         # Sort entries based on the key (located at entry[0].key)
         self.entries.sort(key=lambda entry: entry[0].key)
@@ -93,7 +94,11 @@ class KList(AbstractSetDataStructure):
             current = current.next
         return count
 
-    def insert(self, item: Item, left_subtree: Optional['GPlusTree'] = None):
+    def insert(
+            self, 
+            item: Item,
+            left_subtree: Optional['GPlusTree'] = None
+    ) -> 'KList':
         """
         Inserts a key-value pair (with an optional left subtree) into the k-list.
         The entry is stored as (item, left_subtree).
@@ -109,6 +114,7 @@ class KList(AbstractSetDataStructure):
             self.head = KListNode()
         
         node = self.head
+    
         # Traverse nodes if the key should come later.
         # Compare with the last key in the current node (if any).
         while node.next is not None and node.entries and item.key > node.entries[-1][0].key:
@@ -116,6 +122,7 @@ class KList(AbstractSetDataStructure):
 
         
         overflow = node.insert_entry(item, left_subtree)
+        # print(f"Inserted Item: {item}")
         MAX_OVERFLOW_DEPTH = 100
         depth = 0
         # Propagate overflow if needed.
@@ -129,6 +136,8 @@ class KList(AbstractSetDataStructure):
             depth += 1
             if depth > MAX_OVERFLOW_DEPTH:
                 raise RuntimeError("KList insert overflowed too deeply – likely infinite loop.")
+        
+        return self
 
     def delete(self, key):
         """
@@ -156,7 +165,7 @@ class KList(AbstractSetDataStructure):
             node = node.next
 
         if not found:
-            return False
+            return self
 
         # Rebalance: shift the first entry from the next node into the current node if space exists.
         current = node
@@ -170,7 +179,7 @@ class KList(AbstractSetDataStructure):
             else:
                 break
 
-        return True
+        return self
     
     def retrieve(
         self, key: str
@@ -213,6 +222,35 @@ class KList(AbstractSetDataStructure):
             current_node = current_node.next
         # If we have traversed all nodes and found nothing, return (None, None).
         return (None, None)
+    
+    def update_left_subtree(
+            self,
+            key: str,
+            left_subtree: 'GPlusTree'
+    ) -> 'KList':
+        """
+        Updates the left subtree of the item in the k-list.
+
+        If the item is not found, it returns the original k-list.
+        If found, it updates the left subtree and returns the updated k-list.
+
+        Parameters:
+            key (str): The key of the item to update.
+            left_subtree (GPlusTree or None): The new left subtree to associate with the item.
+
+        Returns:
+            KList: The updated k-list.
+        """
+        current_node = self.head
+        while current_node is not None:
+            for i, (entry_item, _) in enumerate(current_node.entries):
+                if entry_item.key == key:
+                    # Update the left subtree of the found entry.
+                    current_node.entries[i] = (entry_item, left_subtree)
+                    return self
+            current_node = current_node.next
+        return self
+
     
     def get_min(self) -> Optional[Tuple['Item', 'AbstractSetDataStructure']]:
         """
@@ -302,28 +340,36 @@ class KList(AbstractSetDataStructure):
         # At this point the new left_klist and right_klist represent the in-place partitioning.
         return (left_klist, left_subtree, right_klist)
     
-    def print_structure(self, indent: int = 0):
+    def print_structure(self, indent: int = 0, depth: int = 0, max_depth: int = 10):
         """
         Returns a string representation of the k-list for debugging.
+        
+        Parameters:
+            indent (int): Number of spaces for indentation.
+            depth (int): Current recursion depth.
+            max_depth (int): Maximum allowed recursion depth.
         """
         if self.is_empty():
             return f"{' ' * indent}Empty"
-            
+
+        if depth > max_depth:
+            return f"{' ' * indent}... (max depth reached)"
+
         result = []
         node = self.head
         index = 0
         while node:
             result.append(f"{' ' * indent}KListNode(idx={index}, K={KListNode.CAPACITY})")
             for entry in node.entries:
-                result.append(f"{' ' * indent}• key: {entry[0].short_key()}, value: {entry[0].value}, timestamp: {entry[0].timestamp is not None}")
-                #result.append(f"{' ' * indent}  Left: None" if entry[1] is None else f"{' ' * indent}  Left:")
+                result.append(f"{' ' * indent}• {str(entry[0])}")
                 if entry[1] is None:
                     result.append(f"{' ' * indent}  Left: None")
                 else:
-                     result.append(entry[1].print_structure(indent + 2))
+                    result.append(entry[1].print_structure(indent + 2, depth + 1, max_depth))
             node = node.next
             index += 1
         return "\n".join(result)
+
 
 
     def __iter__(self):
