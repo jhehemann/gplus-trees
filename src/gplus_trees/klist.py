@@ -21,8 +21,12 @@
 
 from typing import TYPE_CHECKING, Optional, Tuple
 
-from packages.jhehemann.customs.gtree.base import Item
-from packages.jhehemann.customs.gtree.base import AbstractSetDataStructure
+from packages.jhehemann.customs.gtree.base import (
+    Item,
+    AbstractSetDataStructure,
+    RetrievalResult,
+    Entry
+)
 
 if TYPE_CHECKING:
     from packages.jhehemann.customs.gtree.gplus_tree import GPlusTree
@@ -39,33 +43,27 @@ class KListNode:
     CAPACITY = 4
 
     def __init__(self):
-        self.entries = []  # List of entries: each is (item, left_subtree)
-        self.next = None
+        self.entries: list[Entry] = []
+        self.next: Optional['KListNode'] = None
 
     def insert_entry(
             self, 
-            item: Item,
-            left_subtree: Optional['GPlusTree'] = None
-    ):
+            entry: Entry
+    ) -> Optional[Entry]:
         """
-        Inserts the item pair (with an optional left_subtree) into this node in sorted order.
-
-        Sorting is done lexicographically on the key.
-        If the node exceeds its capacity after insertion, the largest entry (by key) is removed and returned.
-
-        Parameters:
-            key (str): The key used to order entries.
-            value (any): The associated value.
-            left_subtree (GPlusTree or None): An optional G+-tree to attach as the left subtree.
-
+        Inserts an entry into a sorted KListNode.
+        If the node exceeds its capacity, the last entry is returned for further processing.
+        The entries are kept sorted based on the key (entry.item.key).
+        If the node is not full, it simply appends the entry.
+        
+        Attributes:
+            entry (Entry): The entry to insert into the KListNode.
         Returns:
-            tuple or None: The overflow entry (item, left_subtree) if the node exceeds capacity; otherwise, None.
+            Optional[Entry]: The last entry if the node overflows; otherwise, None.
         """
-        new_entry = (item, left_subtree)
-        # print(f"Inserting Entry: {new_entry}")
-        self.entries.append(new_entry)
-        # Sort entries based on the key (located at entry[0].key)
-        self.entries.sort(key=lambda entry: entry[0].key)
+        self.entries.append(entry)
+        # Sort entries based on the key (located at entry.item.key)
+        self.entries.sort(key=lambda entry: entry.item.key)
         if len(self.entries) > KListNode.CAPACITY:
             # Remove and return the largest entry (the last one)
             return self.entries.pop()
@@ -100,11 +98,11 @@ class KList(AbstractSetDataStructure):
             left_subtree: Optional['GPlusTree'] = None
     ) -> 'KList':
         """
-        Inserts a key-value pair (with an optional left subtree) into the k-list.
-        The entry is stored as (item, left_subtree).
+        Inserts an item with an optional left subtree into the k-list.
+        It is stored as an Entry(item, left_subtree).
 
         The insertion ensures that the keys are kept in lexicographic order.
-        If a node overflows (more than 4 entries), the extra entry is recursively inserted into the next node.
+        If a node overflows (more than k entries), the extra entry is recursively inserted into the next node.
 
         Parameters:
             item (Item): The item to insert.
@@ -114,14 +112,14 @@ class KList(AbstractSetDataStructure):
             self.head = KListNode()
         
         node = self.head
+        entry = Entry(item, left_subtree)
     
         # Traverse nodes if the key should come later.
         # Compare with the last key in the current node (if any).
-        while node.next is not None and node.entries and item.key > node.entries[-1][0].key:
+        while node.next is not None and node.entries and item.key > node.entries[-1].item.key:
             node = node.next
-
         
-        overflow = node.insert_entry(item, left_subtree)
+        overflow = node.insert_entry(entry)
         # print(f"Inserted Item: {item}")
         MAX_OVERFLOW_DEPTH = 100
         depth = 0
@@ -130,9 +128,7 @@ class KList(AbstractSetDataStructure):
             if node.next is None:
                 node.next = KListNode()
             node = node.next
-            # Overflow is of the form (item, left_subtree); insert it into the new node.
-            overflow_item, overflow_left_subtree = overflow
-            overflow = node.insert_entry(overflow_item, overflow_left_subtree)
+            overflow = node.insert_entry(overflow)
             depth += 1
             if depth > MAX_OVERFLOW_DEPTH:
                 raise RuntimeError("KList insert overflowed too deeply – likely infinite loop.")
@@ -148,15 +144,15 @@ class KList(AbstractSetDataStructure):
             key (str): The key to delete.
 
         Returns:
-            bool: True if deletion was successful, False if the key was not found.
+            KList: The updated k-list after deletion.
         """
         node = self.head
         found = False
 
         # Find and remove the entry with the given key.
         while node:
-            for i, (item, _) in enumerate(node.entries):
-                if item.key == key:
+            for i, entry in enumerate(node.entries):
+                if entry.item.key == key:
                     del node.entries[i]
                     found = True
                     break
@@ -173,7 +169,7 @@ class KList(AbstractSetDataStructure):
             if current.next.entries:
                 shifted_entry = current.next.entries.pop(0)
                 current.entries.append(shifted_entry)
-                current.entries.sort(key=lambda entry: entry[0].key)
+                current.entries.sort(key=lambda entry: entry.item.key)
                 if not current.next.entries:
                     current.next = current.next.next
             else:
@@ -181,47 +177,72 @@ class KList(AbstractSetDataStructure):
 
         return self
     
-    def retrieve(
-        self, key: str
-    ) -> Tuple[Optional[Item], Tuple[Optional[Item], Optional['GPlusTree']]]:
+    def retrieve(self, key: str) -> RetrievalResult:
         """
-        Retrieve the item associated with the given key from the KList.
+        Retrieve the entry associated with the given key from the KList.
         
         Parameters:
-            key (str): The key of the item to retrieve.
+            key (str): The key of the entry to retrieve.
         
         Returns:
-            A tuple of two elements:
-            - item: The value associated with the key, or None if not found.
-            - next_entry: 
-                    A tuple containing:
-                    * The next item in the sorted order (if any),
-                    * The left subtree associated with the next item (if any).
-                    If no subsequent entry exists, returns None.
+            RetrievalResult: A structured result containing:
+            - found_entry: The entry (an Entry instance) corresponding to the searched key if found; otherwise, None.
+            - next_entry: The subsequent entry in sorted order (an Entry), or None if no subsequent entry exists.
         """
         current_node = self.head
         while current_node is not None:
-            # Iterate over the entries in the current KListNode.
-            for i, (item, left_subtree) in enumerate(current_node.entries):
-                if item.key == key:
-                    # Item found; determine the next entry.
+            for i, entry in enumerate(current_node.entries):
+                if entry.item.key == key:
                     if i + 1 < len(current_node.entries):
-                        # There is a subsequent entry in the same node.
                         next_entry = current_node.entries[i + 1]
                     elif current_node.next is not None and current_node.next.entries:
-                        # Otherwise, take the first entry from the next node.
                         next_entry = current_node.next.entries[0]
                     else:
-                        # No further entry exists.
                         next_entry = None
-                    return (item, next_entry)
-                elif item.key > key:
-                    # Since entries are sorted, if we hit an item with a key greater
-                    # than the search key, the key is not present; return the "next entry".
-                    return (None, (item, left_subtree))
+                    return RetrievalResult(found_entry=entry, next_entry=next_entry)
+                elif entry.item.key > key:
+                    # Item not found; return the next candidate.
+                    return RetrievalResult(found_entry=None,
+                                            next_entry=entry)
             current_node = current_node.next
-        # If we have traversed all nodes and found nothing, return (None, None).
-        return (None, None)
+        return RetrievalResult(found_entry=None, next_entry=None)
+    
+    def get_entry(self, index: int) -> RetrievalResult:
+        """
+        Returns the entry at the given overall index in the KList along with the next entry in sorted order.
+
+        This method traverses the linked list of KListNodes and returns a RetrievalResult.
+
+        Parameters:
+            index (int): Zero-based index to retrieve.
+
+        Returns:
+            RetrievalResult: A structured result containing:
+                - found_entry: The requested Entry if present, otherwise None.
+                - next_entry: The subsequent Entry, or None if no next entry exists.
+        """
+        current = self.head
+        count = 0
+        while current is not None:
+            if count + len(current.entries) > index:
+                # Target entry is in the current node.
+                entry = current.entries[index - count]
+                # Determine the next entry:
+                if (index - count + 1) < len(current.entries):
+                    next_entry = current.entries[index - count + 1]
+                elif current.next is not None and current.next.entries:
+                    next_entry = current.next.entries[0]
+                else:
+                    next_entry = None
+                return RetrievalResult(found_entry=entry, next_entry=next_entry)
+            count += len(current.entries)
+            current = current.next
+        return RetrievalResult(found_entry=None, next_entry=None)
+
+    
+    def get_min(self) -> RetrievalResult:
+        """Retrieve the minimum entry from the sorted KList."""
+        return self.get_entry(index=0)
     
     def update_left_subtree(
             self,
@@ -243,35 +264,13 @@ class KList(AbstractSetDataStructure):
         """
         current_node = self.head
         while current_node is not None:
-            for i, (entry_item, _) in enumerate(current_node.entries):
-                if entry_item.key == key:
+            for i, entry in enumerate(current_node.entries):
+                if entry.item.key == key:
                     # Update the left subtree of the found entry.
-                    current_node.entries[i] = (entry_item, left_subtree)
+                    current_node.entries[i].left_subtree = left_subtree
                     return self
             current_node = current_node.next
         return self
-
-    
-    def get_min(self) -> Optional[Tuple['Item', 'AbstractSetDataStructure']]:
-        """
-        Retrieve the minimum entry from the set.
-
-        An entry is defined as a tuple consisting of:
-            - An Item, which represents the entry.
-            - A left subtree of type AbstractSetDataStructure.
-
-        Returns:
-            Optional[Tuple[Item, AbstractSetDataStructure]]:
-                The minimum entry if the set is non-empty; otherwise, None.
-        """
-        current_node = self.head
-        # Iterate through nodes until a node with entries is found.
-        while current_node is not None:
-            if current_node.entries:
-                # The first entry is the minimal one due to the lexicographic sorting.
-                return current_node.entries[0]
-            current_node = current_node.next
-        return None
     
     def split_inplace(
             self, key: str
@@ -305,14 +304,13 @@ class KList(AbstractSetDataStructure):
             right_entries = []
             # Process each entry in the current node.
             for entry in current.entries:
-                item, subtree = entry
-                if item.key < key:
+                if entry.item.key < key:
                     left_entries.append(entry)
-                elif item.key == key:
+                elif entry.item.key == key:
                     # Mark that we found an exact match and store its left subtree.
                     # (We do not include this entry in either partition.)
                     if left_subtree is None:
-                        left_subtree = subtree
+                        left_subtree = entry.subtree
                 else:  # item.key > key
                     right_entries.append(entry)
             # If there are entries for the left partition, create a node and append it.
@@ -361,11 +359,11 @@ class KList(AbstractSetDataStructure):
         while node:
             result.append(f"{' ' * indent}KListNode(idx={index}, K={KListNode.CAPACITY})")
             for entry in node.entries:
-                result.append(f"{' ' * indent}• {str(entry[0])}")
-                if entry[1] is None:
+                result.append(f"{' ' * indent}• {str(entry.item)}")
+                if entry.left_subtree is None:
                     result.append(f"{' ' * indent}  Left: None")
                 else:
-                    result.append(entry[1].print_structure(indent + 2, depth + 1, max_depth))
+                    result.append(entry.left_subtree.print_structure(indent + 2, depth + 1, max_depth))
             node = node.next
             index += 1
         return "\n".join(result)

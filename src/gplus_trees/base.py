@@ -18,10 +18,18 @@
 # ------------------------------------------------------------------------------
 
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
+
 import datetime
-from typing import Optional, Tuple
+from typing import NamedTuple, Optional, Tuple, TYPE_CHECKING
 import math
 import hashlib
+
+
+if TYPE_CHECKING:
+    from .gplus_tree import GPlusTree
+    from .klist import KList
+
 
 class Item:
     """
@@ -32,15 +40,15 @@ class Item:
 
     def __init__(
             self,
-            key,
-            value,
+            key: str,
+            value: str,
             timestamp: Optional[datetime.datetime] = None):
         """
         Initialize an Item.
 
         Parameters:
             key (str): The item's key.
-            value (any): The item's value.
+            value (str): The item's value.
             timestamp (datetime.datetime): The UTC timestamp of the item's last change.
         """
         self.key = key
@@ -92,8 +100,11 @@ class Item:
 
         return f"(key: {self.short_key()}, value: {self.value})"
 
-
 class AbstractSetDataStructure(ABC):
+    """
+    Abstract base class for a set data structure storing tuples of items and their left subtrees.
+    """
+    
     @abstractmethod
     def insert(self, item: 'Item', rank: int) -> bool:
         """
@@ -128,33 +139,29 @@ class AbstractSetDataStructure(ABC):
     @abstractmethod
     def retrieve(
         self, key: str
-    ) -> Tuple[Optional[Item], Tuple[Optional[Item], Optional['AbstractSetDataStructure']]]:
+    ) -> 'RetrievalResult':
         """
-        Retrieve the item associated with the given key.
-        
+        Retrieve the entry associated with the given key from the set data structure.
+
         Parameters:
-            key (str): The key of the item to retrieve.
+            key (str): The key of the entry to retrieve.
         
         Returns:
-            item (Optional[Item]): The item associated with the key, or None if not found.
-            next_entry (Tuple[Optional[Item], Optional['AbstractSetDataStructure']]): A tuple containing:
-                - The next item in the dataset (if any).
-                - The left subtree of the next item (if any).
+            RetrievalResult: A named tuple containing:
+                - found_entry: A tuple (item, left_subtree) if the key is found; otherwise, None.
+                - next_entry: A tuple (next_item, left_subtree) representing the next entry in sorted order,
+                            or None if no subsequent entry exists.
         """
         pass
 
     @abstractmethod
-    def get_min(self) -> Tuple[Optional['Item'], Optional['AbstractSetDataStructure']]:
+    def get_min(self) -> 'RetrievalResult':
         """
-        Retrieve the minimum entry from the set.
-
-        An entry is defined as a tuple consisting of:
-            - An Item, which represents the entry.
-            - A left subtree of type AbstractSetDataStructure.
-
+        Retrieve the minimum entry in the set data structure.
         Returns:
-            Optional[Tuple[Item, AbstractSetDataStructure]]:
-                The minimum entry if the set is non-empty; otherwise, None.
+            RetrievalResult: A named tuple containing:
+                - found_entry: The minimum entry in the set.
+                - next_entry: The next entry in sorted order after the minimum entry.
         """
         pass
 
@@ -180,6 +187,34 @@ class AbstractSetDataStructure(ABC):
         """
         pass
 
+@dataclass
+class Entry:
+    """
+    Represents an entry in the KList or G⁺-tree.
+
+    Attributes:
+        item (Item): The item contained in the entry.
+        left_subtree (AbstractSetDataStructure): The left subtree associated with this item.
+            This is always provided, even if the subtree is empty.
+    """
+    item: Item
+    left_subtree: AbstractSetDataStructure
+
+
+class RetrievalResult(NamedTuple):
+    """
+    A container for the result of a lookup in an AbstractSetDataStructure.
+
+    Attributes:
+        found_entry (Optional[Entry]):
+            The entry corresponding to the searched key if found;
+            otherwise, None.
+        next_entry (Optional[Entry]):
+            The subsequent entry in the sorted order, which serves as a candidate for
+            further operations or in-order traversal; None if no subsequent entry exists.
+    """
+    found_entry: Optional[Entry]
+    next_entry: Optional[Entry]
 
 def calculate_item_rank(key, k):
     """

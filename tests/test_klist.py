@@ -52,32 +52,29 @@ class TestKList(unittest.TestCase):
         """
 
         # Define key-value pairs (keys not in sorted order)
-        entries = [
+        insert_entries = [
             ("delta", 4, BASE_TIMESTAMP),
+            ("bravo", 2, BASE_TIMESTAMP),
             ("alpha", 1, BASE_TIMESTAMP),
             ("charlie", 3, BASE_TIMESTAMP),
-            ("bravo", 2, BASE_TIMESTAMP),
             ("echo", 5, BASE_TIMESTAMP),
             ("foxtrot", 6, BASE_TIMESTAMP),
             ("golf", 7, BASE_TIMESTAMP),
             ("hotel", 8, BASE_TIMESTAMP)
         ]
         
-        # Create an Item instance for each (key, value) pair.
-        #items = [Item(k, v, timestamp) for k, v, timestamp in entries]
-        
         # Shuffle entries to simulate unordered input.
-        random.shuffle(entries)
+        random.shuffle(insert_entries)
         
-        for k, v, timestamp in entries:
+        for k, v, timestamp in insert_entries:
             self.klist.insert(Item(k, v, timestamp))
         
         # Print the keys for debugging
-        print("\nInserted keys order:\n", [k for k, _, _ in entries])
+        print("\nInserted keys order:\n", [k for k, _, _ in insert_entries])
 
         # Retrieve keys from the klist.
-        stored_keys = [item.key for item, _ in self.klist]
-        expected_keys = sorted([k for k, _, _ in entries])
+        stored_keys = [entry.item.key for entry in self.klist]
+        expected_keys = sorted([k for k, _, _ in insert_entries])
 
         # Print the stored and expected keys for debugging
         print("\nExpected keys order:\n", expected_keys)
@@ -91,36 +88,56 @@ class TestKList(unittest.TestCase):
         """Test that inserting more than 4 entries creates new nodes."""
         # Insert 10 entries to force overflow into multiple nodes.
         for i in range(10):
-            self.klist.insert(Item(f"key{i}", i, BASE_TIMESTAMP))
+            self.klist.insert(Item(f"key{i}", i))
         num_nodes = self._count_nodes(self.klist)
         self.assertGreater(num_nodes, 1, "Expected multiple nodes due to overflow")
 
     def test_delete_existent(self):
         """Test that deleting an existing key works correctly and rebalances nodes."""
-        entries = [
+        insert_entries = [
             ("a", 1, BASE_TIMESTAMP),
             ("b", 2, BASE_TIMESTAMP),
             ("c", 3, BASE_TIMESTAMP),
             ("d", 4, BASE_TIMESTAMP),
-            ("e", 5, BASE_TIMESTAMP)
+            ("e", 5, BASE_TIMESTAMP),
         ]
-        for k, v, timestamp in entries:
+        for k, v, timestamp in insert_entries:
             self.klist.insert(Item(k, v, timestamp))
         # Delete an entry and verify deletion
         result = self.klist.delete("c")
         self.assertTrue(result)
-        keys_after = [item.key for item, _ in self.klist]
+        keys_after = [entry.item.key for entry in self.klist]
         self.assertNotIn("c", keys_after)
         # Total count should be one less than before.
-        self.assertEqual(len(list(self.klist)), len(entries) - 1)
+        self.assertEqual(len(list(self.klist)), len(insert_entries) - 1)
 
     def test_delete_nonexistent(self):
-        """Test that deleting a nonexistent key returns False."""
-        entries = [("x", 10, BASE_TIMESTAMP), ("y", 20, BASE_TIMESTAMP)]
-        for k, v, timestamp in entries:
-            self.klist.insert(Item(k, v, timestamp))
-        result = self.klist.delete("z")
-        self.assertFalse(result)
+        initial_keys = ["a", "b", "c"]
+        # Insert some entries
+        for k in initial_keys:
+            self.klist.insert(Item(k, ord(k), BASE_TIMESTAMP))
+            
+        initial_count = self.klist.item_count()
+        updated_klist = self.klist.delete("d")
+        
+        # The delete method should return the original KList unmodified.
+        self.assertIs(updated_klist, self.klist,
+                      "Deleting a non-existent key should return the same KList instance.")
+        
+        self.assertEqual(self.klist.item_count(), initial_count,
+                         "KList item count should remain unchanged after deleting a non-existent key.")
+        
+        # Check that the order and content of keys remain unchanged.
+        keys_after = []
+        current = self.klist.head
+        while current is not None:
+            for entry in current.entries:
+                keys_after.append(entry.item.key)
+            current = current.next
+        
+        # Since the entries are sorted, keys should match our initial insertion.
+        self.assertEqual(keys_after, initial_keys,
+                         "The keys in the KList should remain unchanged after an unsuccessful delete.")
 
     def test_insertion_from_file(self):
         """Test that entries from the dummy data file are inserted in order."""
@@ -130,8 +147,8 @@ class TestKList(unittest.TestCase):
             data = json.load(f)
         initial_count = len(data)
         for k, v in data.items():
-            self.klist.insert(Item(k, v, BASE_TIMESTAMP))
-        inserted_keys = [item.key for item, _ in self.klist]
+            self.klist.insert(Item(k, v))
+        inserted_keys = [entry.item.key for entry in self.klist]
 
         # Check that the number of keys matches
         self.assertEqual(len(inserted_keys), initial_count)
@@ -142,7 +159,7 @@ class TestKList(unittest.TestCase):
         """Test that deleting an element properly rebalances the nodes."""
         # Insert enough entries to span multiple nodes.
         for i in range(12):
-            self.klist.insert(Item(f"key{i}", i, BASE_TIMESTAMP))
+            self.klist.insert(Item(f"key{i}", i))
         nodes_before = self._count_nodes(self.klist)
         # Delete a key and expect rebalancing (nodes could merge)
         self.klist.delete("key1")
@@ -150,7 +167,7 @@ class TestKList(unittest.TestCase):
         self.assertLessEqual(nodes_after, nodes_before,
                              "Rebalancing should merge nodes if possible")
         # Verify the deleted key is no longer present
-        keys = [item.key for item, _ in self.klist]
+        keys = [entry.item.key for entry in self.klist]
         self.assertNotIn("key1", keys)
 
     def test_retrieve_existing(self):
@@ -159,22 +176,22 @@ class TestKList(unittest.TestCase):
         The test verifies that the returned value is correct and that the "next entry"
         corresponds to the entry immediately following the found item.
         """
-        items = [
-            Item("alpha", "A", BASE_TIMESTAMP),
-            Item("bravo", "B", BASE_TIMESTAMP),
-            Item("charlie", "C", BASE_TIMESTAMP),
-            Item("delta", "D", BASE_TIMESTAMP)
+        insert_entries = [
+            ("alpha", "A", BASE_TIMESTAMP),
+            ("bravo", "B", BASE_TIMESTAMP),
+            ("charlie", "C", BASE_TIMESTAMP),
+            ("delta", "D", BASE_TIMESTAMP)
         ]
-        for i in items:
-            self.klist.insert(i)
+        items = [Item(k, v, timestamp) for k, v, timestamp in insert_entries]
+        for item in items:
+            self.klist.insert(item)
         
         # Retrieve an existing key "bravo"
-        item, next_entry = self.klist.retrieve("bravo")
-        self.assertEqual(item, items[1], "Retrieve should return the correct item for 'bravo'.")
+        result = self.klist.retrieve("bravo")
+        self.assertEqual(result.found_entry.item, items[1], "Retrieve should return the correct item for 'bravo'.")
         # Expect the next entry to be the one with key "charlie"
-        next_item, _ = next_entry
-        self.assertIsNotNone(next_item, "Next entry should not be None.")
-        self.assertEqual(next_item.key, "charlie",
+        self.assertIsNotNone(result.next_entry, "Next entry should not be None.")
+        self.assertEqual(result.next_entry.item.key, "charlie",
                          "The next entry after 'bravo' should be 'charlie'.")
 
     def test_retrieve_nonexistent(self):
@@ -184,35 +201,32 @@ class TestKList(unittest.TestCase):
         an appropriate "next entry" (or (None, None) if no such entry exists).
         """
         items = [
-            Item("alpha", "A", BASE_TIMESTAMP),
-            Item("bravo", "B", BASE_TIMESTAMP),
-            Item("charlie", "C", BASE_TIMESTAMP),
-            Item("delta", "D", BASE_TIMESTAMP)
+            Item("alpha", "A"),
+            Item("bravo", "B"),
+            Item("charlie", "C"),
+            Item("delta", "D")
         ]
         for i in items:
             self.klist.insert(i)
         
         # Test a key that is less than the smallest key.
-        item, next_entry = self.klist.retrieve("aardvark")
-        self.assertIsNone(item, "Retrieving 'aardvark' should return None.")
-        next_item, _ = next_entry
-        self.assertIsNotNone(next_item, "There should be a next entry for 'aardvark'.")
-        self.assertEqual(next_item.key, "alpha",
+        result = self.klist.retrieve("aardvark")
+        self.assertIsNone(result.found_entry, "Retrieving 'aardvark' should return None.")
+        self.assertIsNotNone(result.next_entry, "There should be a next entry for 'aardvark'.")
+        self.assertEqual(result.next_entry.item.key, "alpha",
                          "The next entry for 'aardvark' should be 'alpha'.")
 
         # Test a key that lies between two items (e.g., between 'bravo' and 'charlie').
-        item, next_entry = self.klist.retrieve("bri")
-        self.assertIsNone(item, "Retrieving a non-existent key 'bri' should return None.")
-        next_item, _ = next_entry
-        self.assertIsNotNone(next_item, "There should be a next entry for key 'bri'.")
-        self.assertEqual(next_item.key, "charlie",
+        result = self.klist.retrieve("bri")
+        self.assertIsNone(result.found_entry, "Retrieving a non-existent key 'bri' should return None.")
+        self.assertIsNotNone(result.next_entry, "There should be a next entry for key 'bri'.")
+        self.assertEqual(result.next_entry.item.key, "charlie",
                          "The next entry for 'bri' should be 'charlie'.")
 
         # Test a key that is greater than the maximum key.
-        item, next_entry = self.klist.retrieve("zeta")
-        self.assertIsNone(item, "Retrieving 'zeta' should return None.")
-        self.assertEqual(next_entry, (None, None),
-                         "The next entry for 'zeta' should be (None, None), since it is greater than all keys.")
+        result = self.klist.retrieve("zeta")
+        self.assertIsNone(result.found_entry, "Retrieving 'zeta' should return None.")
+        self.assertIsNone(result.next_entry, "The next entry for 'zeta' should be None, since it is greater than all keys.")
 
 
 class TestRankStatistics(unittest.TestCase):
