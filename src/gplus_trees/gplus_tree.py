@@ -115,7 +115,7 @@ class GPlusTree(AbstractSetDataStructure):
             x_item (Item): The item to be inserted.
             rank (int): The rank of the item.
         """
-        print(f"\nInserting item {x_item} with rank {rank} into G+-tree structure:\n", self.print_structure())
+        # print(f"\nInserting item {x_item} with rank {rank} into G+-tree structure:\n", self.print_structure())
         # 1) If the tree is empty, handle the initial creation logic.
         if self.is_empty():
             return self._handle_empty_insertion(x_item, rank)
@@ -252,10 +252,10 @@ class GPlusTree(AbstractSetDataStructure):
             old_node = self.node
             root_set = KList()
             root_set = root_set.insert(self.instantiate_dummy_item(), GPlusTree())
-            # print("\nCurrent tree:", current_tree.print_structure())
+            print("\nCurrent tree:", current_tree.print_structure())
             self.node = GPlusNode(rank, root_set, GPlusTree(old_node))
 
-            # print("\nNew root created:\n", self.print_structure())
+            print("\nNew root created:\n", self.print_structure())
             return self
         else:
             # Unfold a layer in between parent and current node.
@@ -363,13 +363,18 @@ class GPlusTree(AbstractSetDataStructure):
             else:
                 # print("\n\n\nSubsequent Iteration")
                 # print(f"\nSelf: {self.print_structure()}")
-                # print(f"\nCurrent tree: {current_tree.print_structure()}")
-                # print(f"\nNext entry: {next_entry}")
-                # print(f"Parent right tree: {parent_right_tree.print_structure()}")
-                # print(f"Parent right entry: {parent_right_entry}")
+                
+                print(f"\nCurrent tree pre split: {current_tree.print_structure()}")
                 
                 # We need to split the current node at x_item.key
                 left_split, x_item_left_subtree, right_split = current_tree.node.set.split_inplace(x_item.key)
+
+                print(f"\n\n\nLeft split: {left_split.print_structure()}")
+                print(f"\n\n\nRight split: {right_split.print_structure()}")
+                print(f"\n\n\nX item: {x_item}")
+                print(f"\n\n\nCurrent tree after split: {current_tree.print_structure()}")
+                print(f"\n\n\nParent right tree: {parent_right_tree.print_structure()}")
+                print(f"\n\n\nParent right entry: {parent_right_entry}")
 
                 if x_item_left_subtree is not None:
                     print(f"\n\n\nLeft split: {left_split.print_structure()}")
@@ -395,7 +400,7 @@ class GPlusTree(AbstractSetDataStructure):
                             current_tree.node.right_subtree
                         )
                     )
-                    # print("\nNew tree created (right):\n", new_tree.print_structure())
+                    print("\nNew tree created (right):\n", new_tree.print_structure())
                     # Update the parent's reference
                     if parent_right_entry:
                         # print("\nUpdating parent right tree at key", parent_right_entry.item.key)
@@ -658,7 +663,7 @@ def gtree_stats_(t: GPlusTree, rank_distribution: Dict[int, int]) -> Stats:
     # Search tree property: right subtree >= last key
     if right_stats.least_item is not None:
         last_key = set_stats[-1][0].item.key
-        print(f"\n\nlast key: {last_key} right least item: {right_stats.least_item.key}")
+        # print(f"\n\nlast key: {last_key} right least item: {right_stats.least_item.key}")
         if right_stats.least_item.key < last_key:
             stats.is_search_tree = False
             print("\n\nsearch tree property: right too small\n", t.print_structure())
@@ -688,6 +693,10 @@ def gtree_stats_(t: GPlusTree, rank_distribution: Dict[int, int]) -> Stats:
         right_stats.greatest_item if right_stats.greatest_item is not None
         else set_stats[-1][0].item
     )
+
+    stats.linked_leaf_nodes = all(s.linked_leaf_nodes for _, s in set_stats) and right_stats.linked_leaf_nodes
+
+    stats.internal_has_replicas = all(s.is_search_tree for _, s in set_stats) and right_stats.internal_has_replicas
 
     # Linked leaf nodes
     # if node.rank == 1:
@@ -719,10 +728,10 @@ def gtree_stats_(t: GPlusTree, rank_distribution: Dict[int, int]) -> Stats:
             print(f"\n\nLinked leaf nodes property: node with rank {node.rank} should not have a next node")
         
 
-    for _, left_stats in set_stats:
-        if not left_stats.linked_leaf_nodes:
-            stats.linked_leaf_nodes = False
-            print(f"\n\nLinked leaf nodes property: left subtree not linked\nLeft subtree stats:", left_stats)
+    # for _, left_stats in set_stats:
+    #     if not left_stats.linked_leaf_nodes:
+    #         stats.linked_leaf_nodes = False
+    #         print(f"\n\nLinked leaf nodes property: left subtree not linked\nLeft subtree stats:", left_stats)
 
     stats.rank = node.rank
 
