@@ -121,7 +121,7 @@ class KList(AbstractSetDataStructure):
         
         overflow = node.insert_entry(entry)
         # print(f"Inserted Item: {item}")
-        MAX_OVERFLOW_DEPTH = 100
+        MAX_OVERFLOW_DEPTH = 10000
         depth = 0
         # Propagate overflow if needed.
         while overflow is not None:
@@ -310,7 +310,7 @@ class KList(AbstractSetDataStructure):
                     # Mark that we found an exact match and store its left subtree.
                     # (We do not include this entry in either partition.)
                     if left_subtree is None:
-                        left_subtree = entry.subtree
+                        left_subtree = entry.left_subtree
                 else:  # item.key > key
                     right_entries.append(entry)
             # If there are entries for the left partition, create a node and append it.
@@ -338,7 +338,7 @@ class KList(AbstractSetDataStructure):
         # At this point the new left_klist and right_klist represent the in-place partitioning.
         return (left_klist, left_subtree, right_klist)
     
-    def print_structure(self, indent: int = 0, depth: int = 0, max_depth: int = 10):
+    def print_structure(self, indent: int = 0, depth: int = 0, max_depth: int = 2):
         """
         Returns a string representation of the k-list for debugging.
         

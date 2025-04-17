@@ -25,10 +25,13 @@ import random
 import string
 from statistics import mean
 
-from packages.jhehemann.customs.gtree.base import Item
+from packages.jhehemann.customs.gtree.base import (
+    Item,
+    calculate_item_rank
+)
 from packages.jhehemann.customs.gtree.gplus_tree import (
     GPlusTree,
-    gtree_stats_,
+    gtree_stats_
 )
 
 def geometric(p: float) -> int:
@@ -53,15 +56,30 @@ def create_gtree(items):
 
 # Create a random GPlusTree with n items and target node size (K) determining the rank distribution.
 def random_gtree_of_size(n: int, target_node_size: int) -> GPlusTree:
-    p = 1.0 - (1.0 / (target_node_size + 1))
+    # cache globals
+    calc_rank = calculate_item_rank
+    make_item = Item
+
+    # we need at least n unique values; 2^24 = 16 777 216 > 1 000 000
+    space = 1 << 24
+    assert space >= n, "key‑space too small!"
+
+    # sample unique indices once (random order baked in)
+    indices = random.sample(range(space), k=n)
+
     items = []
-    # For demonstration, we generate keys using random letters.
-    for _ in range(n):
-        key = random.choice(string.ascii_lowercase)
-        # For example, value can be the ASCII code (as in your tests)
-        item = Item(key, ord(key))
-        rank = geometric(p)
-        items.append((item, rank))
+    append = items.append
+
+    for idx in indices:
+        # 3 bytes → 6 hex digits, all lowercase, C‐level speed
+        key = idx.to_bytes(3, 'big').hex()
+        # for your demo value:
+        val = ord(key[3])
+
+        item = make_item(key, val)
+        rank = calc_rank(item.key, target_node_size)
+        append((item, rank))
+
     return create_gtree(items)
 
 # The function random_klist_tree just wraps random_gtree_of_size with a given K.
@@ -107,12 +125,6 @@ def repeated_experiment(size: int, repetitions: int, K: int, p_override: float =
       p_override : If provided, use this probability instead (optional)
     """
     results = []  # List of tuples: (stats, physical_height)
-
-    # If provided, override p; otherwise, compute p from K.
-    if p_override is None:
-        p = 1.0 - (1.0 / (K + 1))
-    else:
-        p = p_override
 
     # Generate results from repeated experiments.
     for _ in range(repetitions):
@@ -161,11 +173,12 @@ def repeated_experiment(size: int, repetitions: int, K: int, p_override: float =
     print(f"Actual height: {avg_physical_height:.2f} ({var_physical_height:.2f})")
     print(f"Perfect height: {perfect_height}")
     print(f"Height amplification: {avg_height_amp:.2f} ({var_height_amp:.2f})")
+    # print(f"Tree structure:\n{tree.print_structure()}")
     print("\n\n")
 
 if __name__ == "__main__":
     # List of tree sizes to test.
-    sizes = [10, 100, 1000, 10000, 100000]
+    sizes = [10, 100, 1000, 10000]
     # List of K values for which we want to run experiments.
     Ks = [2, 4, 16, 64]
     repetitions = 200
