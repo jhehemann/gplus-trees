@@ -91,6 +91,18 @@ class KList(AbstractSetDataStructure):
             count += len(current.entries)
             current = current.next
         return count
+    
+    def item_slot_count(self) -> int:
+        """
+        Returns the total number of slots available
+        in the k-list, which is the sum of the capacities of all nodes.
+        """
+        count = 0
+        current = self.head
+        while current is not None:
+            count += KListNode.CAPACITY
+            current = current.next
+        return count
 
     def insert(
             self, 

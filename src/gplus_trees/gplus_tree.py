@@ -378,7 +378,7 @@ class GPlusTree(AbstractSetDataStructure):
                     print(f"\n\n\nX item: {x_item}")
                     print(f"\n\n\nParent right tree: {parent_right_tree.print_structure()}")
                     print(f"\n\n\nParent right entry: {parent_right_entry}")
-                    raise RuntimeError("Expected non-empty left subtree during split operation. This indicates that the item to insert is already present in the tree and no split should have occurred.")
+                    raise RuntimeError("Expected non-empty left subtree during split operation. This indicates that the item to insert is already present in the tree with a lower rank.")
 
                 # Right side: if it has data or is a leaf, form a new node
                 if not right_split.is_empty() or is_leaf:
@@ -582,6 +582,8 @@ class Stats:
     least_item: Optional[Any]
     greatest_item: Optional[Any]
     is_search_tree: bool
+    linked_leaf_nodes: bool
+    internal_has_replicas: bool
 
 def gtree_stats_(t: GPlusTree, rank_distribution: Dict[int, int]) -> Stats:
     if t is None or t.is_empty():
@@ -594,7 +596,9 @@ def gtree_stats_(t: GPlusTree, rank_distribution: Dict[int, int]) -> Stats:
             is_heap=True,
             least_item=None,
             greatest_item=None,
-            is_search_tree=True
+            is_search_tree=True,
+            linked_leaf_nodes=True,
+            internal_has_replicas=True,
         )
 
     node = t.node
@@ -603,7 +607,7 @@ def gtree_stats_(t: GPlusTree, rank_distribution: Dict[int, int]) -> Stats:
         rank_distribution.get(node.rank, 0) + node_set.item_count()
     )
 
-    set_stats = [(entry.item, gtree_stats_(entry.left_subtree, rank_distribution))
+    set_stats = [(entry, gtree_stats_(entry.left_subtree, rank_distribution))
                   for entry in node_set]
     right_stats = gtree_stats_(node.right_subtree, rank_distribution)
 
@@ -618,7 +622,7 @@ def gtree_stats_(t: GPlusTree, rank_distribution: Dict[int, int]) -> Stats:
     stats.item_count += node_set.item_count()
     # print(f"Resulting item count {stats.item_count}")
     
-    stats.item_slot_count += node_set.item_count()
+    stats.item_slot_count += node_set.item_slot_count()
     for _, s in set_stats:
         # print("Adding subtree item count", s.item_count, "to current stats item count", stats.item_count)
         stats.item_count += s.item_count
@@ -627,7 +631,6 @@ def gtree_stats_(t: GPlusTree, rank_distribution: Dict[int, int]) -> Stats:
     # print("Adding right subtree item count", right_stats.item_count, "to current stats item count", stats.item_count)
     # stats.item_count += right_stats.item_count
     # print(f"Resulting item count {stats.item_count}")
-    stats.item_slot_count += right_stats.item_slot_count
 
     # A: Local check: parent.rank <= child.rank
     heap_local = True
@@ -654,37 +657,72 @@ def gtree_stats_(t: GPlusTree, rank_distribution: Dict[int, int]) -> Stats:
 
     # Search tree property: right subtree >= last key
     if right_stats.least_item is not None:
-        last_key = set_stats[-1][0]
-        if right_stats.least_item == last_key:
+        last_key = set_stats[-1][0].item.key
+        print(f"\n\nlast key: {last_key} right least item: {right_stats.least_item.key}")
+        if right_stats.least_item.key < last_key:
             stats.is_search_tree = False
             print("\n\nsearch tree property: right too small\n", t.print_structure())
 
-    for i, (item, left_stats) in enumerate(set_stats):
+    for i, (entry, left_stats) in enumerate(set_stats):
         if left_stats.least_item is not None and i > 0:
-            prev_key = set_stats[i - 1][0]
-            exit
-            if left_stats.least_item.key < prev_key.key:
+            prev_key = set_stats[i - 1][0].item.key
+            if left_stats.least_item.key < prev_key:
                 stats.is_search_tree = False
                 print(f"\n\nsearch tree property: left {i} too small\n", t.print_structure())
                 print("\set_stats", set_stats)
 
         if left_stats.greatest_item is not None:
-            if left_stats.greatest_item.key >= item.key:
+            if left_stats.greatest_item.key >= entry.item.key:
                 stats.is_search_tree = False
-                print(f"\n\nitem key {item.key} at position {i} is not greater than left subtree greatest item {left_stats.greatest_item.key}")
+                print(f"\n\nitem key {entry.item.key} at position {i} is not greater than left subtree greatest item {left_stats.greatest_item.key}")
                 print(f"\n\nsearch tree property: left {i} too great\n", t.print_structure())
 
     # Set least and greatest
     least_pair = set_stats[0]
     stats.least_item = (
         least_pair[1].least_item if least_pair[1].least_item is not None
-        else least_pair[0]
+        else least_pair[0].item
     )
 
     stats.greatest_item = (
         right_stats.greatest_item if right_stats.greatest_item is not None
-        else set_stats[-1][0]
+        else set_stats[-1][0].item
     )
+
+    # Linked leaf nodes
+    # if node.rank == 1:
+    #     # Return always true
+    #     stats.linked_leaf_nodes = True
+    if node.rank == 2:
+        # Check if all entrie's left subtrees (if not empty) are linked to the left subtree of the next entry. If the next entry is None, we are at the end of the list and the left subtree of the last entry is linked to the nodes right subtree.
+
+        for i, (entry, left_stats) in enumerate(set_stats):
+            if entry.left_subtree is not None and not entry.left_subtree.is_empty():
+                if i < len(set_stats) - 1:
+                    next_entry = set_stats[i + 1][0]
+                    if entry.left_subtree.node.next != next_entry.left_subtree:
+                        stats.linked_leaf_nodes = False
+                        print(f"\n\nLinked leaf nodes property: left {i} not linked to next entry\n", t.print_structure())
+                else:
+                    if entry.left_subtree.node.next != node.right_subtree:
+                        stats.linked_leaf_nodes = False
+                        print(f"\n\nLinked leaf nodes property: left {i} not linked to right subtree\n", t.print_structure())
+            else:
+                # If the left subtree is empty, we can skip this entry
+                continue
+    if node.rank >= 2:
+        for entry in node_set:
+            if entry.item.value is not None:
+                stats.internal_has_replicas = False
+        if node.next is not None:
+            stats.linked_leaf_nodes = False
+            print(f"\n\nLinked leaf nodes property: node with rank {node.rank} should not have a next node")
+        
+
+    for _, left_stats in set_stats:
+        if not left_stats.linked_leaf_nodes:
+            stats.linked_leaf_nodes = False
+            print(f"\n\nLinked leaf nodes property: left subtree not linked\nLeft subtree stats:", left_stats)
 
     stats.rank = node.rank
 

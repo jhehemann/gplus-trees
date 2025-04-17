@@ -165,6 +165,14 @@ class AbstractSetDataStructure(ABC):
         """
         pass
 
+    def item_count(self) -> int:
+        """
+        Get the count of items in the set data structure.
+        Returns:
+            int: The number of items in the set.
+        """
+        pass
+
     @abstractmethod
     def split_inplace(
             self, key: str

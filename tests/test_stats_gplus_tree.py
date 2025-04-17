@@ -17,13 +17,13 @@
 #   limitations under the License.
 #
 # ------------------------------------------------------------------------------
-"""Tests for jhehemann/customs/k-list abstract data structure."""
+"""Tests for gplus tree abstract data structure."""
 # pylint: skip-file
 
 import math
 import random
-import string
 from statistics import mean
+from typing import List, Optional, Tuple
 
 from packages.jhehemann.customs.gtree.base import (
     Item,
@@ -86,31 +86,76 @@ def random_gtree_of_size(n: int, target_node_size: int) -> GPlusTree:
 def random_klist_tree(n: int, K: int) -> GPlusTree:
     return random_gtree_of_size(n, K)
 
-# Stub for collecting statistics from a tree.
-# Replace this with your real gtree_stats_ implementation.
-class TreeStats:
-    def __init__(self, gnode_count, gnode_height, item_count, item_slot_count, rank):
-        self.gnode_count = gnode_count
-        self.gnode_height = gnode_height
-        self.item_count = item_count
-        self.item_slot_count = item_slot_count
-        self.rank = rank
+# # Stub for collecting statistics from a tree.
+# # Replace this with your real gtree_stats_ implementation.
+# class TreeStats:
+#     def __init__(self, gnode_count, gnode_height, item_count, item_slot_count, rank):
+#         self.gnode_count = gnode_count
+#         self.gnode_height = gnode_height
+#         self.item_count = item_count
+#         self.item_slot_count = item_slot_count
+#         self.rank = rank
         
-def gtree_stats_(tree: GPlusTree, dummy: dict) -> TreeStats:
-    # Return dummy statistics – replace with your actual logic.
-    # For demonstration, we use arbitrary values.
-    return TreeStats(
-        gnode_count=random.randint(5, 15),
-        gnode_height=random.randint(2, 5),
-        item_count=random.randint(10, 20),
-        item_slot_count=random.randint(20, 30),
-        rank=random.randint(1, 5)
-    )
+# def gtree_stats_(tree: GPlusTree, dummy: dict) -> TreeStats:
+#     # Return dummy statistics – replace with your actual logic.
+#     # For demonstration, we use arbitrary values.
+#     return TreeStats(
+#         gnode_count=random.randint(5, 15),
+#         gnode_height=random.randint(2, 5),
+#         item_count=random.randint(10, 20),
+#         item_slot_count=random.randint(20, 30),
+#         rank=random.randint(1, 5)
+#     )
 
-# Stub for computing the physical height of the tree.
-def compute_physical_height(tree: GPlusTree) -> int:
-    # Replace with your actual physical height computation.
-    return random.randint(2, 6)
+# # Stub for computing the physical height of the tree.
+# def compute_physical_height(tree: GPlusTree) -> int:
+#     # Replace with your actual physical height computation.
+#     return random.randint(2, 6)
+
+def check_leaf_keys_and_values(
+    tree: GPlusTree,
+    expected_keys: Optional[List[str]] = None
+) -> Tuple[bool, bool, bool]:
+    """
+    Traverse all leaf nodes exactly once, gathering their real items (key, value),
+    then compute three invariants:
+      1. presence_ok: if `expected_keys` is provided, do we have exactly that set of keys?
+                      otherwise always True.
+      2. all_have_values: are all those items’ values not None?
+      3. order_ok: are the keys in strictly sorted order?
+    
+    Parameters:
+        tree:           The GPlusTree to examine.
+        expected_keys:  Optional list of keys that must match exactly. If None, skip presence test.
+    
+    Returns:
+        (presence_ok, all_have_values, order_ok)
+    """
+    actual = []
+    for leaf in tree.iter_leaf_nodes():
+        for entry in leaf.set:
+            # skip dummy or internal replicas (they have value=None)
+            if entry.item.value is None:
+                continue
+            actual.append((entry.item.key, entry.item.value))
+
+    # unzip into separate lists
+    keys   = [k for k, _ in actual]
+    values = [v for _, v in actual]
+
+    # 1) presence: only if expected_keys was provided
+    if expected_keys is None:
+        presence_ok = True
+    else:
+        presence_ok = set(keys) == set(expected_keys)
+
+    # 2) all real items have non-None values
+    all_have_values = all(v is not None for v in values)
+
+    # 3) keys are in sorted order
+    order_ok = (keys == sorted(keys))
+
+    return keys, presence_ok, all_have_values, order_ok
 
 # --- The repeated_experiment function ---
 def repeated_experiment(size: int, repetitions: int, K: int, p_override: float = None):
