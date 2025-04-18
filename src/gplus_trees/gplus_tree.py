@@ -264,10 +264,13 @@ class GPlusTree(AbstractSetDataStructure):
             # Insert the current node's min (a "replica") to new node.
             result = current_tree.node.set.get_min()
             min_entry = result.found_entry
+
             if min_entry is None:
                 raise RuntimeError(f"Expected nonempty set during rank mismatch handling, but get_min() returned None.\n\nParent Tree:\n {parent_tree.print_structure()}\n\nCurrent tree:\n {current_tree.print_structure()}\n\nSelf:\n {self.print_structure()}")
             
-            new_set = new_set.insert(min_entry.item, min_entry.left_subtree)
+            new_min_replica = Item(min_entry.item.key, None, None)
+
+            new_set = new_set.insert(new_min_replica, GPlusTree())
             new_tree = GPlusTree(
                 GPlusNode(rank, new_set, current_tree)
             )
