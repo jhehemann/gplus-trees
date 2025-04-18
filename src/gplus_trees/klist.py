@@ -259,7 +259,7 @@ class KList(AbstractSetDataStructure):
     def update_left_subtree(
             self,
             key: str,
-            left_subtree: 'GPlusTree'
+            new_tree: 'GPlusTree'
     ) -> 'KList':
         """
         Updates the left subtree of the item in the k-list.
@@ -269,7 +269,7 @@ class KList(AbstractSetDataStructure):
 
         Parameters:
             key (str): The key of the item to update.
-            left_subtree (GPlusTree or None): The new left subtree to associate with the item.
+            new_tree (GPlusTree or None): The new left subtree to associate with the item.
 
         Returns:
             KList: The updated k-list.
@@ -279,7 +279,7 @@ class KList(AbstractSetDataStructure):
             for i, entry in enumerate(current_node.entries):
                 if entry.item.key == key:
                     # Update the left subtree of the found entry.
-                    current_node.entries[i].left_subtree = left_subtree
+                    current_node.entries[i].left_subtree = new_tree
                     return self
             current_node = current_node.next
         return self
@@ -288,7 +288,9 @@ class KList(AbstractSetDataStructure):
             self, key: str
     ) -> Tuple['KList', Optional['GPlusTree'], 'KList']:
         """
-        Partitions the current KList in place based on the provided key.
+        NOTE: Not yet in-place splitting. Currently creates new KLists.
+        
+        Partitions the current KList in-place based on the provided key.
         
         This method splits the KList into:
         - A left partition containing all entries with keys < key.

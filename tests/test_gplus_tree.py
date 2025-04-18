@@ -79,11 +79,13 @@ class TestGPlusTreeInsert(unittest.TestCase):
 
         # Structural invariants
         stats = gtree_stats_(self.tree, {})
-        print("\n\nTree stats:")
-        pprint(asdict(stats))
+        # print("\n\nTree stats:")
+        # pprint(asdict(stats))
         self.assertTrue(stats.is_search_tree, "Tree violates search‑tree invariant")
         self.assertTrue(stats.is_heap, "Tree violates heap invariant")
         self.assertTrue(stats.linked_leaf_nodes, "Leaf nodes are not linked correctly")
+        self.assertTrue(stats.internal_has_replicas, "Internal nodes do not contain replicas only")
+        self.assertTrue(stats.internal_packed, "Internal nodes are not collapsed correctly")
         expected_gnode_count = getattr(self, 'expected_gnode_count', None)
         if expected_gnode_count is not None:
             self.assertEqual(
@@ -117,107 +119,106 @@ class TestGPlusTreeInsert(unittest.TestCase):
                 f"Item count {stats.item_count} does not match expected {expected_item_count}"
             )
 
-    # def test_insert_into_empty_tree_rank_1(self):
-    #     item = Item("a", 1)
-    #     self.tree.insert(item, rank=1)
-    #     self.assertIsNotNone(self.tree.node, "Root should not be None")
-    #     self.assertEqual(self.tree.node.rank, 1, "Root rank should be 1")
-    #     self.expected_item_count = 2    # currently incl. replicas & dummys
-    #     self.expected_leaf_keys = ["a"]
-    #     self.expected_gnode_count = 1
-    #     result = self.tree.node.set.retrieve("0" * 64)
-    #     self.assertTrue(result.found_entry is not None, "Dummy item should be present in the set")
-    #     self.assertEqual(result.next_entry.item, item, "Item should be found in the tree.\n")
+    def test_insert_into_empty_tree_rank_1(self):
+        item = Item("a", 1)
+        self.tree.insert(item, rank=1)
+        self.assertIsNotNone(self.tree.node, "Root should not be None")
+        self.assertEqual(self.tree.node.rank, 1, "Root rank should be 1")
+        self.expected_item_count = 2    # currently incl. replicas & dummys
+        self.expected_leaf_keys = ["a"]
+        self.expected_gnode_count = 1
+        result = self.tree.node.set.retrieve("0" * 64)
+        self.assertTrue(result.found_entry is not None, "Dummy item should be present in the set")
+        self.assertEqual(result.next_entry.item, item, "Item should be found in the tree.\n")
 
-    # def test_insert_into_empty_tree_rank_gt_1(self):
-    #     item = Item("a", 10, BASE_TIMESTAMP)
-    #     self.tree.insert(item, rank=3)
-    #     self.assertIsNotNone(self.tree.node, f"Root should not be None")
-    #     self.assertEqual(self.tree.node.rank, 3, f"Root rank should be 3")
-    #     self.expected_item_count = 4    # currently incl. replicas & dummys
-    #     self.expected_leaf_keys = ["a"]
-    #     self.expected_gnode_count = 3   # 2 leaf nodes + 1 root
-    #     self.assertEqual(self.tree.node.set.item_count(), 2, f"Replica count in root should be 2 (1 dummy + 1 item)")      
+    def test_insert_into_empty_tree_rank_gt_1(self):
+        item = Item("a", 10, BASE_TIMESTAMP)
+        self.tree.insert(item, rank=3)
+        self.assertIsNotNone(self.tree.node, f"Root should not be None")
+        self.assertEqual(self.tree.node.rank, 3, f"Root rank should be 3")
+        self.expected_item_count = 4    # currently incl. replicas & dummys
+        self.expected_leaf_keys = ["a"]
+        self.expected_gnode_count = 3   # 2 leaf nodes + 1 root
+        self.assertEqual(self.tree.node.set.item_count(), 2, f"Replica count in root should be 2 (1 dummy + 1 item)")      
 
-    # def test_insert_multiple_increasing_keys_rank_1(self):
-    #     keys = ["a", "b", "c", "d"]
-    #     ranks = [1, 1, 1, 1]
-    #     for i, k in enumerate(keys):
-    #         calculated_rank = ranks[i]
-    #         self.tree.insert(Item(k, ord(k)), rank=calculated_rank)
-    #     self.expected_item_count = 5    # currently incl. replicas & dummys
-    #     self.expected_leaf_keys = ["a", "b", "c", "d"]
-    #     self.expected_gnode_count = 1
+    def test_insert_multiple_increasing_keys_rank_1(self):
+        keys = ["a", "b", "c", "d"]
+        ranks = [1, 1, 1, 1]
+        for i, k in enumerate(keys):
+            calculated_rank = ranks[i]
+            self.tree.insert(Item(k, ord(k)), rank=calculated_rank)
+        self.expected_item_count = 5    # currently incl. replicas & dummys
+        self.expected_leaf_keys = ["a", "b", "c", "d"]
+        self.expected_gnode_count = 1
 
-    # def test_insert_multiple_decreasing_keys_rank_1(self):
-    #     keys = ["d", "c", "b", "a"]
-    #     ranks = [1, 1, 1, 1]
-    #     for i, k in enumerate(keys):
-    #         calculated_rank = ranks[i]
-    #         self.tree.insert(Item(k, ord(k)), rank=calculated_rank)
-    #     self.expected_item_count = 5    # currently incl. replicas & dummys
-    #     self.expected_leaf_keys = ["a", "b", "c", "d"]
-    #     self.expected_gnode_count = 1
+    def test_insert_multiple_decreasing_keys_rank_1(self):
+        keys = ["d", "c", "b", "a"]
+        ranks = [1, 1, 1, 1]
+        for i, k in enumerate(keys):
+            calculated_rank = ranks[i]
+            self.tree.insert(Item(k, ord(k)), rank=calculated_rank)
+        self.expected_item_count = 5    # currently incl. replicas & dummys
+        self.expected_leaf_keys = ["a", "b", "c", "d"]
+        self.expected_gnode_count = 1
 
-    # def test_insert_multiple_random_keys_rank_1(self):
-    #     keys = ["g", "e", "f", "d", "i", "h", "b", "a", "c"]
-    #     ranks = [1, 1, 1, 1, 1, 1, 1, 1, 1]
-    #     for i, k in enumerate(keys):
-    #         calculated_rank = ranks[i]
-    #         self.tree.insert(Item(k, ord(k)), rank=calculated_rank)
-    #     self.expected_item_count = 10   # currently incl. replicas & dummys
-    #     self.expected_leaf_keys = ["a", "b", "c", "d", "e", "f", "g", "h", "i"]
-    #     self.expected_gnode_count = 1
+    def test_insert_multiple_random_keys_rank_1(self):
+        keys = ["g", "e", "f", "d", "i", "h", "b", "a", "c"]
+        ranks = [1, 1, 1, 1, 1, 1, 1, 1, 1]
+        for i, k in enumerate(keys):
+            calculated_rank = ranks[i]
+            self.tree.insert(Item(k, ord(k)), rank=calculated_rank)
+        self.expected_item_count = 10   # currently incl. replicas & dummys
+        self.expected_leaf_keys = ["a", "b", "c", "d", "e", "f", "g", "h", "i"]
+        self.expected_gnode_count = 1
 
-    # def test_insert_higher_rank_creates_root(self):
-    #     keys = ["a", "z"]
-    #     ranks = [1, 2]
-    #     for i, k in enumerate(keys):
-    #         calculated_rank = ranks[i]
-    #         self.tree.insert(Item(k, ord(k)), rank=calculated_rank)
-    #     self.assertEqual(self.tree.node.rank, 2, "Root rank should be 2.\n" + str(self.tree.print_structure()))
-    #     self.expected_item_count = 5    # currently incl. replicas & dummys
-    #     self.expected_leaf_keys = ["a", "z"]
-    #     self.expected_gnode_count = 3   # 2 leaf nodes + 1 root
+    def test_insert_higher_rank_creates_root(self):
+        keys = ["a", "z"]
+        ranks = [1, 2]
+        for i, k in enumerate(keys):
+            calculated_rank = ranks[i]
+            self.tree.insert(Item(k, ord(k)), rank=calculated_rank)
+        self.assertEqual(self.tree.node.rank, 2, "Root rank should be 2.\n" + str(self.tree.print_structure()))
+        self.expected_item_count = 5    # currently incl. replicas & dummys
+        self.expected_leaf_keys = ["a", "z"]
+        self.expected_gnode_count = 3   # 2 leaf nodes + 1 root
 
-    # def test_insert_increasing_keys_and_ranks(self):
-    #     keys = ["a", "b", "c", "d"]
-    #     ranks = [1, 2, 3, 4]
-    #     for i, k in enumerate(keys):
-    #         calculated_rank = ranks[i]
-    #         self.tree.insert(Item(k, ord(k)), rank=calculated_rank)
-    #     self.assertEqual(self.tree.node.rank, max(ranks), "Root rank should be 2.\n" + str(self.tree.print_structure()))
-    #     self.expected_item_count = 11    # currently incl. replicas & dummys
-    #     self.expected_leaf_keys = ["a", "b", "c", "d"]
-    #     self.expected_gnode_count = 7   # 2 leaf nodes + 1 root
-    #     print(self.tree.print_structure())
+    def test_insert_increasing_keys_and_ranks(self):
+        keys = ["a", "b", "c"]
+        ranks = [1, 2, 3]
+        for i, k in enumerate(keys):
+            calculated_rank = ranks[i]
+            self.tree.insert(Item(k, ord(k)), rank=calculated_rank)
+        self.assertEqual(self.tree.node.rank, max(ranks), "Root rank should be 2.\n" + str(self.tree.print_structure()))
+        self.expected_item_count = 8    # currently incl. replicas & dummys
+        self.expected_leaf_keys = ["a", "b", "c"]
+        self.expected_gnode_count = 5   # 2 leaf nodes + 1 root
 
-    # def test_insert_decreasing_keys_increasing_ranks(self):
-    #     keys = ["d", "c", "b", "a"]
-    #     ranks = [1, 2, 3, 4]
+    def test_insert_decreasing_keys_increasing_ranks(self):
+        keys = ["c", "b", "a"]
+        ranks = [1, 2, 3]
+        for i, k in enumerate(keys):
+            calculated_rank = ranks[i]
+            self.tree.insert(Item(k, ord(k)), rank=calculated_rank)
+        # print("\n\nTree structure:")
+        # print(self.tree.print_structure())
+        self.assertEqual(self.tree.node.rank, max(ranks), "Root rank should be 2.\n" + str(self.tree.print_structure()))
+        self.expected_item_count = 8    # currently incl. replicas & dummys
+        self.expected_leaf_keys = ["a", "b", "c"]
+        self.expected_gnode_count = 5   # 2 leaf nodes + 1 root
+
+
+    # def test_insert_rasafdasdfasdf_keys_increasing_ranks(self):
+    #     keys = ["d", "c", "a", "b"]
+    #     ranks = [1, 2, 4, 3]
     #     for i, k in enumerate(keys):
     #         calculated_rank = ranks[i]
     #         self.tree.insert(Item(k, ord(k)), rank=calculated_rank)
     #     print("\n\nTree structure:")
     #     print(self.tree.print_structure())
     #     self.assertEqual(self.tree.node.rank, max(ranks), "Root rank should be 2.\n" + str(self.tree.print_structure()))
-    #     self.expected_item_count = 11    # currently incl. replicas & dummys
+    #     self.expected_item_count = 9    # currently incl. replicas & dummys
     #     self.expected_leaf_keys = ["a", "b", "c", "d"]
-    #     self.expected_gnode_count = 7   # 2 leaf nodes + 1 root
-
-    def test_insert_decreasing_keys_increasing_ranks(self):
-        keys = ["d", "c", "b"]
-        ranks = [1, 2, 3]
-        for i, k in enumerate(keys):
-            calculated_rank = ranks[i]
-            self.tree.insert(Item(k, ord(k)), rank=calculated_rank)
-        print("\n\nTree structure:")
-        print(self.tree.print_structure())
-        self.assertEqual(self.tree.node.rank, max(ranks), "Root rank should be 2.\n" + str(self.tree.print_structure()))
-        self.expected_item_count = 5    # currently incl. replicas & dummys
-        self.expected_leaf_keys = ["c", "d", "b"]
-        self.expected_gnode_count = 3   # 2 leaf nodes + 1 root
-
+    #     self.expected_gnode_count = 5   # 2 leaf nodes + 1 root
     
     
     

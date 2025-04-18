@@ -106,7 +106,7 @@ class AbstractSetDataStructure(ABC):
     """
     
     @abstractmethod
-    def insert(self, item: 'Item', rank: int) -> bool:
+    def insert(self, item: 'Item', rank: int) -> 'AbstractSetDataStructure':
         """
         Insert an item into the set with the provided rank.
         
@@ -115,12 +115,12 @@ class AbstractSetDataStructure(ABC):
             rank (int): The rank for the item.
         
         Returns:
-            bool: True if insertion is successful, False otherwise.
+            AbstractSetDataStructure: The set data structure instance where the item was inserted.
         """
         pass
 
     @abstractmethod
-    def delete(self, key: str) -> bool:
+    def delete(self, key: str) -> 'AbstractSetDataStructure':
         """
         Delete the item corresponding to the given key by inserting a tombstone.
         
@@ -132,7 +132,7 @@ class AbstractSetDataStructure(ABC):
             key (str): The key of the item to be deleted.
         
         Returns:
-            bool: True if deletion (tombstone insertion) is successful, False otherwise.
+            AbstractSetDataStructure: The set data structure instance after deletion.
         """
         pass
 
