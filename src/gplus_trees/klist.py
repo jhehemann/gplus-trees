@@ -103,6 +103,19 @@ class KList(AbstractSetDataStructure):
             count += KListNode.CAPACITY
             current = current.next
         return count
+    
+    def physical_height(self) -> int:
+        """
+        Returns the number of KListNode segments in this k-list.
+        (i.e. how many times you must follow `next` before you reach None).
+        """
+        height = 0
+        node = self.head
+        while node is not None:
+            height += 1
+            node = node.next
+        return height
+    
 
     def insert(
             self, 

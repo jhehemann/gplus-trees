@@ -87,32 +87,6 @@ def random_gtree_of_size(n: int, target_node_size: int) -> GPlusTree:
 def random_klist_tree(n: int, K: int) -> GPlusTree:
     return random_gtree_of_size(n, K)
 
-# # Stub for collecting statistics from a tree.
-# # Replace this with your real gtree_stats_ implementation.
-# class TreeStats:
-#     def __init__(self, gnode_count, gnode_height, item_count, item_slot_count, rank):
-#         self.gnode_count = gnode_count
-#         self.gnode_height = gnode_height
-#         self.item_count = item_count
-#         self.item_slot_count = item_slot_count
-#         self.rank = rank
-        
-# def gtree_stats_(tree: GPlusTree, dummy: dict) -> TreeStats:
-#     # Return dummy statistics – replace with your actual logic.
-#     # For demonstration, we use arbitrary values.
-#     return TreeStats(
-#         gnode_count=random.randint(5, 15),
-#         gnode_height=random.randint(2, 5),
-#         item_count=random.randint(10, 20),
-#         item_slot_count=random.randint(20, 30),
-#         rank=random.randint(1, 5)
-#     )
-
-# # Stub for computing the physical height of the tree.
-# def compute_physical_height(tree: GPlusTree) -> int:
-#     # Replace with your actual physical height computation.
-#     return random.randint(2, 6)
-
 def check_leaf_keys_and_values(
     tree: GPlusTree,
     expected_keys: Optional[List[str]] = None
@@ -176,7 +150,7 @@ def repeated_experiment(size: int, repetitions: int, K: int, p_override: float =
     for _ in range(repetitions):
         tree = random_klist_tree(size, K)
         stats = gtree_stats_(tree, {})
-        phy_height = compute_physical_height(tree)
+        phy_height = tree.physical_height()
         results.append((stats, phy_height))
     
     # Perfect height: ceil( log_{K+1}(size) )
@@ -224,7 +198,7 @@ def repeated_experiment(size: int, repetitions: int, K: int, p_override: float =
 
 if __name__ == "__main__":
     # List of tree sizes to test.
-    sizes = [10, 100, 1000, 10000]
+    sizes = [10, 100, 1000]
     # List of K values for which we want to run experiments.
     Ks = [2, 4, 16, 64]
     repetitions = 200

@@ -582,6 +582,31 @@ class GPlusTree(AbstractSetDataStructure):
             yield current.node
             current = current.node.next
     
+    def physical_height(self) -> int:
+        """
+        The “real” pointer‑follow height of the G⁺‑tree:
+        –  the number of KListNode segments in this node’s k‑list, plus
+        –  the maximum physical_height() of any of its subtrees.
+        """
+        if self.is_empty():
+            return 0
+
+        node = self.node
+        # 1) base = how many KListNodes this node’s set chains through
+        base = node.set.physical_height()
+
+        # 2) find the tallest child among all left_subtrees and the right_subtree
+        max_child = 0
+        for entry in node.set:
+            left = entry.left_subtree
+            if left is not None and not left.is_empty():
+                max_child = max(max_child, left.physical_height())
+        if node.right_subtree is not None and not node.right_subtree.is_empty():
+            max_child = max(max_child, node.right_subtree.physical_height())
+
+        # total physical height = this node’s chain length + deepest child
+        return base + max_child
+
     def print_structure(self, indent: int = 0, depth: int = 0, max_depth: int = 2):
         prefix = ' ' * indent
         if self.is_empty() or self is None:
