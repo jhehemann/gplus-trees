@@ -31,7 +31,8 @@ from packages.jhehemann.customs.gtree.base import (
 )
 from packages.jhehemann.customs.gtree.gplus_tree import (
     GPlusTree,
-    gtree_stats_
+    gtree_stats_,
+    DUMMY_ITEM_KEY
 )
 
 def geometric(p: float) -> int:
@@ -115,7 +116,7 @@ def random_klist_tree(n: int, K: int) -> GPlusTree:
 def check_leaf_keys_and_values(
     tree: GPlusTree,
     expected_keys: Optional[List[str]] = None
-) -> Tuple[bool, bool, bool]:
+) -> Tuple[List[str], bool, bool, bool]:
     """
     Traverse all leaf nodes exactly once, gathering their real items (key, value),
     then compute three invariants:
@@ -129,7 +130,7 @@ def check_leaf_keys_and_values(
         expected_keys:  Optional list of keys that must match exactly. If None, skip presence test.
     
     Returns:
-        (presence_ok, all_have_values, order_ok)
+        (keys, presence_ok, all_have_values, order_ok)
     """
     actual = []
     for leaf in tree.iter_leaf_nodes():

@@ -581,7 +581,6 @@ class GPlusTree(AbstractSetDataStructure):
         while current is not None and not current.is_empty():
             yield current.node
             current = current.node.next
-
     
     def print_structure(self, indent: int = 0, depth: int = 0, max_depth: int = 2):
         prefix = ' ' * indent
@@ -635,9 +634,12 @@ class Stats:
     least_item: Optional[Any]
     greatest_item: Optional[Any]
     is_search_tree: bool
-    linked_leaf_nodes: bool
     internal_has_replicas: bool
     internal_packed: bool
+    linked_leaf_nodes: bool
+    all_leaf_values_present: bool
+    leaf_keys_in_order: bool
+    
 
 def gtree_stats_(t: GPlusTree, rank_distribution: Dict[int, int]) -> Stats:
     if t is None or t.is_empty():
@@ -651,9 +653,12 @@ def gtree_stats_(t: GPlusTree, rank_distribution: Dict[int, int]) -> Stats:
             least_item=None,
             greatest_item=None,
             is_search_tree=True,
-            linked_leaf_nodes=True,
             internal_has_replicas=True,
             internal_packed=True,
+            linked_leaf_nodes=True,
+            all_leaf_values_present=True,
+            leaf_keys_in_order=True,
+            
         )
 
     node = t.node
@@ -784,20 +789,31 @@ def gtree_stats_(t: GPlusTree, rank_distribution: Dict[int, int]) -> Stats:
         
     stats.internal_packed = all(s.internal_packed for _, s in set_stats) and right_stats.internal_packed and node_set_packed
 
-    # for _, left_stats in set_stats:
-    #     if not left_stats.linked_leaf_nodes:
-    #         stats.linked_leaf_nodes = False
-    #         print(f"\n\nLinked leaf nodes property: left subtree not linked\nLeft subtree stats:", left_stats)
+    # Walk the leaves exactly once
+    dummy_key = t.instantiate_dummy_item().key
+    leaf_keys, leaf_values = [], []
+    for leaf in t.iter_leaf_nodes():
+        for entry in leaf.set:
+            k, v = entry.item.key, entry.item.value
+            if k == dummy_key:
+                continue
+            leaf_keys.append(k)
+            leaf_values.append(v)
+
+    stats.all_leaf_values_present = all(v is not None for v in leaf_values)
+    stats.leaf_keys_in_order     = (leaf_keys == sorted(leaf_keys))
 
     stats.rank = node.rank
 
     return stats
 
-    
 
-# print(t.print_structure())
-# print("Stats:")
-# pprint(asdict(stats))
-# print("\n")
+def collect_leaf_keys(tree: 'GPlusTree') -> list[str]:
+        out = []
+        for leaf in tree.iter_leaf_nodes():
+            for e in leaf.set:
+                if e.item.key != DUMMY_ITEM_KEY:
+                    out.append(e.item.key)
+        return out
 
 
