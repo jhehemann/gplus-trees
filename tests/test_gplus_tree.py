@@ -199,9 +199,17 @@ class TreeTestCase(unittest.TestCase):
                 f"Entry #{i} value for key {entry.item.key} should be None"
             )
             if i == 0:
+                self.assertIsNotNone(entry.left_subtree,
+                                     "Use empty trees; never None.")
                 self.assertTrue(
                     entry.left_subtree.is_empty(),
                     "The first (min) entry’s left subtree should be empty"
+                )
+            else:
+                self.assertFalse(
+                    entry.left_subtree.is_empty(),
+                    f"Entry #{i} ({expected_item.key}) should have non-empty "
+                    f"left_subtree"
                 )
 
         # collect and return the first two entries
@@ -235,6 +243,7 @@ class TreeTestCase(unittest.TestCase):
         )
 
         # no children at a leaf
+        self.assertIsNotNone(node.right_subtree, "Use empty trees; never None.")
         self.assertTrue(
             node.right_subtree.is_empty(),
             "Leaf node's right_subtree should be empty"
@@ -252,6 +261,9 @@ class TreeTestCase(unittest.TestCase):
                 f"{expected.value!r}, "
                 f"got {entry.item.value!r}"
             )
+            self.assertIsNotNone(entry.left_subtree,
+                                 "Use empty trees; never None.")
+
             self.assertTrue(
                 entry.left_subtree.is_empty(),
                 f"Entry #{i} ({expected.key}) should have empty left_subtree"
@@ -375,10 +387,10 @@ class TestInsertInNonEmptyTreeLeaf(TestInsertInTree):
         )
         self.expected_leaf_keys = ["b", "c", "d"]
         
-class TestInsertInNonEmptyTreeGTMaxRank(TestInsertInTree):
+class TestInsertInNonEmptyTreeGTMaxRankCreatesRoot(TestInsertInTree):
     def setUp(self):
         super().setUp()
-        # Create a tree with two items
+        # Create a tree with 1 node and two full items
         keys = ["b", "d"]
         ranks = [1, 1]
         self.item_map = { k: (Item(k, ord(k))) for k in keys}
@@ -486,6 +498,41 @@ class TestInsertInNonEmptyTreeGTMaxRank(TestInsertInTree):
 
         self.expected_leaf_keys = ["b", "c", "d"]
         
+class TestInsertInNonEmptyTreeRank2(TestInsertInTree):
+    def setUp(self):
+        super().setUp()
+        # Create a tree with two items
+        keys = ["b", "d", "f"]
+        ranks = [1, 2, 1]
+        self.item_map = { k: (Item(k, ord(k))) for k in keys}
+        self.rank_map = { key: rank for key, rank in zip(keys, ranks) }
+        for k in keys:
+            item, rank = self.item_map[k], self.rank_map[k]
+            self.tree.insert(item, rank)
+        self.expected_root_rank = 2
+        self.expected_gnode_count = 4
+        self.expected_item_count = 8    # currently incl. replicas & dummys
+
+
+    def test_insert_lowest_key_splits_leaf(self):
+        key, rank = "a", 2
+        item = Item(key, ord(key))
+        self.tree.insert(item, rank)
+
+        with self.subTest("root"):
+            _, replica = self._assert_internal_node_properties(
+                self.tree.node,
+                [DUMMY_ITEM, self._replica_repr(key), self._replica_repr("d")],
+                rank
+            )
+        with self.subTest("leaf 1"):
+            t_leaf_1 = replica.left_subtree
+            self.assertIsNotNone(t_leaf_1, "Use empty trees; never None.")
+        
+        
+        self.expected_leaf_keys = ["a", "b", "d", "f"]
+
+# class TestInsertInNonEmptyTreeInHigherRankSkipsMissingRank(TestInsertInTree):
 
     
     
