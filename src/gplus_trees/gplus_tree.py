@@ -115,7 +115,7 @@ class GPlusTree(AbstractSetDataStructure):
             x_item (Item): The item to be inserted.
             rank (int): The rank of the item.
         """
-        # print(f"\n\n>>>>>>>>>>>>>> Inserting item {x_item} with rank {rank} into G+-tree structure:\n\n", self.print_structure())
+        print(f"\n\n\n>>>>>>>>>>>>>> Inserting item {x_item} with rank {rank}")
         # 1) If the tree is empty, handle the initial creation logic.
         if self.is_empty():
             return self._handle_empty_insertion(x_item, rank)
@@ -132,8 +132,10 @@ class GPlusTree(AbstractSetDataStructure):
         Returns:
             GPlusTree: The updated G+-tree.
         """
+        print("> Handling empty insertion")
         # Rank 1: single leaf node with dummy item.
         if rank == 1:
+            print(">> Rank 1: creating single leaf node")
             leaf_set = KList()
             leaf_set = leaf_set.insert(self.instantiate_dummy_item(), GPlusTree())
             leaf_set = leaf_set.insert(x_item, GPlusTree())
@@ -143,6 +145,7 @@ class GPlusTree(AbstractSetDataStructure):
         # Rank > 1: create a root node with a dummy, an item replica, 
         # plus left and right subtrees.
         if rank > 1:
+            print(f">> Rank > 1, i.e {rank}: creating root node with dummy item")
             root_set = KList()
             root_set = root_set.insert(self.instantiate_dummy_item(), GPlusTree())
 
@@ -185,6 +188,7 @@ class GPlusTree(AbstractSetDataStructure):
         Returns:
             GPlusTree: The updated G+-tree.
         """
+        print("> Inserting into non-empty tree")
         current_tree = self
         parent_tree = None  # Track the previously visited tree when descending.
         parent_entry = None  # The parent's "next larger item" entry we used.
@@ -201,6 +205,8 @@ class GPlusTree(AbstractSetDataStructure):
                 # Descend into right subtree
                 parent_tree = current_tree
                 current_tree = current_tree.node.right_subtree
+        
+        print(f"> inserting gnode found")
 
         # If the current node's rank is still less than the required rank,
         # we must "unfold" an in-between node or create a new root.
@@ -247,8 +253,9 @@ class GPlusTree(AbstractSetDataStructure):
         Returns:
             GPlusTree: The updated G+-tree.
         """
-        # print("\n\nHandling rank mismatch")
+        print(">> Handling rank mismatch")
         if parent_tree is None:
+            print(">>> No parent tree, creating new root")
             # No parent => we are at the root. Create a new root with dummy.
             old_node = self.node
             root_set = KList()
@@ -259,6 +266,7 @@ class GPlusTree(AbstractSetDataStructure):
             # print("\nNew root (current) created:\n", self.print_structure())
             return self
         else:
+            print(">>> Unfolding a node in between parent and current tree")
             # Unfold a layer in between parent and current node.
             new_set = KList()
             # Insert the current node's min (a "replica") to new node.
@@ -275,10 +283,12 @@ class GPlusTree(AbstractSetDataStructure):
                 GPlusNode(rank, new_set, current_tree)
             )
             if parent_entry:
+                print(">>>> Updating parent key's left subtree for", parent_entry.item.key)
                 parent_tree.node.set = parent_tree.node.set.update_left_subtree(
                     parent_entry.item.key, new_tree
                 )
             else:
+                print(">>>> Updating parent tree's right subtree")
                 parent_tree.node.right_subtree = new_tree
             
             # print("\n\nNew tree node unfolded (current):\n", new_tree.print_structure())
@@ -300,6 +310,7 @@ class GPlusTree(AbstractSetDataStructure):
         Returns:
             GPlusTree: The updated G+-tree.
         """
+        print(">> Updating existing item")
         while True:
             result = current_tree.node.set.retrieve(new_item.key)
             if current_tree.node.rank == 1:
@@ -332,6 +343,7 @@ class GPlusTree(AbstractSetDataStructure):
         Returns:
             GPlusTree: The updated G+-tree.
         """
+        print(">> Inserting new item")
         # We may need to propagate splits while descending.
         parent_right_tree = None
         parent_right_next = None
@@ -354,8 +366,9 @@ class GPlusTree(AbstractSetDataStructure):
             insert_instance = x_item if is_leaf else Item(x_item.key, None, None)
 
             if parent_right_tree is None:
+                
                 # First insertion step at this level
-                # print("\n\nFirst Iteration")
+                print(">>> First Iteration")
                 # print(f"\nSelf: {self.print_structure()}")
                 # print(f"\nCurrent tree: {current_tree.print_structure()}")
                 # print(f"\nNext entry: {next_entry}")
@@ -374,7 +387,7 @@ class GPlusTree(AbstractSetDataStructure):
                 
 
             else:
-                # print("\n\nSubsequent Iteration")
+                print(">>>> Subsequent Iteration")
                 # print(f"\nSelf: {self.print_structure()}")
                 
                 # print(f"\nCurrent tree pre split: {current_tree.print_structure()}")
@@ -404,7 +417,7 @@ class GPlusTree(AbstractSetDataStructure):
 
                 # Right side: if it has data or is a leaf, form a new tree node
                 if not right_split.is_empty() or is_leaf:
-                    # print(f"\n\nInserting X item {x_item} into right split and creating new tree")
+                    print(f">>>>> Inserting X item {x_item} into right split and creating new tree")
                     right_split = right_split.insert(insert_instance, GPlusTree())
                     # if not right_split.is_empty():
                     #     print("\n\n\n Non-empty right split after insert:\n", right_split.print_structure())
@@ -421,18 +434,18 @@ class GPlusTree(AbstractSetDataStructure):
                     # print("\nNew tree created (right):\n", new_tree.print_structure())
                     # Update the parent's reference
                     if parent_right_next:
-                        # print("\nUpdating parent right tree at key", parent_right_next.item.key)
+                        print(">>>>>>Updating parent right tree at key", parent_right_next.item.key)
                         parent_right_tree.node.set = parent_right_tree.node.set.update_left_subtree(
                             parent_right_next.item.key, new_tree)
                     else:
-                        # print("\nUpdating parent right tree's right subtree")
+                        print(">>>>>> Updating parent right tree's right subtree")
                         # print("\nNew right subtree:", new_tree.print_structure())
                         parent_right_tree.node.right_subtree = new_tree
                         # print("\nParent right tree after update:", parent_right_tree.print_structure())
 
                     next_parent_right_tree = new_tree
                 else:
-                    # print("\n\nEmpty right split. Skipping tree node creation (right).")
+                    print(">>>>> Empty right split. Skipping tree node creation (right).")
                     next_parent_right_tree = parent_right_tree
 
                 parent_right_tree = next_parent_right_tree
@@ -443,10 +456,12 @@ class GPlusTree(AbstractSetDataStructure):
                 
                 if left_split.item_count() == 1 and not is_leaf:
                     # Collapse this node and reassign subtrees
-                    # print("\n\n\nLeft split has only one item, collapsing node")
+                    print(">>>>> Left split has only one item, collapsing node")
                     if next_entry:
+                        print(">>>>>> Updating parent left tree at key", next_entry.item.key)
                         new_subtree = next_entry.left_subtree
                     else:
+                        print(">>>>>> Updating parent left tree's right subtree")
                         new_subtree = current_tree.node.right_subtree
                     parent_left_tree.node.set = parent_left_tree.node.set.update_left_subtree(
                         parent_right_x_entry.item.key, new_subtree
@@ -456,8 +471,10 @@ class GPlusTree(AbstractSetDataStructure):
                     
                 else:
                     # Continue with the left split at curent level
+                    print(">>>>> Left split has more than one item, continuing with left split")
                     current_tree.node.set = left_split
                     if next_entry:
+                        print(">>>>>> Updating current tree's right subtree with next entry's left subtree")
                         # print(f"\n\n\nNext entry Item: {next_entry.item}")
                         # print(f"\n\n\nNext entry left subtree:\n{next_entry.left_subtree.print_structure()}")
                         # print(f"\n\nSetting current tree nodes right subtree to next entry's left subtree")
@@ -469,6 +486,7 @@ class GPlusTree(AbstractSetDataStructure):
 
                 if is_leaf:
                     # If leaf, link 'next' references if needed
+                    print(">>>>> Leaf node reached, linking next references")   
                     new_tree.node.next = current_tree.node.next
                     current_tree.node.next = new_tree
                 # print(f"\nNew current tree (left): {current_tree.print_structure()}")
@@ -481,15 +499,17 @@ class GPlusTree(AbstractSetDataStructure):
             # print("\n\nCurrent tree structure after loop run:\n", current_tree.print_structure())
             # Descend further if it’s not a leaf, otherwise we’re done
             if is_leaf:
-                # print("\nLeaf node reached, stopping descent.")
+                print(">>> Leaf node reached, stopping descent.")
                 # print("\n\nFinal tree structure after insertion:\n", self.print_structure())
                 # print("\n\nRight subtree structure after insertion:\n", current_tree.node.right_subtree.print_structure())
                 return self
 
             if current_tree.is_empty():
                 # print(f"\n\n\nX item: {x_item}")
-                # print(f"\n\n\nParent right tree: {parent_right_tree.print_structure()}")
-                # print(f"\n\n\nParent right next: {parent_right_next}")
+                print(f"\n\n\nParent right tree: {parent_right_tree.print_structure()}")
+                print(f"\n\n\nParent right next: {parent_right_next}")
+                print(f"\n\n\nParent left tree: {parent_left_tree.print_structure()}")
+                print(f"\n\n\nParent left x entry: {parent_left_x_entry}")
                 raise RuntimeError("Expected non-empty tree after insertion loop iteration where next tree node is not a leaf.")
 
             result = current_tree.node.set.retrieve(x_item.key)
@@ -688,6 +708,7 @@ def gtree_stats_(t: GPlusTree, rank_distribution: Dict[int, int]) -> Stats:
 
     node = t.node
     node_set = node.set
+    print("Node_set items:", node_set.item_count())
     rank_distribution[node.rank] = (
         rank_distribution.get(node.rank, 0) + node_set.item_count()
     )
