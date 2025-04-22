@@ -63,7 +63,7 @@ def random_gtree_of_size(n: int, target_node_size: int) -> GPlusTree:
 
     # we need at least n unique values; 2^24 = 16 777 216 > 1 000 000
     space = 1 << 24
-    assert space >= n, "key‑space too small!"
+    assert space >= n, "key-space too small!"
 
     # sample unique indices once (random order baked in)
     indices = random.sample(range(space), k=n)
@@ -198,9 +198,11 @@ def repeated_experiment(size: int, repetitions: int, K: int, p_override: float =
 
 if __name__ == "__main__":
     # List of tree sizes to test.
-    sizes = [10, 100, 1000]
+    sizes = [100]
+    # sizes = [10, 100, 1000]
     # List of K values for which we want to run experiments.
-    Ks = [2, 4, 16, 64]
+    # Ks = [2, 4, 16, 64]
+    Ks = [2]
     repetitions = 200
 
     for n in sizes:
