@@ -202,16 +202,32 @@ class GPlusTree(AbstractSetDataStructure):
         # print(f"\nTree structure before insertion:\n{self.print_structure()}")
 
         # Descend until we find a matching rank or run out of subtrees.
+
+        if DEBUG:
+            print(f"> Descending to find gnode with rank >= {rank}")
+
         while current_tree.node.rank > rank:
+            if DEBUG:
+                print(f"> \n\nCurrent tree rank: {current_tree.print_structure()}")
             result = current_tree.node.set.retrieve(x_item.key)
             if result.next_entry is not None:
                 parent_tree = current_tree
                 parent_entry = result.next_entry
+                if DEBUG:
+                    if result.next_entry.left_subtree.is_empty():
+                        print(f"> Next entrie's left subtree is empty")
+                        print(f"> Current tree: {current_tree.print_structure()}")
                 current_tree = result.next_entry.left_subtree
             else:
+                if DEBUG:
+                    if current_tree.node.right_subtree.is_empty():
+                        print(f"> Current tree's right subtree is empty")
+                        print(f"> Current tree: {current_tree.print_structure()}")
                 # Descend into right subtree
                 parent_tree = current_tree
                 current_tree = current_tree.node.right_subtree
+            if DEBUG:
+                print(f"> Is next current empty? {current_tree.is_empty()}")
         
         if DEBUG:
             print(f"> inserting gnode found")
