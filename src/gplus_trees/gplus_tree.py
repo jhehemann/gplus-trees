@@ -394,9 +394,39 @@ class GPlusTree(AbstractSetDataStructure):
                 result = parent_right_tree.node.set.retrieve(x_item.key)
                 parent_right_next = result.next_entry
                 parent_right_x_entry = result.found_entry
+
+                print_cur_tree = current_tree.print_structure()
                 
                 # We need to split the current node at x_item.key
                 left_split, x_item_left_subtree, right_split = current_tree.node.set.split_inplace(x_item.key)
+
+                msg = None
+                print_var = False
+                if left_split is None:
+                    msg = "Expected non-none left split after split operation."
+                    print_var = True
+                elif left_split.item_count() == 0:
+                    msg = "Expected left split with > 0 items after split operation."
+                    print_var = True
+                elif left_split.is_empty():
+                    msg = "Expected non-empty left split after split operation"
+                    print_var = True
+                
+
+                if print_var:
+                    print("\n\n\nCurrent tree before split:\n", print_cur_tree)
+                    print("\n\n\nCurrent tree after split:\n", current_tree.print_structure())
+                    print(f"\n\n\nLeft split: {left_split.print_structure()}")
+                    print(f"\n\n\nRight split: {right_split.print_structure()}")
+                    print(f"\n\n\nParent right tree: {parent_right_tree.print_structure()}")
+                    print(f"\n\n\nParent right next: {parent_right_next.item.key if parent_right_next else None}")
+                    print(f"\n\n\nParent left tree: {parent_left_tree.print_structure()}")
+                    print(f"\n\n\nParent left x entry: {parent_left_x_entry.item.key if parent_left_x_entry else None}")
+                    raise RuntimeError(msg)
+
+
+                
+
 
                 # print(f"\n\n\nLeft split: {left_split.print_structure()}")
                 # print(f"\n\n\nRight split: {right_split.print_structure()}")
@@ -416,13 +446,16 @@ class GPlusTree(AbstractSetDataStructure):
                     raise RuntimeError("Expected non-empty left subtree during split operation. This indicates that the item to insert is already present in the tree with a lower rank.")
 
                 # Right side: if it has data or is a leaf, form a new tree node
-                if not right_split.is_empty() or is_leaf:
+                if not (right_split.item_count() == 0 and not is_leaf):
+                #if not right_split.is_empty() or is_leaf:
                     print(f">>>>> Inserting X item {x_item} into right split and creating new tree")
                     right_split = right_split.insert(insert_instance, GPlusTree())
-                    # if not right_split.is_empty():
-                    #     print("\n\n\n Non-empty right split after insert:\n", right_split.print_structure())
-                    # if is_leaf:
-                    #     print("\n\n\n Leaf node right split after insert:\n", right_split.print_structure())
+                    if not right_split.is_empty():
+                        print("\n\n\n Non-empty right split after insert:\n", right_split.print_structure())
+                    
+
+                    if right_split.item_count() == 0:
+                        raise RuntimeError("Expected non-empty right split after insert operation.")
                     
                     new_tree = GPlusTree(
                         GPlusNode(
@@ -431,6 +464,10 @@ class GPlusTree(AbstractSetDataStructure):
                             current_tree.node.right_subtree
                         )
                     )
+                    if new_tree.node.set.item_count() == 0:
+                        raise RuntimeError("Expected non-empty new tree after insert operation.")
+                    if is_leaf:
+                        print("\n\n\n Leaf node new tree for right split after insert:\n", new_tree.print_structure())
                     # print("\nNew tree created (right):\n", new_tree.print_structure())
                     # Update the parent's reference
                     if parent_right_next:
@@ -445,7 +482,7 @@ class GPlusTree(AbstractSetDataStructure):
 
                     next_parent_right_tree = new_tree
                 else:
-                    print(">>>>> Empty right split. Skipping tree node creation (right).")
+                    print(">>>>> Empty right split and not leaf leaf. Skipping tree node creation (right).")
                     next_parent_right_tree = parent_right_tree
 
                 parent_right_tree = next_parent_right_tree
@@ -453,6 +490,9 @@ class GPlusTree(AbstractSetDataStructure):
                 # Reuse the left split in the current node
                 if parent_right_x_entry is None:
                     print("\n\nWARNING: In subsequent iteration the insert item schould be present in the parent right tree node.")
+                
+                if left_split.item_count() == 0:
+                    raise RuntimeError("Always expect non-empty left split.")
                 
                 if left_split.item_count() == 1 and not is_leaf:
                     # Collapse this node and reassign subtrees
@@ -709,6 +749,8 @@ def gtree_stats_(t: GPlusTree, rank_distribution: Dict[int, int]) -> Stats:
     node = t.node
     node_set = node.set
     print("Node_set items:", node_set.item_count())
+    if node_set.item_count() == 0:
+        print("Node_set is empty: ", t.print_structure())
     rank_distribution[node.rank] = (
         rank_distribution.get(node.rank, 0) + node_set.item_count()
     )

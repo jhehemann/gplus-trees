@@ -228,6 +228,24 @@ class TestKList(unittest.TestCase):
         self.assertIsNone(result.found_entry, "Retrieving 'zeta' should return None.")
         self.assertIsNone(result.next_entry, "The next entry for 'zeta' should be None, since it is greater than all keys.")
 
+# class TestSplitInPlace(unittest.TestCase):
+#     def test_split_in_place(self):
+#         """
+#         Test the split_in_place method of KList.
+#         This method should split the list into two halves and return the second half.
+#         """
+#         # Create a KList and insert some items
+#         klist = KList()
+#         for i in range(10):
+#             klist.insert(Item(f"key{i}", i))
+        
+#         # Split the list
+#         second_half = klist.split_in_place()
+        
+#         # Check that the first half is empty and the second half contains the items
+#         self.assertEqual(len(klist), 0, "The first half should be empty after splitting.")
+#         self.assertEqual(len(second_half), 5, "The second half should contain 5 items.")
+
 
 class TestRankStatistics(unittest.TestCase):
     def test_rank_statistics_from_file(self):
