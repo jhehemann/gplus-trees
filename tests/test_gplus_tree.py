@@ -34,6 +34,7 @@ from packages.jhehemann.customs.gtree.gplus_tree import (
 from packages.jhehemann.customs.gtree.base import (
     Item,
     Entry,
+    _create_replica
 )
 from stats_gplus_tree import (
     check_leaf_keys_and_values,
@@ -122,9 +123,7 @@ class TreeTestCase(unittest.TestCase):
                 f"Leaf keys {keys} do not match expected {expected_keys}"
             )
 
-    def _replica_repr(self, key):
-        """Create a replica item with given key and no value."""
-        return Item(key, None)
+    
         
     # def _assert_min_then_next(self, node, min, next):
     #     """Check that the minimum item is the expected key, and the next entry is also correct."""
@@ -302,7 +301,7 @@ class TestInsertInEmptyTree(TestInsertInTree):
         with self.subTest("root"):
             _, replica = self._assert_internal_node_properties(
                 root,
-                [DUMMY_ITEM, self._replica_repr(key)],
+                [DUMMY_ITEM, _create_replica(key)],
                 rank
             )
             
@@ -400,7 +399,7 @@ class TestInsertInNonEmptyTreeGTMaxRankCreatesRoot(TestInsertInTree):
         with self.subTest("root"):
             _, replica = self._assert_internal_node_properties(
                 self.tree.node,
-                [DUMMY_ITEM, self._replica_repr(key)],
+                [DUMMY_ITEM, _create_replica(key)],
                 rank
             )
         with self.subTest("left leaf"):
@@ -429,7 +428,7 @@ class TestInsertInNonEmptyTreeGTMaxRankCreatesRoot(TestInsertInTree):
         with self.subTest("root"):
             _, replica = self._assert_internal_node_properties(
                 self.tree.node,
-                [DUMMY_ITEM, self._replica_repr(key)],
+                [DUMMY_ITEM, _create_replica(key)],
                 rank
             )
         with self.subTest("left leaf"):
@@ -459,7 +458,7 @@ class TestInsertInNonEmptyTreeGTMaxRankCreatesRoot(TestInsertInTree):
         with self.subTest("root"):
             _, replica = self._assert_internal_node_properties(
                 self.tree.node,
-                [DUMMY_ITEM, self._replica_repr(key)],
+                [DUMMY_ITEM, _create_replica(key)],
                 rank
             )
         with self.subTest("left leaf"):
@@ -510,7 +509,7 @@ class TestInsertInNonEmptyTreeRankGT1(TestInsertInTree):
         with self.subTest("root"):
             self._assert_internal_node_properties(
                 root,
-                [DUMMY_ITEM, self._replica_repr(key), self._replica_repr("d")],
+                [DUMMY_ITEM, _create_replica(key), _create_replica("d")],
                 rank
             )
         with self.subTest("leaf 1"):
@@ -549,7 +548,7 @@ class TestInsertInNonEmptyTreeRankGT1(TestInsertInTree):
         with self.subTest("root"):
             self._assert_internal_node_properties(
                 root,
-                [DUMMY_ITEM, self._replica_repr("c"), self._replica_repr("d")],
+                [DUMMY_ITEM, _create_replica("c"), _create_replica("d")],
                 rank
             )
 
@@ -592,7 +591,7 @@ class TestInsertInNonEmptyTreeRankGT1(TestInsertInTree):
         with self.subTest("root"):
             self._assert_internal_node_properties(
                 root,
-                [DUMMY_ITEM, self._replica_repr("d"), self._replica_repr(key)],
+                [DUMMY_ITEM, _create_replica("d"), _create_replica(key)],
                 rank
             )
         
@@ -635,7 +634,7 @@ class TestInsertInNonEmptyTreeRankGT1(TestInsertInTree):
         with self.subTest("root"):
             self._assert_internal_node_properties(
                 root,
-                [DUMMY_ITEM, self._replica_repr("d"), self._replica_repr(key)],
+                [DUMMY_ITEM, _create_replica("d"), _create_replica(key)],
                 rank
             )
         
@@ -694,7 +693,7 @@ class TestInsertInNonEmptyTreeCollapsedLayerCreatesInternal(TestInsertInTree):
         with self.subTest("root"):
             _, r_replica = self._assert_internal_node_properties(
                 root,
-                [DUMMY_ITEM, self._replica_repr("d")],
+                [DUMMY_ITEM, _create_replica("d")],
                 3
             )
         
@@ -702,7 +701,7 @@ class TestInsertInNonEmptyTreeCollapsedLayerCreatesInternal(TestInsertInTree):
             new_internal = r_replica.left_subtree.node
             _, i_replica = self._assert_internal_node_properties(
                 new_internal,
-                [DUMMY_ITEM, self._replica_repr(key)],
+                [DUMMY_ITEM, _create_replica(key)],
                 self.insert_rank
             )
         
@@ -743,14 +742,14 @@ class TestInsertInNonEmptyTreeCollapsedLayerCreatesInternal(TestInsertInTree):
         with self.subTest("root"):
             _, r_replica = self._assert_internal_node_properties(
                 root,
-                [DUMMY_ITEM, self._replica_repr("d")],
+                [DUMMY_ITEM, _create_replica("d")],
                 3
             )
         with self.subTest("created internal"):
             new_internal = root.right_subtree.node
             _, i_replica = self._assert_internal_node_properties(
                 new_internal,
-                [self._replica_repr("d"), self._replica_repr(key)],
+                [_create_replica("d"), _create_replica(key)],
                 self.insert_rank
             )
         
@@ -811,7 +810,7 @@ class TestInsertInNonEmptyTreeRankGT2LowestKey(TestInsertInTree):
         with self.subTest("root"):
             self._assert_internal_node_properties(
                 root,
-                [DUMMY_ITEM, self._replica_repr(key), self._replica_repr("h")],
+                [DUMMY_ITEM, _create_replica(key), _create_replica("h")],
                 3
             )
         
@@ -820,9 +819,9 @@ class TestInsertInNonEmptyTreeRankGT2LowestKey(TestInsertInTree):
             self._assert_internal_node_properties(
                 c_right,
                 [
-                    self._replica_repr(key),
-                    self._replica_repr("d"),
-                    self._replica_repr("f")
+                    _create_replica(key),
+                    _create_replica("d"),
+                    _create_replica("f")
                 ],
                 2
             )
@@ -889,7 +888,7 @@ class TestInsertInNonEmptyTreeRankGT2LowestKey(TestInsertInTree):
         with self.subTest("root"):
             self._assert_internal_node_properties(
                 root,
-                [DUMMY_ITEM, self._replica_repr(key), self._replica_repr("h")],
+                [DUMMY_ITEM, _create_replica(key), _create_replica("h")],
                 3
             )
 
@@ -897,7 +896,7 @@ class TestInsertInNonEmptyTreeRankGT2LowestKey(TestInsertInTree):
             c_left = root_entries[1].left_subtree.node
             self._assert_internal_node_properties(
                 c_left,
-                [DUMMY_ITEM, self._replica_repr("d")],
+                [DUMMY_ITEM, _create_replica("d")],
                 2
             )
             c_left_entries = list(c_left.set)
@@ -906,7 +905,7 @@ class TestInsertInNonEmptyTreeRankGT2LowestKey(TestInsertInTree):
             c_right = root_entries[2].left_subtree.node
             self._assert_internal_node_properties(
                 c_right,
-                [self._replica_repr(key), self._replica_repr("f")],
+                [_create_replica(key), _create_replica("f")],
                 2
             )
             c_right_entries = list(c_right.set)
@@ -971,7 +970,7 @@ class TestInsertInNonEmptyTreeRankGT2LowestKey(TestInsertInTree):
         with self.subTest("root"):
             self._assert_internal_node_properties(
                 root,
-                [DUMMY_ITEM,  self._replica_repr(key), self._replica_repr("h")],
+                [DUMMY_ITEM,  _create_replica(key), _create_replica("h")],
                 3
             )
 
@@ -979,7 +978,7 @@ class TestInsertInNonEmptyTreeRankGT2LowestKey(TestInsertInTree):
             c_left = root_entries[1].left_subtree.node
             self._assert_internal_node_properties(
                 c_left,
-                [DUMMY_ITEM, self._replica_repr("d"), self._replica_repr("f")],
+                [DUMMY_ITEM, _create_replica("d"), _create_replica("f")],
                 2
             )
             c_left_entries = list(c_left.set)
@@ -1062,7 +1061,7 @@ class TestInsertInNonEmptyTreeRankGT2HighestKey(TestInsertInTree):
         with self.subTest("root"):
             self._assert_internal_node_properties(
                 root,
-                [DUMMY_ITEM, self._replica_repr("a"), self._replica_repr(key)],
+                [DUMMY_ITEM, _create_replica("a"), _create_replica(key)],
                 3
             )
         
@@ -1071,9 +1070,9 @@ class TestInsertInNonEmptyTreeRankGT2HighestKey(TestInsertInTree):
             self._assert_internal_node_properties(
                 c_right,
                 [
-                    self._replica_repr(key),
-                    self._replica_repr("c"),
-                    self._replica_repr("e")
+                    _create_replica(key),
+                    _create_replica("c"),
+                    _create_replica("e")
                 ],
                 2
             )
@@ -1140,7 +1139,7 @@ class TestInsertInNonEmptyTreeRankGT2HighestKey(TestInsertInTree):
         with self.subTest("root"):
             self._assert_internal_node_properties(
                 root,
-                [DUMMY_ITEM, self._replica_repr("a"), self._replica_repr(key)],
+                [DUMMY_ITEM, _create_replica("a"), _create_replica(key)],
                 3
             )
 
@@ -1148,7 +1147,7 @@ class TestInsertInNonEmptyTreeRankGT2HighestKey(TestInsertInTree):
             c_left = root_entries[2].left_subtree.node
             self._assert_internal_node_properties(
                 c_left,
-                [self._replica_repr("a"), self._replica_repr("c")],
+                [_create_replica("a"), _create_replica("c")],
                 2
             )
             c_left_entries = list(c_left.set)
@@ -1157,7 +1156,7 @@ class TestInsertInNonEmptyTreeRankGT2HighestKey(TestInsertInTree):
             c_right = root.right_subtree.node
             self._assert_internal_node_properties(
                 c_right,
-                [self._replica_repr(key), self._replica_repr("e")],
+                [_create_replica(key), _create_replica("e")],
                 2
             )
             c_right_entries = list(c_right.set)
@@ -1221,7 +1220,7 @@ class TestInsertInNonEmptyTreeRankGT2HighestKey(TestInsertInTree):
         with self.subTest("root"):
             self._assert_internal_node_properties(
                 root,
-                [DUMMY_ITEM, self._replica_repr("a"), self._replica_repr(key)],
+                [DUMMY_ITEM, _create_replica("a"), _create_replica(key)],
                 3
             )
         with self.subTest("child left split (internal)"):
@@ -1229,9 +1228,9 @@ class TestInsertInNonEmptyTreeRankGT2HighestKey(TestInsertInTree):
             self._assert_internal_node_properties(
                 c_left,
                 [
-                    self._replica_repr("a"),
-                    self._replica_repr("c"),
-                    self._replica_repr("e")
+                    _create_replica("a"),
+                    _create_replica("c"),
+                    _create_replica("e")
                 ],
                 2
             )
@@ -1317,8 +1316,8 @@ class TestInsertNonemptyTreeHighCollapsingNodesRightLeft(TestInsertInTree):
                 root,
                 [
                     DUMMY_ITEM,
-                    self._replica_repr("a"), 
-                    self._replica_repr(key)
+                    _create_replica("a"), 
+                    _create_replica(key)
                 ],
                 4
             )
@@ -1327,7 +1326,7 @@ class TestInsertNonemptyTreeHighCollapsingNodesRightLeft(TestInsertInTree):
             c_left = root_entries[2].left_subtree.node
             self._assert_internal_node_properties(
                 c_left,
-                [self._replica_repr("a"), self._replica_repr("b")],
+                [_create_replica("a"), _create_replica("b")],
                 3
             )
             c_left_entries = list(c_left.set)
@@ -1336,7 +1335,7 @@ class TestInsertNonemptyTreeHighCollapsingNodesRightLeft(TestInsertInTree):
             c_right = root.right_subtree.node
             self._assert_internal_node_properties(
                 c_right,
-                [self._replica_repr(key), self._replica_repr("e")],
+                [_create_replica(key), _create_replica("e")],
                 2
             )
             c_right_entries = list(c_right.set)
@@ -1421,9 +1420,9 @@ class TestInsertNonemptyTreeMidCollapsingNodesRightLeft(TestInsertInTree):
                 root,
                 [
                     DUMMY_ITEM,
-                    self._replica_repr("a"), 
-                    self._replica_repr(key),
-                    self._replica_repr("f")
+                    _create_replica("a"), 
+                    _create_replica(key),
+                    _create_replica("f")
                 ],
                 4
             )
@@ -1432,7 +1431,7 @@ class TestInsertNonemptyTreeMidCollapsingNodesRightLeft(TestInsertInTree):
             c_left = root_entries[2].left_subtree.node
             self._assert_internal_node_properties(
                 c_left,
-                [self._replica_repr("a"), self._replica_repr("b")],
+                [_create_replica("a"), _create_replica("b")],
                 3
             )
             c_left_entries = list(c_left.set)
@@ -1441,7 +1440,7 @@ class TestInsertNonemptyTreeMidCollapsingNodesRightLeft(TestInsertInTree):
             c_right = root_entries[3].left_subtree.node
             self._assert_internal_node_properties(
                 c_right,
-                [self._replica_repr(key), self._replica_repr("e")],
+                [_create_replica(key), _create_replica("e")],
                 2
             )
             c_right_entries = list(c_right.set)
@@ -1534,8 +1533,8 @@ class TestInsertNonemptyTreeHighCollapsingNodesLeftRight(TestInsertInTree):
                 root,
                 [
                     DUMMY_ITEM,
-                    self._replica_repr("a"), 
-                    self._replica_repr(key)
+                    _create_replica("a"), 
+                    _create_replica(key)
                 ],
                 4
             )
@@ -1544,7 +1543,7 @@ class TestInsertNonemptyTreeHighCollapsingNodesLeftRight(TestInsertInTree):
             c_right = root.right_subtree.node
             self._assert_internal_node_properties(
                 c_right,
-                [self._replica_repr(key), self._replica_repr("d")],
+                [_create_replica(key), _create_replica("d")],
                 3
             )
             c_right_entries = list(c_right.set)
@@ -1553,7 +1552,7 @@ class TestInsertNonemptyTreeHighCollapsingNodesLeftRight(TestInsertInTree):
             c_left = root_entries[2].left_subtree.node
             self._assert_internal_node_properties(
                 c_left,
-                [self._replica_repr("a"), self._replica_repr("b")],
+                [_create_replica("a"), _create_replica("b")],
                 2
             )
             c_left_entries = list(c_left.set)
@@ -1636,9 +1635,9 @@ class TestInsertNonemptyTreeMidCollapsingNodesLeftRight(TestInsertInTree):
                 root,
                 [
                     DUMMY_ITEM,
-                    self._replica_repr("a"), 
-                    self._replica_repr(key),
-                    self._replica_repr("e")
+                    _create_replica("a"), 
+                    _create_replica(key),
+                    _create_replica("e")
                 ],
                 4
             )
@@ -1647,7 +1646,7 @@ class TestInsertNonemptyTreeMidCollapsingNodesLeftRight(TestInsertInTree):
             c_right = root_entries[3].left_subtree.node
             self._assert_internal_node_properties(
                 c_right,
-                [self._replica_repr(key), self._replica_repr("d")],
+                [_create_replica(key), _create_replica("d")],
                 3
             )
             c_right_entries = list(c_right.set)
@@ -1656,7 +1655,7 @@ class TestInsertNonemptyTreeMidCollapsingNodesLeftRight(TestInsertInTree):
             c_left = root_entries[2].left_subtree.node
             self._assert_internal_node_properties(
                 c_left,
-                [self._replica_repr("a"), self._replica_repr("b")],
+                [_create_replica("a"), _create_replica("b")],
                 2
             )
             c_left_entries = list(c_left.set)

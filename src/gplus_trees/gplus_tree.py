@@ -27,6 +27,7 @@ from packages.jhehemann.customs.gtree.base import (
     AbstractSetDataStructure,
     Item,
     Entry,
+    _create_replica,
 )
 from packages.jhehemann.customs.gtree.klist import KList
 
@@ -147,14 +148,14 @@ class GPlusTree(AbstractSetDataStructure):
 
         # Rank > 1: create a root node with a dummy, an item replica, 
         # plus left and right subtrees.
-        if rank > 1:
+        elif rank > 1:
             if DEBUG:
                 print(f">> Rank > 1, i.e {rank}: creating root node with dummy item")
             root_set = KList()
             root_set = root_set.insert(self.instantiate_dummy_item(), GPlusTree())
 
             # Create replica (key only) for internal node
-            replica = Item(x_item.key, None, None)
+            replica = _create_replica(x_item.key)
 
             # Left subtree with just a dummy
             left_subtree_set = KList()
@@ -176,9 +177,10 @@ class GPlusTree(AbstractSetDataStructure):
 
             self.node = GPlusNode(rank, root_set, right_subtree)
             return self
+        
+        else:
+            raise ValueError("Rank must be a natural number greater than 0.")
 
-        # If rank <= 0, or an unexpected condition occurs, return self.
-        return self
     
     def _insert_non_empty(self, x_item: Item, rank: int) -> 'GPlusTree':
         """
@@ -301,7 +303,7 @@ class GPlusTree(AbstractSetDataStructure):
             if min_entry is None:
                 raise RuntimeError(f"Expected nonempty set during rank mismatch handling, but get_min() returned None.\n\nParent Tree:\n {parent_tree.print_structure()}\n\nCurrent tree:\n {current_tree.print_structure()}\n\nSelf:\n {self.print_structure()}")
             
-            new_min_replica = Item(min_entry.item.key, None, None)
+            new_min_replica = _create_replica(min_entry.item.key)
 
             new_set = new_set.insert(new_min_replica, GPlusTree())
             new_tree = GPlusTree(
@@ -391,7 +393,7 @@ class GPlusTree(AbstractSetDataStructure):
             is_leaf = (current_tree.node.rank == 1)
 
             # Use an "internal replica" if not a leaf
-            insert_instance = x_item if is_leaf else Item(x_item.key, None, None)
+            insert_instance = x_item if is_leaf else _create_replica(x_item.key)
 
             if parent_right_tree is None:
                 

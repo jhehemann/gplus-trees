@@ -77,6 +77,10 @@ class Item:
         # return (f"Item(key={self.key}, value={self.value}")
         return (f"Item(key={self.short_key()}, value={self.value}")
 
+def _create_replica(key):
+    """Create a replica item with given key and no value."""
+    return Item(key, None)
+
 class AbstractSetDataStructure(ABC):
     """
     Abstract base class for a set data structure storing tuples of items and their left subtrees.
