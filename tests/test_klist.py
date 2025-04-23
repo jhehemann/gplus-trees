@@ -27,6 +27,7 @@ import os
 import statistics
 
 from packages.jhehemann.customs.gtree.klist import KList, KListNode
+from packages.jhehemann.customs.gtree.gplus_tree import GPlusTree
 from packages.jhehemann.customs.gtree.base import Item
 from packages.jhehemann.customs.gtree.base import calculate_item_rank
 
@@ -798,6 +799,235 @@ class TestKListIndex(unittest.TestCase):
             self.klist._prefix_counts,
             [self.cap, 2 * self.cap]
         )
+
+
+class TestUpdateLeftSubtree(unittest.TestCase):
+    def setUp(self):
+        self.klist = KList()
+        self.cap = KListNode.CAPACITY
+        # Trees to attach
+        self.treeA = GPlusTree()
+        self.treeB = GPlusTree()
+
+    def extract_left_subtrees(self):
+        """Helper to collect left_subtree pointers for all entries."""
+        subs = []
+        node = self.klist.head
+        while node:
+            subs.extend(entry.left_subtree for entry in node.entries)
+            node = node.next
+        return subs
+
+    def test_update_on_empty_list(self):
+        # Updating an empty list should do nothing and return self
+        returned = self.klist.update_left_subtree(1, self.treeA)
+        self.assertIs(returned, self.klist)
+        # List still empty
+        self.assertIsNone(self.klist.head)
+        self.assertIsNone(self.klist.tail)
+
+    def test_update_nonexistent_key(self):
+        # Insert some keys, then update a non-existent one
+        keys = [1, 2, 3]
+        for k in keys:
+            self.klist.insert(Item(k, f"val_{k}"))
+        before = self.extract_left_subtrees()
+        returned = self.klist.update_left_subtree(99, self.treeA)
+        self.assertIs(returned, self.klist)
+        after = self.extract_left_subtrees()
+        self.assertEqual(before, after)
+
+    def test_update_first_entry(self):
+        # Insert keys and update the first key
+        keys = [10, 20, 30]
+        for k in keys:
+            self.klist.insert(Item(k, f"val_{k}"))
+        returned = self.klist.update_left_subtree(10, self.treeA)
+        self.assertIs(returned, self.klist)
+        # First entry gets treeA, others remain None
+        subs = self.extract_left_subtrees()
+        self.assertEqual(subs[0], self.treeA)
+        self.assertTrue(all(s is None for s in subs[1:]))
+
+    def test_update_last_entry(self):
+        # Insert keys and update the last key
+        keys = [5, 6, 7]
+        for k in keys:
+            self.klist.insert(Item(k, f"val_{k}"))
+        returned = self.klist.update_left_subtree(7, self.treeB)
+        self.assertIs(returned, self.klist)
+        subs = self.extract_left_subtrees()
+        # Last subtree updated
+        self.assertEqual(subs[-1], self.treeB)
+        self.assertTrue(all(s is None for s in subs[:-1]))
+
+    def test_update_middle_entry(self):
+        # Insert multiple keys and update a middle one
+        keys = [1, 2, 3, 4, 5]
+        for k in keys:
+            self.klist.insert(Item(k, f"val_{k}"))
+        returned = self.klist.update_left_subtree(3, self.treeA)
+        self.assertIs(returned, self.klist)
+        subs = self.extract_left_subtrees()
+        # Only the third entry is updated
+        for i, s in enumerate(subs):
+            if keys[i] == 3:
+                self.assertIs(s, self.treeA)
+            else:
+                self.assertIsNone(s)
+
+    def test_update_after_overflow(self):
+        # Force two nodes and update an entry in second node
+        total = self.cap + 2
+        for k in range(total):
+            self.klist.insert(Item(k, f"val_{k}"))
+        # Update key = cap (first entry in second node)
+        returned = self.klist.update_left_subtree(self.cap, self.treeB)
+        self.assertIs(returned, self.klist)
+        # Traverse to the second node:
+        node = self.klist.head.next
+        # First entry in that node should have left_subtree = treeB
+        self.assertIs(node.entries[0].left_subtree, self.treeB)
+
+    def test_chained_updates(self):
+        # Multiple updates in sequence
+        keys = [1, 2, 3]
+        for k in keys:
+            self.klist.insert(Item(k, f"val_{k}"))
+        self.klist.update_left_subtree(1, self.treeA)
+        self.klist.update_left_subtree(2, self.treeB)
+        subs = self.extract_left_subtrees()
+        self.assertIs(subs[0], self.treeA)
+        self.assertIs(subs[1], self.treeB)
+        self.assertIsNone(subs[2])
+
+    def test_type_error_on_non_int_key(self):
+        with self.assertRaises(TypeError):
+            self.klist.update_left_subtree("not-int", self.treeA)
+
+
+class TestSplitInplace(unittest.TestCase):
+    def setUp(self):
+        self.klist = KList()
+        self.cap = KListNode.CAPACITY
+
+    def extract_keys(self, kl: KList):
+        """Return list of keys in order from KList."""
+        keys = []
+        node = kl.head
+        while node:
+            keys.extend(entry.item.key for entry in node.entries)
+            node = node.next
+        return keys
+
+    def test_empty_split(self):
+        left, subtree, right = self.klist.split_inplace(5)
+        # both sides empty
+        self.assertEqual(self.extract_keys(left), [])
+        self.assertIsNone(subtree)
+        self.assertEqual(self.extract_keys(right), [])
+        # invariants hold
+        left.check_invariant()
+        right.check_invariant()
+
+    def test_split_before_all_keys(self):
+        # Insert some keys
+        keys = [10, 20, 30]
+        for k in keys:
+            self.klist.insert(Item(k, f"v{k}"))
+        # split before smallest
+        left, subtree, right = self.klist.split_inplace(5)
+        self.assertEqual(self.extract_keys(left), [])
+        self.assertIsNone(subtree)
+        self.assertEqual(self.extract_keys(right), keys)
+        left.check_invariant()
+        right.check_invariant()
+
+    def test_split_after_all_keys(self):
+        keys = [1, 2, 3]
+        for k in keys:
+            self.klist.insert(Item(k, f"v{k}"))
+        # split after largest
+        left, subtree, right = self.klist.split_inplace(10)
+        self.assertEqual(self.extract_keys(left), keys)
+        self.assertIsNone(subtree)
+        self.assertEqual(self.extract_keys(right), [])
+        left.check_invariant()
+        right.check_invariant()
+
+    def test_split_exact_middle(self):
+        keys = [1, 2, 3, 4, 5]
+        for k in keys:
+            self.klist.insert(Item(k, f"v{k}"))
+        # split on 3
+        left, subtree, right = self.klist.split_inplace(3)
+        self.assertEqual(self.extract_keys(left), [1, 2])
+        self.assertIsNone(subtree)  # default left_subtree None
+        self.assertEqual(self.extract_keys(right), [4, 5])
+        left.check_invariant()
+        right.check_invariant()
+
+    def test_split_nonexistent_between(self):
+        keys = [10, 20, 30, 40]
+        for k in keys:
+            self.klist.insert(Item(k, f"v{k}"))
+        # split on a key not present but between 20 and 30
+        left, subtree, right = self.klist.split_inplace(25)
+        self.assertEqual(self.extract_keys(left), [10, 20])
+        self.assertIsNone(subtree)
+        self.assertEqual(self.extract_keys(right), [30, 40])
+        left.check_invariant()
+        right.check_invariant()
+
+    def test_split_at_node_boundary(self):
+        # make at least two nodes
+        total = self.cap + 2
+        for k in range(total):
+            self.klist.insert(Item(k, f"v{k}"))
+        # first node has keys 0..cap-1, second has [cap+1]
+        # split exactly at cap (first of second node)
+        left, subtree, right = self.klist.split_inplace(self.cap)
+        self.assertEqual(self.extract_keys(left), list(range(self.cap)))
+        self.assertIsNone(subtree)
+        self.assertEqual(self.extract_keys(right), [self.cap+1])
+        left.check_invariant()
+        right.check_invariant()
+
+    def test_split_with_subtree_propagation(self):
+        # insert and assign a left_subtree for a particular key
+        keys = [1, 2, 3]
+        for k in keys:
+            self.klist.insert(Item(k, f"v{k}"))
+        # update left_subtree for key=2
+        subtree = GPlusTree()
+        self.klist.update_left_subtree(2, subtree)
+        left, st, right = self.klist.split_inplace(2)
+        # left contains [1], subtree returned
+        self.assertEqual(self.extract_keys(left), [1])
+        self.assertIs(st, subtree)
+        self.assertEqual(self.extract_keys(right), [3])
+        left.check_invariant()
+        right.check_invariant()
+
+    def test_split_multiple_times(self):
+        # perform sequential splits
+        keys = list(range(6))
+        for k in keys:
+            self.klist.insert(Item(k, f"v{k}"))
+        # split on 2
+        l1, _, r1 = self.klist.split_inplace(2)
+        # split r1 on 4
+        l2, _, r2 = r1.split_inplace(4)
+        self.assertEqual(self.extract_keys(l1), [0, 1])
+        self.assertEqual(self.extract_keys(l2), [3])
+        self.assertEqual(self.extract_keys(r2), [5])
+        l1.check_invariant()
+        l2.check_invariant()
+        r2.check_invariant()
+
+    def test_type_error_non_int_key(self):
+        with self.assertRaises(TypeError):
+            self.klist.split_inplace("not-int")
 
 
 # class TestRankStatistics(unittest.TestCase):

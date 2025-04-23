@@ -122,8 +122,9 @@ class KList(AbstractSetDataStructure):
     def __init__(self):
         self.head = self.tail = None
         # auxiliary index
-        self._nodes: List[KListNode] = []
-        self._prefix_counts: List[int] = []
+        self._nodes = []           # List[KListNode]
+        self._prefix_counts = []   # List[int]
+        self._bounds = []          # List[int], max key per node (optional)
 
     def _rebuild_index(self):
         """Rebuild the node list and prefix-sum of entry counts."""
@@ -284,43 +285,98 @@ class KList(AbstractSetDataStructure):
         self._rebuild_index()
         return self
     
+    # def retrieve(self, key: int) -> RetrievalResult:
+    #     """
+    #     Retrieve the entry associated with the given key from the KList.
+        
+    #     Parameters:
+    #         key (int): The key of the entry to retrieve.
+        
+    #     Returns:
+    #         RetrievalResult: A structured result containing:
+    #         - found_entry: The entry (an Entry instance) corresponding to the searched key if found; otherwise, None.
+    #         - next_entry: The subsequent entry in sorted order (an Entry), or None if no subsequent entry exists.
+    #     """
+    #     if not isinstance(key, int):
+    #         raise TypeError(f"key must be int, got {type(key).__name__!r}")
+
+    #     node = self.head
+    #     while node:
+    #         found, succ, go_next = node.retrieve_entry(key)
+
+    #         # If we found it, but it was the node’s max, we need to grab from next node
+    #         if found and succ is None and go_next:
+    #             if node.next and node.next.entries:
+    #                 succ = node.next.entries[0]
+    #             else:
+    #                 succ = None
+    #             return RetrievalResult(found_entry=found, next_entry=succ)
+
+    #         # If found with an in-node successor, or we located where it *would* go
+    #         if not go_next:
+    #             # succ may be None only if found==None and no in-node successor,
+    #             # but by definition that can't happen here
+    #             return RetrievalResult(found_entry=found, next_entry=succ)
+
+    #         # Otherwise go look in the next node
+    #         node = node.next
+
+    #     # Fell off the end without any candidate
+    #     return RetrievalResult(found_entry=None, next_entry=None)
+    
     def retrieve(self, key: int) -> RetrievalResult:
         """
-        Retrieve the entry associated with the given key from the KList.
-        
-        Parameters:
-            key (int): The key of the entry to retrieve.
-        
-        Returns:
-            RetrievalResult: A structured result containing:
-            - found_entry: The entry (an Entry instance) corresponding to the searched key if found; otherwise, None.
-            - next_entry: The subsequent entry in sorted order (an Entry), or None if no subsequent entry exists.
+        Search for `key` in O(l·log k) time:
+        – for each node, do a bisect on its sorted entries (size k).
+        – skip whole nodes when key < first or key > last.
+        – return (found_entry, successor) or (None, successor) correctly.
         """
         if not isinstance(key, int):
             raise TypeError(f"key must be int, got {type(key).__name__!r}")
 
         node = self.head
         while node:
-            found, succ, go_next = node.retrieve_entry(key)
+            entries = node.entries
+            if not entries:
+                node = node.next
+                continue
 
-            # If we found it, but it was the node’s max, we need to grab from next node
-            if found and succ is None and go_next:
-                if node.next and node.next.entries:
-                    succ = node.next.entries[0]
+            first = entries[0].item.key
+            last  = entries[-1].item.key
+
+            # if key < first, successor is entries[0]
+            if key < first:
+                return RetrievalResult(found_entry=None,
+                                    next_entry=entries[0])
+
+            # if key > last, skip to next node
+            if key > last:
+                node = node.next
+                continue
+
+            # now key is in [first, last], find it by bisect
+            # build a local list of keys (cheap when k is small)
+            keys = [e.item.key for e in entries]
+            i    = bisect.bisect_left(keys, key)
+
+            # exact match?
+            if i < len(entries) and entries[i].item.key == key:
+                found = entries[i]
+                # in‐node successor?
+                if i + 1 < len(entries):
+                    succ = entries[i+1]
                 else:
-                    succ = None
+                    # boundary: pull from next node if exists
+                    succ = (node.next.entries[0]
+                            if node.next and node.next.entries
+                            else None)
                 return RetrievalResult(found_entry=found, next_entry=succ)
 
-            # If found with an in-node successor, or we located where it *would* go
-            if not go_next:
-                # succ may be None only if found==None and no in-node successor,
-                # but by definition that can't happen here
-                return RetrievalResult(found_entry=found, next_entry=succ)
+            # not found, but entries[i] is the next larger key
+            return RetrievalResult(found_entry=None,
+                                next_entry=entries[i])
 
-            # Otherwise go look in the next node
-            node = node.next
-
-        # Fell off the end without any candidate
+        # fell off the end
         return RetrievalResult(found_entry=None, next_entry=None)
         
     
@@ -358,141 +414,91 @@ class KList(AbstractSetDataStructure):
     #     return RetrievalResult(found_entry=None, next_entry=None)
     
     
-    # def get_entry(self, index: int) -> RetrievalResult:
-    #     """
-    #     Returns the entry at the given overall index in the sorted KList along with the next entry. O(log l) node-lookup plus O(1) in-node offset.
-
-    #     Parameters:
-    #         index (int): Zero-based index to retrieve.
-
-    #     Returns:
-    #         RetrievalResult: A structured result containing:
-    #             - found_entry: The requested Entry if present, otherwise None.
-    #             - next_entry: The subsequent Entry, or None if no next entry exists.
-    #     """
-    #     # 0) validate
-    #     if not isinstance(index, int):
-    #         raise TypeError(f"index must be int, got {type(index).__name__!r}")
-
-    #     # 1) empty list?
-    #     if not self._prefix_counts:
-    #         return RetrievalResult(found_entry=None, next_entry=None)
-
-    #     total_items = self._prefix_counts[-1]
-    #     # 2) out‐of‐bounds?
-    #     if index < 0 or index >= total_items:
-    #         return RetrievalResult(found_entry=None, next_entry=None)
-
-    #     # 3) find the node in O(log l)
-    #     node_idx = bisect.bisect_right(self._prefix_counts, index)
-    #     node = self._nodes[node_idx]
-
-    #     # 4) compute offset within that node
-    #     prev_count = self._prefix_counts[node_idx - 1] if node_idx else 0
-    #     offset = index - prev_count
-
-    #     # 5) delegate to node
-    #     entry, in_node_succ, needs_next = node.get_by_offset(offset)
-
-    #     # 6) if we hit the end of this node, pull the true successor
-    #     if needs_next:
-    #         if node.next and node.next.entries:
-    #             next_entry = node.next.entries[0]
-    #         else:
-    #             next_entry = None
-    #     else:
-    #         next_entry = in_node_succ
-
-    #     return RetrievalResult(found_entry=entry, next_entry=next_entry)
-    
     def get_entry(self, index: int) -> RetrievalResult:
         """
-        Random-access in O(log l) where l = # of nodes.
+        Returns the entry at the given overall index in the sorted KList along with the next entry. O(log l) node-lookup plus O(1) in-node offset.
 
-        Raises TypeError on non-int, returns (None,None) for out-of-bounds.
+        Parameters:
+            index (int): Zero-based index to retrieve.
+
+        Returns:
+            RetrievalResult: A structured result containing:
+                - found_entry: The requested Entry if present, otherwise None.
+                - next_entry: The subsequent Entry, or None if no next entry exists.
         """
+        # 0) validate
         if not isinstance(index, int):
             raise TypeError(f"index must be int, got {type(index).__name__!r}")
 
-        # No data at all?
+        # 1) empty list?
         if not self._prefix_counts:
             return RetrievalResult(found_entry=None, next_entry=None)
 
-        total = self._prefix_counts[-1]
-        if index < 0 or index >= total:
+        total_items = self._prefix_counts[-1]
+        # 2) out‐of‐bounds?
+        if index < 0 or index >= total_items:
             return RetrievalResult(found_entry=None, next_entry=None)
 
-        # Find which node contains this index
+        # 3) find the node in O(log l)
         node_idx = bisect.bisect_right(self._prefix_counts, index)
         node = self._nodes[node_idx]
 
-        # Compute offset within that node
-        prev = self._prefix_counts[node_idx - 1] if node_idx else 0
-        offset = index - prev
+        # 4) compute offset within that node
+        prev_count = self._prefix_counts[node_idx - 1] if node_idx else 0
+        offset = index - prev_count
 
-        # Delegate to a tiny helper on the node
+        # 5) delegate to node
         entry, in_node_succ, needs_next = node.get_by_offset(offset)
 
-        # If we were at the end of this node, pull the first from the next node
+        # 6) if we hit the end of this node, pull the true successor
         if needs_next:
-            next_entry = (node.next.entries[0]
-                          if node.next and node.next.entries
-                          else None)
+            if node.next and node.next.entries:
+                next_entry = node.next.entries[0]
+            else:
+                next_entry = None
         else:
             next_entry = in_node_succ
 
         return RetrievalResult(found_entry=entry, next_entry=next_entry)
     
-    # def get_entry(self, index: int) -> RetrievalResult:
-    #     """
-    #     Returns the entry at the given overall index in the KList along with the next entry in sorted order.
-
-    #     This method traverses the linked list of KListNodes and returns a RetrievalResult.
-
-    #     Parameters:
-    #         index (int): Zero-based index to retrieve.
-
-    #     Returns:
-    #         RetrievalResult: A structured result containing:
-    #             - found_entry: The requested Entry if present, otherwise None.
-    #             - next_entry: The subsequent Entry, or None if no next entry exists.
-    #     """
-    #     if not isinstance(index, int):
-    #         raise TypeError(f"index must be int, got {type(key).__name__!r}")
-
-    #     current = self.head
-    #     count = 0
-    #     while current is not None:
-    #         if count + len(current.entries) > index:
-    #             # Target entry is in the current node.
-    #             entry = current.entries[index - count]
-    #             # Determine the next entry:
-    #             if (index - count + 1) < len(current.entries):
-    #                 next_entry = current.entries[index - count + 1]
-    #             elif current.next is not None and current.next.entries:
-    #                 next_entry = current.next.entries[0]
-    #             else:
-    #                 next_entry = None
-    #             return RetrievalResult(found_entry=entry, next_entry=next_entry)
-    #         count += len(current.entries)
-    #         current = current.next
-    #     return RetrievalResult(found_entry=None, next_entry=None)
-
-    
     def get_min(self) -> RetrievalResult:
         """Retrieve the minimum entry from the sorted KList."""
         return self.get_entry(index=0)
     
-    def update_left_subtree(
-            self,
-            key: int,
-            new_tree: 'GPlusTree'
-    ) -> 'KList':
+    # def update_left_subtree(
+    #         self,
+    #         key: int,
+    #         new_tree: 'GPlusTree'
+    # ) -> 'KList':
+    #     """
+    #     Updates the left subtree of the item in the k-list.
+
+    #     If the item is not found, it returns the original k-list.
+    #     If found, it updates the left subtree and returns the updated k-list.
+
+    #     Parameters:
+    #         key (int): The key of the item to update.
+    #         new_tree (GPlusTree or None): The new left subtree to associate with the item.
+
+    #     Returns:
+    #         KList: The updated k-list.
+    #     """
+    #     if not isinstance(key, int):
+    #         raise TypeError(f"key must be int, got {type(key).__name__!r}")
+
+    #     current_node = self.head
+    #     while current_node is not None:
+    #         for i, entry in enumerate(current_node.entries):
+    #             if entry.item.key == key:
+    #                 # Update the left subtree of the found entry.
+    #                 current_node.entries[i].left_subtree = new_tree
+    #                 return self
+    #         current_node = current_node.next
+    #     return self
+    
+    def update_left_subtree(self, key: int, new_tree: 'GPlusTree') -> 'KList':
         """
         Updates the left subtree of the item in the k-list.
-
-        If the item is not found, it returns the original k-list.
-        If found, it updates the left subtree and returns the updated k-list.
 
         Parameters:
             key (int): The key of the item to update.
@@ -504,86 +510,113 @@ class KList(AbstractSetDataStructure):
         if not isinstance(key, int):
             raise TypeError(f"key must be int, got {type(key).__name__!r}")
 
-        current_node = self.head
-        while current_node is not None:
-            for i, entry in enumerate(current_node.entries):
-                if entry.item.key == key:
-                    # Update the left subtree of the found entry.
-                    current_node.entries[i].left_subtree = new_tree
-                    return self
-            current_node = current_node.next
+        result = self.retrieve(key)
+        if result.found_entry is not None:
+            result.found_entry.left_subtree = new_tree
         return self
+
     
-    def split_inplace(
-            self, key: int
-    ) -> Tuple['KList', Optional['GPlusTree'], 'KList']:
+    # MORE EFFICIENT BUT NOT WORKING
+    # def split_inplace(
+    #     self, key: int
+    # ) -> Tuple["KList", Optional["GPlusTree"], "KList"]:
+
+    #     if not isinstance(key, int):
+    #         raise TypeError(f"key must be int, got {type(key).__name__!r}")
+
+    #     if self.head is None:                        # ··· (1) empty
+    #         return KList(), None, KList()
+
+    #     # --- locate split node ------------------------------------------------
+    #     node_idx = bisect.bisect_right(self._bounds, key)
+    #     if node_idx >= len(self._nodes):             # ··· (2) key > max
+    #         return self, None, KList()
+
+    #     split_node   = self._nodes[node_idx]
+    #     prev_node    = self._nodes[node_idx - 1] if node_idx else None
+    #     original_next = split_node.next
+
+    #     # --- bisect inside that node -----------------------------------------
+    #     keys = [e.item.key for e in split_node.entries]
+    #     i    = bisect.bisect_left(keys, key)
+    #     exact = i < len(keys) and keys[i] == key
+
+    #     left_entries   = split_node.entries[:i]
+    #     right_entries  = split_node.entries[i + 1 if exact else i :]
+    #     left_subtree   = split_node.entries[i].left_subtree if exact else None
+
+    #     # ------------- build LEFT --------------------------------------------
+    #     left = KList()
+    #     if left_entries:                             # reuse split_node
+    #         split_node.entries = left_entries
+    #         split_node.next    = None
+    #         left.head = self.head
+    #         left.tail = split_node
+    #     else:                                        # nothing in split node
+    #         if prev_node:                            # skip it
+    #             prev_node.next = None
+    #             left.head = self.head
+    #             left.tail = prev_node
+    #         else:                                    # key at very first entry
+    #             left.head = left.tail = None
+
+    #     # ------------- build RIGHT -------------------------------------------
+    #     right = KList()
+    #     if right_entries:
+    #         if left_entries:                         # both halves non-empty
+    #             new_node = KListNode()
+    #             new_node.entries = right_entries
+    #             new_node.next    = original_next
+    #             right.head       = new_node
+    #         else:                                    # left empty → reuse split_node
+    #             split_node.entries = right_entries
+    #             split_node.next    = original_next
+    #             right.head         = split_node
+    #     else:                                        # no right_entries
+    #         right.head = original_next
+
+    #     # find right.tail
+    #     tail = right.head
+    #     while tail and tail.next:
+    #         tail = tail.next
+    #     right.tail = tail
+
+    #     # ------------- rebuild indexes ---------------------------------------
+    #     left._rebuild_index()
+    #     right._rebuild_index()
+
+    #     return left, left_subtree, right
+
+    def split_inplace(self, key: int) -> Tuple["KList", Optional["GPlusTree"], "KList"]:
         """
-        NOTE: Not yet in-place splitting. Currently creates new KLists.
-        
-        Partitions the current KList in-place based on the provided key.
-        
-        This method splits the KList into:
-        - A left partition containing all entries with keys < key.
-        - The left subtree of the entry with key == key (if found), otherwise None.
-        - A right partition containing all entries with keys > key.
-        
-        The original KList is modified (its nodes are re-wired).
-        
-        Returns:
-            A tuple (left_klist, left_subtree, right_klist)
+        Splits KList into two brand-new KLists:
+        - left:  all entries < key
+        - subtree: the left_subtree of the first entry == key (if any)
+        - right: all entries > key
+
+        This version is O(n·log k) but trivially correct.
         """
         if not isinstance(key, int):
             raise TypeError(f"key must be int, got {type(key).__name__!r}")
-        
-        # Create new KLists for the partitions.
-        left_klist = KList()
-        right_klist = KList()
+
+        left = KList()
+        right = KList()
         left_subtree = None
 
-        # We will rewire nodes into the new lists.
-        left_tail = None
-        right_tail = None
+        # Iterate through every entry in sorted order
+        node = self.head
+        while node:
+            for entry in node.entries:
+                k = entry.item.key
+                if k < key:
+                    left.insert(entry.item, entry.left_subtree)
+                elif k == key and left_subtree is None:
+                    left_subtree = entry.left_subtree
+                else:  # k > key
+                    right.insert(entry.item, entry.left_subtree)
+            node = node.next
 
-        current = self.head
-        while current is not None:
-            # Temporary lists to hold entries of the current node for each partition.
-            left_entries = []
-            right_entries = []
-            # Process each entry in the current node.
-            for entry in current.entries:
-                if entry.item.key < key:
-                    left_entries.append(entry)
-                elif entry.item.key == key:
-                    # Mark that we found an exact match and store its left subtree.
-                    # (We do not include this entry in either partition.)
-                    if left_subtree is None:
-                        left_subtree = entry.left_subtree
-                else:  # item.key > key
-                    right_entries.append(entry)
-            # If there are entries for the left partition, create a node and append it.
-            if left_entries:
-                new_left_node = KListNode()
-                new_left_node.entries = left_entries
-                if left_klist.head is None:
-                    left_klist.head = new_left_node
-                    left_tail = new_left_node
-                else:
-                    left_tail.next = new_left_node
-                    left_tail = new_left_node
-            # Similarly for the right partition.
-            if right_entries:
-                new_right_node = KListNode()
-                new_right_node.entries = right_entries
-                if right_klist.head is None:
-                    right_klist.head = new_right_node
-                    right_tail = new_right_node
-                else:
-                    right_tail.next = new_right_node
-                    right_tail = new_right_node
-            current = current.next
-
-        # At this point the new left_klist and right_klist represent the in-place partitioning.
-        return (left_klist, left_subtree, right_klist)
+        return left, left_subtree, right
     
     def print_structure(self, indent: int = 0, depth: int = 0, max_depth: int = 2):
         """
