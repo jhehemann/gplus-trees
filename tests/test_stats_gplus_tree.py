@@ -197,11 +197,11 @@ def repeated_experiment(size: int, repetitions: int, K: int, p_override: float =
 
 if __name__ == "__main__":
     # List of tree sizes to test.
-    sizes = [100]
-    # sizes = [10, 100, 1000]
+    # sizes = [100]
+    sizes = [10, 100, 1000]
     # List of K values for which we want to run experiments.
-    # Ks = [2, 4, 16, 64]
-    Ks = [2]
+    Ks = [2, 4, 16, 64]
+    # Ks = [2]
     repetitions = 200
 
     for n in sizes:
