@@ -75,7 +75,7 @@ class KList(AbstractSetDataStructure):
     """
 
     def __init__(self):
-        self.head = None
+        self.head = self.tail = None
 
     def is_empty(self) -> bool:
         return self.head is None
@@ -129,25 +129,35 @@ class KList(AbstractSetDataStructure):
             item (Item): The item to insert.
             left_subtree (GPlusTree or None): Optional G+-tree to attach as the left subtree.
         """
-        if self.head is None:
-            self.head = KListNode()
-        
-        node = self.head
         entry = Entry(item, left_subtree)
-    
-        # Traverse nodes if the key should come later.
-        # Compare with the last key in the current node (if any).
-        while node.next is not None and node.entries and item.key > node.entries[-1].item.key:
-            node = node.next
+        
+        # If the k-list is empty, create a new node.
+        if self.head is None:
+            node = KListNode()
+            self.head = self.tail = node
+        else:
+            # Fast-Path: If the new key > the last key in the tail, insert there.
+            if self.tail.entries and item.key > self.tail.entries[-1].item.key:
+                node = self.tail
+            else:
+                # linear search from the head
+                node = self.head
+                while node.next is not None and node.entries and item.key > node.entries[-1].item.key:
+                    node = node.next
         
         overflow = node.insert_entry(entry)
-        # print(f"Inserted Item: {item}")
+
+        if node is self.tail and overflow is None:
+            return self
+
         MAX_OVERFLOW_DEPTH = 10000
         depth = 0
+
         # Propagate overflow if needed.
         while overflow is not None:
             if node.next is None:
                 node.next = KListNode()
+                self.tail = node.next
             node = node.next
             overflow = node.insert_entry(overflow)
             depth += 1
@@ -183,18 +193,45 @@ class KList(AbstractSetDataStructure):
 
         if not found:
             return self
+        
+        # If we emptied the head node, advance head
+        if node is self.head and not node.entries:
+            self.head = node.next
+            if self.head is None:
+                self.tail = None
+                return self
+            node = self.head
 
-        # Rebalance: shift the first entry from the next node into the current node if space exists.
-        current = node
-        while current and current.next and len(current.entries) < KListNode.CAPACITY:
-            if current.next.entries:
-                shifted_entry = current.next.entries.pop(0)
-                current.entries.append(shifted_entry)
-                current.entries.sort(key=lambda entry: entry.item.key)
-                if not current.next.entries:
-                    current.next = current.next.next
-            else:
+        # Rebalance: fill this node back up by borrowing one
+        # smallest entry from node.next, if it exists.
+        while node.next and len(node.entries) < KListNode.CAPACITY:
+            next_node = node.next
+
+            # pull the smallest entry from next_node
+            shifted = next_node.entries.pop(0)
+
+            # since invariants guarantee shifted ≥ node.entries[-1],
+            # we can append without re-sorting
+            node.entries.append(shifted)
+
+            # if next_node is now empty, splice it out
+            if not next_node.entries:
+                node.next = next_node.next
+                # update tail if we removed the last node
+                if node.next is None:
+                    self.tail = node
                 break
+            else:
+                # we only needed one shift to fill this node
+                break
+
+        # If the very last node lost its only entry, update tail
+        if self.tail and not self.tail.entries:
+            # find the new tail by walking from head
+            t = self.head
+            while t and t.next:
+                t = t.next
+            self.tail = t
 
         return self
     
@@ -416,3 +453,47 @@ class KList(AbstractSetDataStructure):
             node = node.next
             index += 1
         return "\n".join(result)
+    
+    def check_invariant(self) -> None:
+        """
+        Verifies that:
+          1) Each KListNode.entries is internally sorted by item.key.
+          2) For each consecutive pair of nodes, 
+             last_key(node_i) <= first_key(node_{i+1}).
+          3) self.tail.next is always None (tail really is the last node).
+
+        Raises:
+            AssertionError: if any of these conditions fails.
+        """
+        # 1) Tail pointer must point to the true last node
+        assert (self.head is None and self.tail is None) or (
+            self.tail is not None and self.tail.next is None
+        ), "Invariant violated: tail must reference the final node"
+
+        node = self.head
+        previous_last_key = None
+
+        # 2) Walk through all nodes
+        while node is not None:
+            # 2a) Entries within this node are sorted
+            for i in range(1, len(node.entries)):
+                k0 = node.entries[i-1].item.key
+                k1 = node.entries[i].item.key
+                assert k0 <= k1, (
+                    f"Intra-node sort order violated in node {node}: "
+                    f"{k0} > {k1}"
+                )
+
+            # 2b) Boundary with the previous node
+            if previous_last_key is not None and node.entries:
+                first_key = node.entries[0].item.key
+                assert previous_last_key <= first_key, (
+                    f"Inter-node invariant violated between nodes: "
+                    f"{previous_last_key} > {first_key}"
+                )
+
+            # Update for the next iteration
+            if node.entries:
+                previous_last_key = node.entries[-1].item.key
+
+            node = node.next
