@@ -21,7 +21,6 @@
 # pylint: skip-file
 
 import unittest
-import random
 
 from typing import Tuple, Optional, List
 
@@ -81,14 +80,17 @@ class TreeTestCase(unittest.TestCase):
         if expected_item_count is not None:
             self.assertEqual(
                 stats.item_count, expected_item_count,
-                f"Item count {stats.item_count} does not match expected {expected_item_count}\nTree structure:\n{self.tree.print_structure()}"
+                f"Item count {stats.item_count} does not match"
+                f"expected {expected_item_count}\n"
+                f"Tree structure:\n{self.tree.print_structure()}"
             )
 
         expected_root_rank = getattr(self, 'expected_root_rank', None)
         if expected_root_rank is not None:
             self.assertEqual(
                 self.tree.node.rank, expected_root_rank,
-                f"Root rank {self.tree.node.rank} does not match expected {expected_root_rank}"
+                f"Root rank {self.tree.node.rank} does not match expected"
+                f"{expected_root_rank}"
             )
 
         expected_keys = getattr(self, 'expected_keys', None)
@@ -103,7 +105,8 @@ class TreeTestCase(unittest.TestCase):
         if expected_gnode_count is not None:
             self.assertEqual(
                 stats.gnode_count, expected_gnode_count,
-                f"GNode count {stats.gnode_count} does not match expected {expected_gnode_count}"
+                f"GNode count {stats.gnode_count} does not match expected"
+                f"{expected_gnode_count}"
             )
 
         # Leaf invariants
@@ -156,7 +159,8 @@ class TreeTestCase(unittest.TestCase):
             self, node: GPlusNode, items: List[Item], rank: int
         )-> Tuple[Optional[Entry], Optional[Entry]]:
         """
-        Verify that `node` is an internal node with the expected rank containing exactly `items`in order, with the first item’s left subtree
+        Verify that `node` is an internal node with the expected rank
+        containing exactly `items`in order, with the first item’s left subtree
         being empty and the next pointer being None.
         
         Returns:
@@ -181,7 +185,8 @@ class TreeTestCase(unittest.TestCase):
         for i, (entry, expected_item) in enumerate(zip(node.set, items)):
             self.assertEqual(
                 entry.item.key, expected_item.key,
-                f"Entry #{i} key mismatch: expected {expected_item.key}, got {entry.item.key}"
+                f"Entry #{i} key mismatch: "
+                f"expected {expected_item.key}, got {entry.item.key}"
             )
             self.assertEqual(
                 entry.item.value, expected_item.value,
@@ -1046,7 +1051,7 @@ class TestInsertInNonEmptyTreeRankGT2HighestKey(TestInsertInTree):
         self.insert_rank = 3
         self.expected_root_rank = max(ranks)
 
-    def test_insert_highest_key_splits_child_lowest_collapses_left_split(self):
+    def test_insert_highest_key_splits_child_low_collapses_left_split(self):
         # print("\nSelf.tree before insert:\n", self.tree.print_structure())
         key, rank = "b", self.insert_rank
         item = Item(key, ord(key))
@@ -1126,7 +1131,7 @@ class TestInsertInNonEmptyTreeRankGT2HighestKey(TestInsertInTree):
         
         self.expected_leaf_keys = ["a", "b", "c", "e"]
 
-    def test_insert_highest_key_splits_child_middle(self):
+    def test_insert_highest_key_splits_child_mid(self):
         key, rank = "d", self.insert_rank
         item = Item(key, ord(key))
         self.tree.insert(item, rank)
@@ -1208,7 +1213,7 @@ class TestInsertInNonEmptyTreeRankGT2HighestKey(TestInsertInTree):
             
         self.expected_leaf_keys = ["a", "c", "d", "e"]
 
-    def test_insert_highest_key_splits_child_highest_collapses_right_split(self):
+    def test_insert_highest_key_splits_child_high_collapses_right_split(self):
         key, rank = "f", self.insert_rank
         item = Item(key, ord(key))
         self.tree.insert(item, rank)

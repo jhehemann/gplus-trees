@@ -20,6 +20,7 @@
 """K-list implementation"""
 
 from typing import TYPE_CHECKING, Optional, Tuple
+import bisect
 
 from packages.jhehemann.customs.gtree.base import (
     Item,
@@ -38,7 +39,7 @@ class KListNode:
     Each node stores up to CAPACITY entries.
     Each entry is a tuple of the form:
         (item, left_subtree)
-    where `left_subtree` is a G-tree (or None) associated with this entry.
+    where `left_subtree` is a G-tree associated with this entry.
     """
     CAPACITY = 4
 
@@ -51,21 +52,16 @@ class KListNode:
             entry: Entry
     ) -> Optional[Entry]:
         """
-        Inserts an entry into a sorted KListNode.
-        If the node exceeds its capacity, the last entry is returned for further processing.
-        The entries are kept sorted based on the key (entry.item.key).
-        If the node is not full, it simply appends the entry.
+        Inserts an entry into a sorted KListNode by key.
+        If capacity exceeds, last entry is returned for further processing.
         
         Attributes:
             entry (Entry): The entry to insert into the KListNode.
         Returns:
             Optional[Entry]: The last entry if the node overflows; otherwise, None.
         """
-        self.entries.append(entry)
-        # Sort entries based on the key (located at entry.item.key)
-        self.entries.sort(key=lambda entry: entry.item.key)
+        bisect.insort(self.entries, entry)  # nutzt nun __lt__-Logik
         if len(self.entries) > KListNode.CAPACITY:
-            # Remove and return the largest entry (the last one)
             return self.entries.pop()
         return None
 

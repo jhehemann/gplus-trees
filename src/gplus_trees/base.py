@@ -182,8 +182,13 @@ class Entry:
         left_subtree (AbstractSetDataStructure): The left subtree associated with this item.
             This is always provided, even if the subtree is empty.
     """
+    __slots__ = ("item", "left_subtree")
+    
     item: Item
     left_subtree: AbstractSetDataStructure
+
+    def __lt__(self, other: "Entry") -> bool:
+        return self.item.key < other.item.key
 
 
 class RetrievalResult(NamedTuple):
