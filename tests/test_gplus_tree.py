@@ -1720,6 +1720,112 @@ class TestInsertNonemptyTreeMidCollapsingNodesLeftRight(TestInsertInTree):
         self.expected_leaf_keys = [1, 2, 3, 4, 5]
 
 
+class TestInsertNonemptyRank4TreeUnfoldRank2(TestInsertInTree):
+    def setUp(self):
+        super().setUp()
+        keys = [1, 2, 4, 5]
+        ranks = [2, 3, 1, 4]
+        self.item_map = { k: (Item(k, f"val_{k}")) for k in keys}
+        self.rank_map = { key: rank for key, rank in zip(keys, ranks) }
+        for k in keys:
+            item, rank = self.item_map[k], self.rank_map[k]
+            self.tree.insert(item, rank)
+        
+        self.insert_rank = 2
+        self.expected_root_rank = max(ranks)
+        self.expected_gnode_count = 9
+        self.expected_item_count = 14    # currently incl. replicas & dummys
+        self.expected_leaf_keys = [1, 2, 3, 4, 5]
+
+    def test_insert_split_leaf(self):
+        # print(f"\n\n\nSelf before insert: {self.tree.print_structure()}")
+        key, rank = 3, self.insert_rank
+        item = Item(key, f"val_{key}")
+        self.tree.insert(item, rank)
+        # print(f"\n\n\nSelf after insert: {self.tree.print_structure()}")
+        root = self.tree.node
+        root_entries = list(root.set)
+
+        with self.subTest("root"):
+            self._assert_internal_node_properties(
+                root,
+                [
+                    DUMMY_ITEM,
+                    _create_replica(5)
+                ],
+                4
+            )
+        
+        with self.subTest("rank 3 internal node"):
+            internal_3 = root_entries[1].left_subtree.node
+            self._assert_internal_node_properties(
+                internal_3,
+                [DUMMY_ITEM, _create_replica(2)],
+                3
+            )
+            internal_3_entries = list(internal_3.set)
+        
+        with self.subTest("rank 2 internal left split"):
+            internal_2_left = internal_3_entries[1].left_subtree.node
+            self._assert_internal_node_properties(
+                internal_2_left,
+                [DUMMY_ITEM, _create_replica(2)],
+                2
+            )
+            internal_2_left_entries = list(internal_2_left.set)
+        with self.subTest("rank 2 internal right split"):
+            internal_2_right = internal_3.right_subtree.node
+            self._assert_internal_node_properties(
+                internal_2_right,
+                [_create_replica(2), _create_replica(key)],
+                2
+            )
+            internal_2_right_entries = list(internal_2_right.set)
+        with self.subTest("leaf 1"):
+            leaf_1 = internal_2_left_entries[1].left_subtree.node
+            self._assert_leaf_node_properties(
+                leaf_1,
+                [DUMMY_ITEM]
+            )
+            self.assertIs(leaf_1.next, internal_2_left_entries[1].left_subtree,
+                          "Leaf 1 should point to leaf 2 tree")
+            
+        with self.subTest("leaf 2"):
+            leaf_2 = internal_2_left_entries[1].left_subtree.node
+            self._assert_leaf_node_properties(
+                leaf_2,
+                [self.item_map[1]]
+            )
+            self.assertIs(leaf_2.next, internal_2_right_entries[1].left_subtree,
+                          "Leaf 2 should point to leaf 3 tree")
+        with self.subTest("leaf 3"):
+            leaf_3 = internal_2_right_entries[1].left_subtree.node
+            self._assert_leaf_node_properties(
+                leaf_3,
+                [self.item_map[2]]
+            )
+            self.assertIs(leaf_3.next, internal_2_right.right_subtree,
+                          "Leaf 3 should point to leaf 4 tree")
+        with self.subTest("leaf 4"):
+            leaf_4 = internal_2_right.right_subtree.node
+            self._assert_leaf_node_properties(
+                leaf_4,
+                [item, self.item_map[4]]
+            )
+            self.assertIs(leaf_4.next, root.right_subtree,
+                          "Leaf 4 should point to leaf 5 tree")
+        with self.subTest("leaf 5"):
+            leaf_5 = root.right_subtree.node
+            self._assert_leaf_node_properties(
+                leaf_5,
+                [self.item_map[5]]
+            )
+            self.assertIsNone(leaf_5.next,
+                              "Leaf 5 should have no next pointer")
+        self.expected_leaf_keys = [1, 2, 3, 4, 5]
+
+
+
 class TestInsertInNonEmptyTree(TestInsertInTree):
     def test_insert_multiple_increasing_keys_rank_1(self):
         keys = [1, 2, 3, 4]

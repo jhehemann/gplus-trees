@@ -20,10 +20,13 @@
 """Tests for gplus tree abstract data structure."""
 # pylint: skip-file
 
+import difflib
 import math
 import random
 from statistics import mean
 from typing import List, Optional, Tuple
+from pprint import pprint
+from dataclasses import asdict
 
 from packages.jhehemann.customs.gtree.base import (
     Item,
@@ -143,14 +146,59 @@ def repeated_experiment(size: int, repetitions: int, K: int, p_override: float =
       K : target node size (used to compute the rank distribution as p = 1 - 1/(K+1))
       p_override : If provided, use this probability instead (optional)
     """
+    # for i in range(repetitions):
+    #     if i and i % 10 == 0:
+    #         print(f"    completed {i}/{repetitions} trials…")
+
     results = []  # List of tuples: (stats, physical_height)
 
     # Generate results from repeated experiments.
     for _ in range(repetitions):
+        print(f"\n\n\n#################################################### Starting experiment {_+1}/{repetitions} ####################################################")
         tree = random_klist_tree(size, K)
         stats = gtree_stats_(tree, {})
         phy_height = tree.physical_height()
         results.append((stats, phy_height))
+        
+        # print("\nTree stats: ")
+        # pprint(asdict(stats))
+
+        leaf_keys = [
+            entry.item.key
+            for leaf in tree.iter_leaf_nodes()
+            for entry in leaf.set
+        ]
+        # print("Leaf items in order:", leaf_keys)
+        
+        sorted_keys = sorted(leaf_keys)
+
+        # 1) Side-by-side mismatch list
+        mismatches = [
+            (i, leaf_keys[i], sorted_keys[i])
+            for i in range(len(leaf_keys))
+            if leaf_keys[i] != sorted_keys[i]
+        ]
+        if mismatches:
+            print(f"\nMismatch in {len(mismatches)} keys:")
+            print("Index │ actual  │ expected")
+            print("──────┼─────────┼─────────")
+            for i, actual, expected in mismatches:
+                print(f"{i:5d} │ {actual!r:7} │ {expected!r:7}")
+
+            print("Tree structure:")
+            print(tree.print_structure())
+        # else:
+            # print("All keys are in sorted order ✓")
+
+        # 2) (Optional) A unified-diff style quick-scan
+        # print("\nDiff against sorted version:")
+        # for line in difflib.unified_diff(
+        #         [repr(x) for x in sorted_keys],
+        #         [repr(x) for x in leaf_keys],
+        #         lineterm="",
+        #         n=2
+        #     ):
+        #     print(line)
     
     # Perfect height: ceil( log_{K+1}(size) )
     perfect_height = math.ceil(math.log(size, K + 1)) if size > 0 else 0
@@ -197,12 +245,12 @@ def repeated_experiment(size: int, repetitions: int, K: int, p_override: float =
 
 if __name__ == "__main__":
     # List of tree sizes to test.
-    # sizes = [100]
-    sizes = [10, 100, 1000]
+    sizes = [10]
+    # sizes = [10, 100, 1000]
     # List of K values for which we want to run experiments.
-    Ks = [2, 4, 16, 64]
-    # Ks = [2]
-    repetitions = 200
+    # Ks = [2, 4, 16, 64]
+    Ks = [2]
+    repetitions = 100
 
     for n in sizes:
         for K in Ks:
