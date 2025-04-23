@@ -72,9 +72,9 @@ def random_gtree_of_size(n: int, target_node_size: int) -> GPlusTree:
 
     for idx in indices:
         # 3 bytes → 6 hex digits, all lowercase, C‐level speed
-        key = idx.to_bytes(3, 'big').hex()
+        key = idx
         # for your demo value:
-        val = ord(key[3])
+        val = f"val_{idx}"
 
         item = make_item(key, val)
         rank = calc_rank(item.key, target_node_size)

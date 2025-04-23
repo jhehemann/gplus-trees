@@ -54,10 +54,8 @@ class Item:
         # 1) Turn your key into a plain string of characters to slice:
         if isinstance(self.key, (bytes, bytearray)):
             s = self.key.hex()
-        elif isinstance(self.key, int):
-            # drop the “0x” prefix and use lowercase
-            s = format(self.key, "x")
         else:
+            # treat everything else—including int—as decimal-string
             s = str(self.key)
 
         # 2) If it’s already short, just return it; otherwise elide the middle
