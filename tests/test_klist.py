@@ -47,15 +47,15 @@ class TestKList(unittest.TestCase):
             node = node.next
         return count
 
-    # def test_insert_in_order(self):
-    #     for key in ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "j"]:
-    #         self.klist.insert(Item(key, ord(key)))
-    #     # invariant is checked in tearDown()
+    def test_insert_in_order(self):
+        for key in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 10]:
+            self.klist.insert(Item(key, f"val_{key}"))
+        # invariant is checked in tearDown()
 
-    # def test_insert_out_of_order(self):
-    #     for key in ["d", "b", "a", "c", "e", "h", "g", "f", "j", "i", "h"]:
-    #         self.klist.insert(Item(key, ord(key)))
-    #     # invariant is checked in tearDown()
+    def test_insert_out_of_order(self):
+        for key in [4, 2, 1, 3, 5, 8, 7, 6, 10, 9, 8]:
+            self.klist.insert(Item(key, f"val_{key}"))
+        # invariant is checked in tearDown()
     
     # def test_random_order_insertion(self):
     #     """
@@ -106,30 +106,30 @@ class TestKList(unittest.TestCase):
     # def test_delete_existent(self):
     #     """Test that deleting an existing key works correctly and rebalances nodes."""
     #     insert_entries = [
-    #         ("a", 1),
-    #         ("b", 2),
-    #         ("c", 3),
-    #         ("d", 4),
-    #         ("e", 5),
+    #         (1, 1),
+    #         (2, 2),
+    #         (3, 3),
+    #         (4, 4),
+    #         (5, 5),
     #     ]
     #     for k, v in insert_entries:
     #         self.klist.insert(Item(k, v))
     #     # Delete an entry and verify deletion
-    #     result = self.klist.delete("c")
+    #     result = self.klist.delete(3)
     #     self.assertTrue(result)
     #     keys_after = [entry.item.key for entry in self.klist]
-    #     self.assertNotIn("c", keys_after)
+    #     self.assertNotIn(3, keys_after)
     #     # Total count should be one less than before.
     #     self.assertEqual(len(list(self.klist)), len(insert_entries) - 1)
 
     # def test_delete_nonexistent(self):
-    #     initial_keys = ["a", "b", "c"]
+    #     initial_keys = [1, 2, 3]
     #     # Insert some entries
     #     for k in initial_keys:
-    #         self.klist.insert(Item(k, ord(k)))
+    #         self.klist.insert(Item(k, f"val_{k}"))
             
     #     initial_count = self.klist.item_count()
-    #     updated_klist = self.klist.delete("d")
+    #     updated_klist = self.klist.delete(4)
         
     #     # The delete method should return the original KList unmodified.
     #     self.assertIs(updated_klist, self.klist,
@@ -278,226 +278,526 @@ class TestKListInsert(unittest.TestCase):
     def test_insert_into_empty(self):
         # Inserting into an empty list should set head and tail
         self.assertIsNone(self.klist.head)
-        self.klist.insert(Item("a", 1))
+        self.klist.insert(Item(1, "val_1"))
         self.assertIsNotNone(self.klist.head)
         self.assertIs(self.klist.head, self.klist.tail)
-        self.assertEqual(self.extract_all_keys(), ["a"])
+        self.assertEqual(self.extract_all_keys(), [1])
 
     def test_insert_in_order(self):
         # Insert keys in sorted order one by one
-        for key in ["a", "b", "c", "d", "e"]:
-            self.klist.insert(Item(key, ord(key)))
-        self.assertEqual(self.extract_all_keys(), ["a", "b", "c", "d", "e"])
+        for key in [1, 2, 3, 4, 5]:
+            self.klist.insert(Item(key, f"val_{key}"))
+        self.assertEqual(self.extract_all_keys(), [1, 2, 3, 4, 5])
 
     def test_insert_out_of_order(self):
         # Insert keys in random order, final list must be sorted
-        for key in ["d", "a", "e", "b", "c"]:
-            self.klist.insert(Item(key, ord(key)))
-        self.assertEqual(self.extract_all_keys(), ["a", "b", "c", "d", "e"])
+        for key in [4, 1, 5, 2, 3]:
+            self.klist.insert(Item(key, f"val_{key}"))
+        self.assertEqual(self.extract_all_keys(), [1, 2, 3, 4, 5])
 
     def test_single_node_overflow(self):
         # Fill exactly one node to capacity, then insert one more
-        keys = [chr(65 + i) for i in range(self.cap)]
+        keys = list(range(self.cap))
         for k in keys:
-            self.klist.insert(Item(k, ord(k)))
+            self.klist.insert(Item(k, f"val_{k}"))
         # one more causes a second node
-        self.klist.insert(Item("Z", ord("Z")))
+        extra = self.cap
+        self.klist.insert(Item(extra, f"val_{extra}"))
+
         all_keys = self.extract_all_keys()
         self.assertEqual(len(all_keys), self.cap + 1)
+
         # First node must have cap entries, second node the overflow
         node = self.klist.head
         self.assertEqual([e.item.key for e in node.entries], keys)
         self.assertIsNotNone(node.next)
-        self.assertEqual([e.item.key for e in node.next.entries], ["Z"])
+        self.assertEqual([e.item.key for e in node.next.entries], [extra])
         self.assertIs(self.klist.tail, node.next)
 
     def test_multiple_node_overflows(self):
-        # Insert 3*cap + 2 items, ensure we get 4 nodes (since last may be partial)
+        # Insert 3*cap + 2 items, ensure proper node counts
         total = 3 * self.cap + 2
-        keys = [f"{i:03d}" for i in range(total)]
+        keys = list(range(total))
         for k in keys:
-            self.klist.insert(Item(k, int(k)))
+            self.klist.insert(Item(k, f"val_{k}"))
+
         # Traverse and count nodes & entries
         node = self.klist.head
         counts = []
         while node:
             counts.append(len(node.entries))
             node = node.next
+
         # All but the last should be full
         for cnt in counts[:-1]:
             self.assertEqual(cnt, self.cap)
         # Last node has the remainder
         self.assertEqual(sum(counts), total)
-        # head/tail correct
-        self.assertIsNotNone(self.klist.head)
-        self.assertIs(self.klist.tail.entries, node.entries if node else self.klist.tail.entries)
 
     def test_duplicate_keys(self):
-        # Insert duplicate keys – they all should appear, in stable order
+        # Insert duplicate keys – they all should appear in order
         for _ in range(3):
-            self.klist.insert(Item("dup", 42))
-        self.assertEqual(self.extract_all_keys(), ["dup", "dup", "dup"])
+            self.klist.insert(Item(7, "duplicate"))
+        self.assertEqual(self.extract_all_keys(), [7, 7, 7])
 
     def test_tail_fast_path(self):
-        # Repeatedly append monotonic keys should always hit the tail fast-path
-        # and never trigger a linear scan.
-        # We can't directly assert “fast-path used,” but we can assert correctness and performance-like behavior.
+        # Repeatedly append monotonic integer keys
         for i in range(100):
-            self.klist.insert(Item(str(i), i))
-        self.assertEqual(self.extract_all_keys(), [str(i) for i in range(100)])
-        # Only one node (or more if cap < 100) but always sorted
-        self.klist.check_invariant()
+            self.klist.insert(Item(i, f"val_{i}"))
+        self.assertEqual(self.extract_all_keys(), list(range(100)))
 
     def test_interleaved_inserts_and_checks(self):
         # Interleave inserts with invariant checks to catch transient issues
-        sequence = ["m", "a", "z", "b", "y", "c", "x"]
+        sequence = [5, 2, 8, 3, 9, 1, 7]
         for key in sequence:
-            self.klist.insert(Item(key, ord(key)))
-            # After each insert, list so far must be sorted
+            self.klist.insert(Item(key, f"val_{key}"))
             so_far = self.extract_all_keys()
             self.assertEqual(so_far, sorted(so_far))
 
     def test_complex_pattern(self):
         # Insert a complex shuffled pattern repeatedly and verify final sort
         import random
-        keys = [chr(65 + i) for i in range(self.cap * 2)]
+        keys = list(range(self.cap * 2))
         for _ in range(5):
             random.shuffle(keys)
             for k in keys:
-                self.klist.insert(Item(k, ord(k)))
-        # After many insertions, extract and ensure global sort
+                self.klist.insert(Item(k, f"val_{k}"))
+
         all_keys = self.extract_all_keys()
         self.assertEqual(all_keys, sorted(all_keys))
         self.assertEqual(len(all_keys), self.cap * 2 * 5)
 
 
-# class TestKListDelete(unittest.TestCase):
-#     def setUp(self):
-#         self.klist = KList()
-#         # shorthand capacity
-#         self.cap = KListNode.CAPACITY
+class TestKListDelete(unittest.TestCase):
+    def setUp(self):
+        self.klist = KList()
+        self.cap = KListNode.CAPACITY
 
-#     def insert_keys(self, keys):
-#         """Helper: insert a sequence of single-character keys with dummy values."""
-#         for k in keys:
-#             self.klist.insert(Item(k, ord(k)))
-#         self.klist.check_invariant()
+    def insert_keys(self, keys):
+        """Helper: insert a sequence of integer keys with dummy values."""
+        for k in keys:
+            self.klist.insert(Item(k, f"val_{k}"))
+        self.klist.check_invariant()
 
-#     def extract_all_keys(self):
-#         """Helper: traverse KList and return all keys in order."""
-#         keys = []
-#         node = self.klist.head
-#         while node:
-#             keys.extend([e.item.key for e in node.entries])
-#             node = node.next
-#         return keys
+    def extract_all_keys(self):
+        """Helper: traverse KList and return all keys in order."""
+        keys = []
+        node = self.klist.head
+        while node:
+            keys.extend(e.item.key for e in node.entries)
+            node = node.next
+        return keys
 
-#     def test_delete_on_empty_list(self):
-#         # deleting from an empty KList should do nothing
-#         before = self.extract_all_keys()
-#         self.klist.delete("x")
-#         after = self.extract_all_keys()
-#         self.assertEqual(before, after)
-#         self.assertIsNone(self.klist.head)
-#         self.assertIsNone(self.klist.tail)
+    def test_delete_on_empty_list(self):
+        # deleting from an empty KList should do nothing
+        before = self.extract_all_keys()
+        self.klist.delete(999)           # nonexistent int
+        after = self.extract_all_keys()
+        self.assertEqual(before, after)
+        self.assertIsNone(self.klist.head)
+        self.assertIsNone(self.klist.tail)
 
-#     def test_delete_nonexistent_key(self):
-#         # insert some items, then delete a missing key
-#         self.insert_keys(["a","b","c"])
-#         before = self.extract_all_keys()
-#         self.klist.delete("z")
-#         after = self.extract_all_keys()
-#         self.assertEqual(before, after)
+    def test_delete_nonexistent_key(self):
+        # insert some items, then delete a missing key
+        self.insert_keys([1, 2, 3])
+        before = self.extract_all_keys()
+        self.klist.delete(999)
+        after = self.extract_all_keys()
+        self.assertEqual(before, after)
 
-#     def test_delete_only_item(self):
-#         # after deleting the sole element, head and tail should be None
-#         self.insert_keys(["m"])
-#         self.klist.delete("m")
-#         self.assertIsNone(self.klist.head)
-#         self.assertIsNone(self.klist.tail)
+    def test_delete_only_item(self):
+        # after deleting the sole element, head and tail should be None
+        self.insert_keys([5])
+        self.klist.delete(5)
+        self.assertIsNone(self.klist.head)
+        self.assertIsNone(self.klist.tail)
 
-#     def test_delete_head_key(self):
-#         # delete the first key in a multi-element, single-node list
-#         keys = ["a","b","c"]
-#         self.insert_keys(keys)
-#         self.klist.delete("a")
-#         result = self.extract_all_keys()
-#         self.assertEqual(result, ["b","c"])
-#         # head should remain the same node
-#         self.assertIsNotNone(self.klist.head)
-#         self.klist.check_invariant()
+    def test_delete_head_key(self):
+        # delete the first key in a multi-element, single-node list
+        keys = [1, 2, 3]
+        self.insert_keys(keys)
+        self.klist.delete(1)
+        result = self.extract_all_keys()
+        self.assertEqual(result, [2, 3])
+        # head should remain the same node
+        self.assertIsNotNone(self.klist.head)
+        self.klist.check_invariant()
 
-#     def test_delete_tail_key(self):
-#         # delete the last key in a single-node list
-#         keys = ["a","b","c"]
-#         self.insert_keys(keys)
-#         self.klist.delete("c")
-#         result = self.extract_all_keys()
-#         self.assertEqual(result, ["a","b"])
-#         self.klist.check_invariant()
+    def test_delete_tail_key(self):
+        # delete the last key in a single-node list
+        keys = [1, 2, 3]
+        self.insert_keys(keys)
+        self.klist.delete(3)
+        result = self.extract_all_keys()
+        self.assertEqual(result, [1, 2])
+        self.klist.check_invariant()
 
-#     def test_delete_middle_key(self):
-#         # delete a middle key and ensure rebalance keeps packing
-#         keys = ["a","b","c","d","e"]
-#         self.insert_keys(keys)
-#         # force at least two nodes by setting CAPACITY small
-#         self.assertGreater(len(self.klist.head.entries), 0)
-#         self.klist.delete("c")
-#         result = self.extract_all_keys()
-#         # 'c' is gone, others remain in sorted order
-#         self.assertEqual(result, ["a","b","d","e"])
-#         self.klist.check_invariant()
+    def test_delete_middle_key(self):
+        # delete a middle key and ensure rebalance keeps packing
+        keys = [1, 2, 3, 4, 5]
+        self.insert_keys(keys)
+        # ensure at least two nodes exist
+        self.assertGreater(len(self.klist.head.entries), 0)
+        self.klist.delete(3)
+        result = self.extract_all_keys()
+        self.assertEqual(result, [1, 2, 4, 5])
+        self.klist.check_invariant()
 
-#     def test_delete_causes_node_removal(self):
-#         # build exactly two nodes, then delete enough to remove the second node
-#         # fill first node to capacity, next with 1 entry
-#         keys = [chr(i) for i in range(65, 65+self.cap+1)]  # 'A'.. up to capacity+1
-#         self.insert_keys(keys)
-#         # now head.entries == capacity, second node has 1 element
-#         # delete the one in the second node
-#         last_key = keys[-1]
-#         self.klist.delete(last_key)
-#         # the second node should be spliced out
-#         self.assertIsNone(self.klist.head.next)
-#         # head still has all capacity elements
-#         self.assertEqual(len(self.klist.head.entries), self.cap)
-#         self.klist.check_invariant()
+    def test_delete_causes_node_removal(self):
+        # build exactly two nodes: first full, second with 1 entry
+        keys = list(range(self.cap + 1))
+        self.insert_keys(keys)
+        # delete the lone entry in the second node
+        last_key = keys[-1]
+        self.klist.delete(last_key)
+        # the second node should be spliced out
+        self.assertIsNone(self.klist.head.next)
+        # head still has all capacity entries
+        self.assertEqual(len(self.klist.head.entries), self.cap)
+        self.klist.check_invariant()
 
-#     def test_multiple_deletes(self):
-#         # delete multiple keys in succession
-#         keys = ["a","b","c","d","e","f","g"]
-#         self.insert_keys(keys)
-#         for k in ["b","e","a","g","d"]:
-#             self.klist.delete(k)
-#             self.assertNotIn(k, self.extract_all_keys())
-#             self.klist.check_invariant()
-#         # remaining should be ['c','f']
-#         self.assertEqual(self.extract_all_keys(), ["c","f"])
+    def test_multiple_deletes(self):
+        # delete multiple keys in succession
+        keys = [1, 2, 3, 4, 5, 6, 7]
+        self.insert_keys(keys)
+        for k in [2, 5, 1, 7, 4]:
+            self.klist.delete(k)
+            self.assertNotIn(k, self.extract_all_keys())
+            self.klist.check_invariant()
+        # remaining should be [3,6]
+        self.assertEqual(self.extract_all_keys(), [3, 6])
 
-#     def test_repeated_delete_same_key(self):
-#         # inserting duplicates—only first matching should be removed
-#         # assume KList allows duplicates for this test
-#         dup_keys = ["x","x","x"]
-#         self.insert_keys(dup_keys)
-#         self.klist.delete("x")
-#         # exactly two 'x' should remain
-#         self.assertEqual(self.extract_all_keys(), ["x","x"])
-#         self.klist.delete("x")
-#         self.klist.delete("x")
-#         # now list is empty
-#         self.assertIsNone(self.klist.head)
-#         self.assertIsNone(self.klist.tail)
+    def test_repeated_delete_same_key(self):
+        # inserting duplicates—only first matching should be removed each time
+        dup_key = 7
+        self.insert_keys([dup_key, dup_key, dup_key])
+        self.klist.delete(dup_key)
+        # exactly two remain
+        self.assertEqual(self.extract_all_keys(), [dup_key, dup_key])
+        self.klist.delete(dup_key)
+        self.klist.delete(dup_key)
+        # now list is empty
+        self.assertIsNone(self.klist.head)
+        self.assertIsNone(self.klist.tail)
 
-#     def test_delete_all_nodes(self):
-#         # insert enough to create 3 nodes, then delete everything one by one
-#         keys = [chr(65+i) for i in range(3*self.cap + 2)]  # at least 3 nodes
-#         self.insert_keys(keys)
-#         for k in keys:
-#             self.klist.delete(k)
-#         # list should be empty afterwards
-#         self.assertIsNone(self.klist.head)
-#         self.assertIsNone(self.klist.tail)
+    def test_delete_all_nodes(self):
+        # insert enough to create 3+ nodes, then delete everything one by one
+        keys = list(range(3 * self.cap + 2))
+        self.insert_keys(keys)
+        for k in keys:
+            self.klist.delete(k)
+        # list should be empty afterwards
+        self.assertIsNone(self.klist.head)
+        self.assertIsNone(self.klist.tail)
 
+
+class TestKListRetrieve(unittest.TestCase):
+    def setUp(self):
+        self.klist = KList()
+        self.cap = KListNode.CAPACITY
+
+    def insert_sequence(self, keys):
+        """Helper to insert integer keys with dummy values."""
+        for k in keys:
+            self.klist.insert(Item(k, f"val_{k}"))
+        # ensure invariants
+        self.klist.check_invariant()
+
+    def assertRetrieval(self, key, found_key, next_key):
+        """
+        Helper: call retrieve(key) and assert that
+          result.found_entry.item.key == found_key  (or None)
+          result.next_entry.item.key == next_key    (or None)
+        """
+        res = self.klist.retrieve(key)
+        if found_key is None:
+            self.assertIsNone(res.found_entry, f"Expected no entry for {key}")
+        else:
+            self.assertIsNotNone(res.found_entry)
+            self.assertEqual(res.found_entry.item.key, found_key)
+        if next_key is None:
+            self.assertIsNone(res.next_entry, f"Expected no successor for {key}")
+        else:
+            self.assertIsNotNone(res.next_entry)
+            self.assertEqual(res.next_entry.item.key, next_key)
+
+    def test_retrieve_empty(self):
+        # empty list returns (None, None)
+        res = self.klist.retrieve(123)
+        self.assertIsNone(res.found_entry)
+        self.assertIsNone(res.next_entry)
+
+    def test_type_error_on_non_int(self):
+        with self.assertRaises(TypeError):
+            self.klist.retrieve("not-an-int")
+
+    def test_single_node_exact_middle(self):
+        # fill one node without overflow
+        keys = [10, 20, 30]
+        self.insert_sequence(keys)
+        # exact match in middle
+        self.assertRetrieval(20, 20, 30)
+
+    def test_single_node_exact_first(self):
+        keys = [5, 15, 25]
+        self.insert_sequence(keys)
+        self.assertRetrieval(5, 5, 15)
+
+    def test_single_node_exact_last(self):
+        keys = [1, 2, 3]
+        self.insert_sequence(keys)
+        # found at last position → successor None
+        self.assertRetrieval(3, 3, None)
+
+    def test_single_node_between(self):
+        keys = [100, 200, 300]
+        self.insert_sequence(keys)
+        # between 100 and 200
+        self.assertRetrieval(150, None, 200)
+
+    def test_single_node_below_min(self):
+        keys = [50, 60]
+        self.insert_sequence(keys)
+        # below first
+        self.assertRetrieval(40, None, 50)
+
+    def test_single_node_above_max(self):
+        keys = [7, 8, 9]
+        self.insert_sequence(keys)
+        # above last
+        self.assertRetrieval(100, None, None)
+
+    def test_cross_node_exact_and_successor(self):
+        # overflow into two nodes
+        # capacity = 4, so use 5 items
+        keys = [1, 2, 3, 4, 5]
+        self.insert_sequence(keys)
+        # 4 is last of first node, successor should be first of second node (5)
+        self.assertRetrieval(4, 4, 5)
+        # 5 is in second node, exact last → successor None
+        self.assertRetrieval(5, 5, None)
+
+    def test_cross_node_between(self):
+        # retrieve only accepts int keys, so passing a float should raise
+        with self.assertRaises(TypeError):
+            self.klist.retrieve(4.5)
+
+    def test_cross_node_below_head(self):
+        keys = [10, 20, 30, 40, 50]
+        self.insert_sequence(keys)
+        # below first in head
+        self.assertRetrieval(5, None, 10)
+
+    def test_cross_node_above_tail(self):
+        keys = [10, 20, 30, 40, 50]
+        self.insert_sequence(keys)
+        # above max across all nodes
+        self.assertRetrieval(1000, None, None)
+
+    def test_bulk_retrieval_all_keys(self):
+        # retrieve each real key should find itself and next
+        keys = list(range(1, self.cap * 2 + 1))  # generate enough to overflow
+        self.insert_sequence(keys)
+        for idx, k in enumerate(keys):
+            expected_next = keys[idx+1] if idx+1 < len(keys) else None
+            self.assertRetrieval(k, k, expected_next)
+
+    def test_random_nonexistent(self):
+        keys = list(range(0, self.cap * 3))
+        self.insert_sequence(keys)
+        low, high = -10, max(keys) + 10
+
+        for _ in range(20):
+            x = random.randint(low, high)
+            if x in keys:
+                continue  # skip existing keys
+
+            # find the smallest key > x
+            next_candidates = [k for k in keys if k > x]
+            nxt = min(next_candidates) if next_candidates else None
+
+            # now x is an int, so retrieve(x) works
+            self.assertRetrieval(x, None, nxt)
+
+
+class TestKListGetEntry(unittest.TestCase):
+    def setUp(self):
+        self.klist = KList()
+        self.cap = KListNode.CAPACITY
+
+    def insert_sequence(self, keys):
+        """Helper: insert integer keys with dummy values."""
+        for k in keys:
+            self.klist.insert(Item(k, f"val_{k}"))
+        self.klist.check_invariant()
+
+    def assertGet(self, index, found_key, next_key):
+        """Helper: assert get_entry(index) returns expected keys."""
+        res = self.klist.get_entry(index)
+        if found_key is None:
+            self.assertIsNone(res.found_entry, f"Expected no entry at index {index}")
+        else:
+            self.assertIsNotNone(res.found_entry, f"Expected entry at index {index}")
+            self.assertEqual(res.found_entry.item.key, found_key)
+        if next_key is None:
+            self.assertIsNone(res.next_entry, f"Expected no successor for index {index}")
+        else:
+            self.assertIsNotNone(res.next_entry, f"Expected successor for index {index}")
+            self.assertEqual(res.next_entry.item.key, next_key)
+
+    def test_empty_list(self):
+        # retrieving any index from empty list returns (None, None)
+        for idx in [0, 1, -1, 100]:
+            self.assertGet(idx, None, None)
+
+    def test_type_error_non_int(self):
+        with self.assertRaises(TypeError):
+            self.klist.get_entry('0')
+        with self.assertRaises(TypeError):
+            self.klist.get_entry(1.5)
+
+    def test_single_node_boundaries(self):
+        keys = [10, 20, 30]
+        self.insert_sequence(keys)
+        # valid indices
+        self.assertGet(0, 10, 20)
+        self.assertGet(1, 20, 30)
+        self.assertGet(2, 30, None)
+        # out of range
+        self.assertGet(-1, None, None)
+        self.assertGet(3, None, None)
+
+    def test_single_node_varied(self):
+        keys = [5]
+        self.insert_sequence(keys)
+        self.assertGet(0, 5, None)
+        self.assertGet(1, None, None)
+
+    def test_two_nodes_indexing(self):
+        # fill first node, overflow one into second
+        keys = list(range(self.cap + 1))
+        self.insert_sequence(keys)
+        # first node: indices 0..cap-1
+        for i in range(self.cap):
+            next_key = i+1
+            if next_key == self.cap:
+                # next entry is first of second node
+                expected_next = self.cap
+            else:
+                expected_next = next_key
+            self.assertGet(i, i, expected_next)
+        # index cap is first of second node
+        self.assertGet(self.cap, self.cap, None)
+
+    def test_multi_node_full_scan(self):
+        total = 3 * self.cap + 2
+        keys = list(range(total))
+        self.insert_sequence(keys)
+        # test all indices
+        for i in range(total):
+            expected_next = i+1 if i+1 < total else None
+            self.assertGet(i, i, expected_next)
+        # out of bounds
+        self.assertGet(total, None, None)
+        self.assertGet(total+5, None, None)
+
+    def test_rebuild_index_on_modification(self):
+        # if index is maintained, ensure it updates
+        if not hasattr(self.klist, '_prefix_counts'):
+            self.skipTest("Index not implemented")
+        # initial insert
+        keys = [1, 2, 3, 4]
+        self.insert_sequence(keys)
+        # delete middle
+        self.klist.delete(2)
+        self.klist._rebuild_index()
+        # now index 1 should be key=3
+        self.assertGet(1, 3, 4)
+
+
+class TestKListIndex(unittest.TestCase):
+    def setUp(self):
+        self.klist = KList()
+        self.cap = KListNode.CAPACITY
+
+    def test_empty_index(self):
+        # Before any operations, index lists should exist and be empty
+        self.assertTrue(hasattr(self.klist, "_nodes"))
+        self.assertEqual(self.klist._nodes, [], "_nodes should be initialized empty")
+        self.assertTrue(hasattr(self.klist, "_prefix_counts"))
+        self.assertEqual(self.klist._prefix_counts, [], "_prefix_counts should be initialized empty")
+
+    def test_index_after_single_insert(self):
+        # Insert one item, rebuild, then index should have 1 node, prefix_counts [1]
+        self.klist.insert(Item(10, "val_10"))
+        self.assertEqual(len(self.klist._nodes), 1)
+        self.assertEqual(self.klist._prefix_counts, [1])
+        # Node in list should be the head
+        self.assertIs(self.klist._nodes[0], self.klist.head)
+
+    def test_index_after_multiple_inserts_no_overflow(self):
+        # Insert fewer than CAPACITY items
+        keys = list(range(self.cap - 1))
+        for k in keys:
+            self.klist.insert(Item(k, f"v{k}"))
+        # Still one node, prefix_counts = [len(keys)]
+        self.assertEqual(len(self.klist._nodes), 1)
+        self.assertEqual(self.klist._prefix_counts, [len(keys)])
+    
+    def test_index_after_overflow(self):
+        # Insert exactly CAPACITY + 2 items → 2 nodes
+        total = self.cap + 2
+        for k in range(total):
+            self.klist.insert(Item(k, f"v{k}"))
+        # Should have 2 nodes
+        self.assertEqual(len(self.klist._nodes), 2)
+        # prefix_counts: first node cap, second cap+2
+        expected = [self.cap, total]
+        self.assertEqual(self.klist._prefix_counts, expected)
+        # Check that _nodes entries match actual chain
+        node = self.klist.head
+        for idx, n in enumerate(self.klist._nodes):
+            self.assertIs(n, node)
+            node = node.next
+
+    def test_prefix_counts_monotonic_and_correct(self):
+        # Random insertion pattern, then check prefix sums
+        keys = [5, 1, 9, 2, 8, 3, 7, 4, 6, 0]
+        for k in keys:
+            self.klist.insert(Item(k, f"v{k}"))
+        # Now delete a few to force structure change
+        for k in [9, 0]:
+            self.klist.delete(k)
+        # Compute expected prefix sums by traversing
+        running = 0
+        expected = []
+        node = self.klist.head
+        while node:
+            running += len(node.entries)
+            expected.append(running)
+            node = node.next
+        self.assertEqual(self.klist._prefix_counts, expected)
+        # Ensure strictly increasing
+        for a, b in zip(expected, expected[1:]):
+            self.assertLess(a, b)
+
+    def test_index_after_bulk_deletes(self):
+        # Fill three nodes exactly, then remove the middle node
+        total = 3 * self.cap
+        for k in range(total):
+            self.klist.insert(Item(k, f"v{k}"))
+        # delete all keys in the middle node
+        middle_start = self.cap
+        middle_end   = 2 * self.cap - 1
+        for k in range(middle_start, middle_end + 1):
+            self.klist.delete(k)
+        # Now exactly two nodes remain (the head and the tail)
+        self.assertEqual(len(self.klist._nodes), 2)
+        # And the prefix sums should be [CAPACITY, 3*CAPACITY]
+        self.assertEqual(
+            self.klist._prefix_counts,
+            [self.cap, 2 * self.cap]
+        )
 
 
 # class TestRankStatistics(unittest.TestCase):

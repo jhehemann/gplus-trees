@@ -29,7 +29,6 @@ if TYPE_CHECKING:
     from .gplus_tree import GPlusTree
     from .klist import KList
 
-
 class Item:
     """
     Represents an item (a key-value pair) for insertion in G-trees and k-lists.
@@ -37,14 +36,14 @@ class Item:
 
     def __init__(
             self,
-            key: str,
+            key: int,
             value: str
     ):
         """
         Initialize an Item.
 
         Parameters:
-            key (str): The item's key.
+            key (int): The item's key.
             value (str): The item's value.
         """
         self.key = key
@@ -52,7 +51,17 @@ class Item:
     
 
     def short_key(self) -> str:
-        return self.key if len(self.key) <= 10 else f"{self.key[:3]}...{self.key[-3:]}"
+        # 1) Turn your key into a plain string of characters to slice:
+        if isinstance(self.key, (bytes, bytearray)):
+            s = self.key.hex()
+        elif isinstance(self.key, int):
+            # drop the “0x” prefix and use lowercase
+            s = format(self.key, "x")
+        else:
+            s = str(self.key)
+
+        # 2) If it’s already short, just return it; otherwise elide the middle
+        return s if len(s) <= 10 else f"{s[:3]}...{s[-3:]}"
     
     def get_rank(self, k):
         """
@@ -69,13 +78,14 @@ class Item:
         """
         return calculate_item_rank(self.key, k)
 
-    def __repr__(self):
-        return (f"Item(key={self.key!r}, value={self.value!r}")
-        return self.__str__()
+    def __repr__(self) -> str:
+        cls = self.__class__.__name__
+        return f"{cls}(key={self.key!r}, value={self.value!r})"
 
     def __str__(self):
-        # return (f"Item(key={self.key}, value={self.value}")
-        return (f"Item(key={self.short_key()}, value={self.value}")
+        cls = self.__class__.__name__
+        return f"{cls}(key={self.short_key()}, value={self.value})"
+
 
 def _create_replica(key):
     """Create a replica item with given key and no value."""
@@ -101,12 +111,12 @@ class AbstractSetDataStructure(ABC):
         pass
 
     @abstractmethod
-    def delete(self, key: str) -> 'AbstractSetDataStructure':
+    def delete(self, key: int) -> 'AbstractSetDataStructure':
         """
         Delete the item corresponding to the given key from the corresponding set data structure.
         
         Parameters:
-            key (str): The key of the item to be deleted.
+            key (int): The key of the item to be deleted.
         
         Returns:
             AbstractSetDataStructure: The set data structure instance after deletion.
@@ -115,13 +125,13 @@ class AbstractSetDataStructure(ABC):
 
     @abstractmethod
     def retrieve(
-        self, key: str
+        self, key: int
     ) -> 'RetrievalResult':
         """
         Retrieve the entry associated with the given key from the set data structure.
 
         Parameters:
-            key (str): The key of the entry to retrieve.
+            key (int): The key of the entry to retrieve.
         
         Returns:
             RetrievalResult: A named tuple containing:
@@ -152,7 +162,7 @@ class AbstractSetDataStructure(ABC):
 
     @abstractmethod
     def split_inplace(
-            self, key: str
+            self, key: int
     ) -> Tuple['AbstractSetDataStructure', Optional['AbstractSetDataStructure'], 'AbstractSetDataStructure']:
         """
         Split the set into two parts based on the provided key.
@@ -161,7 +171,7 @@ class AbstractSetDataStructure(ABC):
         and the second part contains all items greater than the key.
         
         Parameters:
-            key (str): The key to split the set by.
+            key (int): The key to split the set by.
         
         Returns:
             Tuple[AbstractSetDataStructure, Optional[AbstractSetDataStructure], AbstractSetDataStructure]:
@@ -183,7 +193,7 @@ class Entry:
             This is always provided, even if the subtree is empty.
     """
     __slots__ = ("item", "left_subtree")
-    
+
     item: Item
     left_subtree: AbstractSetDataStructure
 
@@ -206,46 +216,36 @@ class RetrievalResult(NamedTuple):
     found_entry: Optional[Entry]
     next_entry: Optional[Entry]
 
-def calculate_item_rank(key, k):
+def calculate_item_rank(key: int, k: int):
     """
-    Calculate the rank for an item based on its key and a desired g-node size k.
+    Calculate the rank for an item based on its key and a g-node size k (power of 2).
     
-      1. Verify that k is a power of 2.
-      2. Compute n = log2(k). (n is the group size of zeroes in bits.)
-      3. Compute the SHA-256 hash of the key and convert it to a binary string.
-      4. Count the number of trailing zero bits in the binary representation.
-      5. Group these trailing zeros into groups of n consecutive zeros.
-      6. The final rank is the number of such complete groups plus 1.
-    
-    Parameters:
-        key (str): The key for which to calculate the rank.
-        k (int): The desired g-node size. Must be a power of 2.
-        
-    Returns:
-        int: The rank for the key.
-    
-    Raises:
-        ValueError: If k is not a power of 2.
+    1. Verify k is a power of 2.
+    2. Compute group_size = log2(k).
+    3. SHA-256 hash of str(key) (UTF-8).
+    4. Convert hash to integer.
+    5. Count trailing zero bits via bit-ops.
+    6. rank = (trailing_zero_bits // group_size) + 1.
     """
-    # Check that k is a power of 2.
+    if not isinstance(key, int):
+        raise TypeError(f"key must be int, got {type(key).__name__!r}")
+    
+    # check that k is a power of 2.
     if k <= 0 or (k & (k - 1)) != 0:
-        raise ValueError("k must be a positive power of 2.")
+        raise ValueError("k must be a positive power of 2")
     
-    # Calculate the grouping size: n = log2(k)
-    group_size = int(math.log2(k))
+    # calculate the grouping size of zero-bits to count (exponent of k).
+    group_size = k.bit_length() - 1
     
-    # Compute the SHA-256 hash of the key.
-    sha_hex = hashlib.sha256(key.encode('utf-8')).hexdigest()
+    # hash the decimal string of the int key
+    key_bytes = str(key).encode("utf-8")
+    digest = hashlib.sha256(key_bytes).digest()
     
-    # Convert the hexadecimal hash into an integer, then get its binary representation.
-    hash_int = int(sha_hex, 16)
-    binary_str = bin(hash_int)[2:]  # Remove the '0b' prefix.
+    # convert to integer.
+    hash_int = int.from_bytes(digest, byteorder="big", signed=False)
     
-    # Count the trailing zeros in the binary string.
-    trailing_zero_count = len(binary_str) - len(binary_str.rstrip('0'))
+    # count trailing-zero bits
+    tz = (hash_int & -hash_int).bit_length() - 1
     
-    # Count the number of complete groups of trailing zeros, each of size group_size.
-    group_count = trailing_zero_count // group_size
-    
-    # The final rank is group_count + 1.
-    return group_count + 1
+    # final rank = complete groups + 1
+    return (tz // group_size) + 1

@@ -31,8 +31,7 @@ from packages.jhehemann.customs.gtree.base import (
 )
 from packages.jhehemann.customs.gtree.gplus_tree import (
     GPlusTree,
-    gtree_stats_,
-    DUMMY_ITEM_KEY
+    gtree_stats_
 )
 
 def geometric(p: float) -> int:

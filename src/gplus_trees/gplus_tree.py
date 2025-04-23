@@ -31,8 +31,10 @@ from packages.jhehemann.customs.gtree.base import (
 )
 from packages.jhehemann.customs.gtree.klist import KList
 
-DUMMY_ITEM_KEY = "0" * 64
-DUMMY_ITEM_VALUE = None
+DUMMY_KEY_STR = "0" * 64
+DUMMY_KEY = int(DUMMY_KEY_STR, 16)
+DUMMY_VALUE = None
+DUMMY_ITEM = Item(DUMMY_KEY, DUMMY_VALUE)
 
 DEBUG = False
 
@@ -99,7 +101,7 @@ class GPlusTree(AbstractSetDataStructure):
         Instantiate a dummy item with a key of 64 zero bits.
         This is used to represent the first entry in each layer of the G+-tree.
         """
-        return Item(DUMMY_ITEM_KEY, DUMMY_ITEM_VALUE)
+        return Item(DUMMY_KEY, DUMMY_VALUE)
 
     def __str__(self):
         if self.is_empty():
@@ -961,7 +963,7 @@ def gtree_stats_(t: GPlusTree, rank_distribution: Dict[int, int]) -> Stats:
     stats.internal_packed = all(s.internal_packed for _, s in set_stats) and right_stats.internal_packed and node_set_packed
 
     # Walk the leaves exactly once
-    dummy_key = t.instantiate_dummy_item().key
+    dummy_key = DUMMY_KEY
     leaf_keys, leaf_values = [], []
     for leaf in t.iter_leaf_nodes():
         for entry in leaf.set:
@@ -983,7 +985,7 @@ def collect_leaf_keys(tree: 'GPlusTree') -> list[str]:
         out = []
         for leaf in tree.iter_leaf_nodes():
             for e in leaf.set:
-                if e.item.key != DUMMY_ITEM_KEY:
+                if e.item.key != DUMMY_KEY:
                     out.append(e.item.key)
         return out
 
