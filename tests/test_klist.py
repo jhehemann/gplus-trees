@@ -25,13 +25,10 @@ import random
 import json
 import os
 import statistics
-import datetime
 
 from packages.jhehemann.customs.gtree.klist import KList
 from packages.jhehemann.customs.gtree.base import Item
 from packages.jhehemann.customs.gtree.base import calculate_item_rank
-
-BASE_TIMESTAMP = datetime.datetime(2021, 1, 1, tzinfo=datetime.timezone.utc)
 
 class TestKList(unittest.TestCase):
 
@@ -53,21 +50,21 @@ class TestKList(unittest.TestCase):
 
         # Define key-value pairs (keys not in sorted order)
         insert_entries = [
-            ("delta", 4, BASE_TIMESTAMP),
-            ("bravo", 2, BASE_TIMESTAMP),
-            ("alpha", 1, BASE_TIMESTAMP),
-            ("charlie", 3, BASE_TIMESTAMP),
-            ("echo", 5, BASE_TIMESTAMP),
-            ("foxtrot", 6, BASE_TIMESTAMP),
-            ("golf", 7, BASE_TIMESTAMP),
-            ("hotel", 8, BASE_TIMESTAMP)
+            ("delta", 4),
+            ("bravo", 2),
+            ("alpha", 1),
+            ("charlie", 3),
+            ("echo", 5),
+            ("foxtrot", 6),
+            ("golf", 7),
+            ("hotel", 8)
         ]
         
         # Shuffle entries to simulate unordered input.
         random.shuffle(insert_entries)
         
-        for k, v, timestamp in insert_entries:
-            self.klist.insert(Item(k, v, timestamp))
+        for k, v in insert_entries:
+            self.klist.insert(Item(k, v))
         
         # Print the keys for debugging
         print("\nInserted keys order:\n", [k for k, _, _ in insert_entries])
@@ -95,14 +92,14 @@ class TestKList(unittest.TestCase):
     def test_delete_existent(self):
         """Test that deleting an existing key works correctly and rebalances nodes."""
         insert_entries = [
-            ("a", 1, BASE_TIMESTAMP),
-            ("b", 2, BASE_TIMESTAMP),
-            ("c", 3, BASE_TIMESTAMP),
-            ("d", 4, BASE_TIMESTAMP),
-            ("e", 5, BASE_TIMESTAMP),
+            ("a", 1),
+            ("b", 2),
+            ("c", 3),
+            ("d", 4),
+            ("e", 5),
         ]
-        for k, v, timestamp in insert_entries:
-            self.klist.insert(Item(k, v, timestamp))
+        for k, v in insert_entries:
+            self.klist.insert(Item(k, v))
         # Delete an entry and verify deletion
         result = self.klist.delete("c")
         self.assertTrue(result)
@@ -115,7 +112,7 @@ class TestKList(unittest.TestCase):
         initial_keys = ["a", "b", "c"]
         # Insert some entries
         for k in initial_keys:
-            self.klist.insert(Item(k, ord(k), BASE_TIMESTAMP))
+            self.klist.insert(Item(k, ord(k)))
             
         initial_count = self.klist.item_count()
         updated_klist = self.klist.delete("d")
@@ -177,12 +174,12 @@ class TestKList(unittest.TestCase):
         corresponds to the entry immediately following the found item.
         """
         insert_entries = [
-            ("alpha", "A", BASE_TIMESTAMP),
-            ("bravo", "B", BASE_TIMESTAMP),
-            ("charlie", "C", BASE_TIMESTAMP),
-            ("delta", "D", BASE_TIMESTAMP)
+            ("alpha", "A"),
+            ("bravo", "B"),
+            ("charlie", "C"),
+            ("delta", "D")
         ]
-        items = [Item(k, v, timestamp) for k, v, timestamp in insert_entries]
+        items = [Item(k, v) for k, v in insert_entries]
         for item in items:
             self.klist.insert(item)
         

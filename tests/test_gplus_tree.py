@@ -22,15 +22,6 @@
 
 import unittest
 import random
-import json
-import os
-import statistics
-import datetime
-import random
-import math
-
-from pprint import pprint
-from dataclasses import asdict
 
 from typing import Tuple, Optional, List
 
@@ -48,9 +39,8 @@ from stats_gplus_tree import (
     check_leaf_keys_and_values,
 )
 
-BASE_TIMESTAMP = datetime.datetime(2021, 1, 1, tzinfo=datetime.timezone.utc)
 DUMMY_KEY = "0" * 64
-DUMMY_ITEM = Item(DUMMY_KEY, None, None)
+DUMMY_ITEM = Item(DUMMY_KEY, None)
 
 class TreeTestCase(unittest.TestCase):
 
@@ -133,8 +123,8 @@ class TreeTestCase(unittest.TestCase):
             )
 
     def _replica_repr(self, key):
-        """Create a replica item with given key, no value and no timestamp."""
-        return Item(key, None, None)
+        """Create a replica item with given key and no value."""
+        return Item(key, None)
         
     # def _assert_min_then_next(self, node, min, next):
     #     """Check that the minimum item is the expected key, and the next entry is also correct."""

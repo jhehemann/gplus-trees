@@ -19,7 +19,6 @@
 
 """G+-tree implementation"""
 
-import time
 from typing import Dict, Optional, Tuple, Any
 from dataclasses import dataclass, asdict
 from pprint import pprint
@@ -33,9 +32,8 @@ from packages.jhehemann.customs.gtree.klist import KList
 
 DUMMY_ITEM_KEY = "0" * 64
 DUMMY_ITEM_VALUE = None
-DUMMY_ITEM_TIMESTAMP = None
 
-DEBUG = True
+DEBUG = False
 
 @dataclass
 class GPlusNode:
@@ -100,7 +98,7 @@ class GPlusTree(AbstractSetDataStructure):
         Instantiate a dummy item with a key of 64 zero bits.
         This is used to represent the first entry in each layer of the G+-tree.
         """
-        return Item(DUMMY_ITEM_KEY, DUMMY_ITEM_VALUE, DUMMY_ITEM_TIMESTAMP)
+        return Item(DUMMY_ITEM_KEY, DUMMY_ITEM_VALUE)
 
     def __str__(self):
         if self.is_empty():
@@ -348,7 +346,6 @@ class GPlusTree(AbstractSetDataStructure):
                 old_item = old_entry.item if old_entry is not None else None
                 if old_item is not None:
                     old_item.value = new_item.value
-                    old_item.timestamp = new_item.timestamp
                 return self
 
             # Descend further:

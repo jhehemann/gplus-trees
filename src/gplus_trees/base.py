@@ -20,7 +20,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
-import datetime
 from typing import NamedTuple, Optional, Tuple, TYPE_CHECKING
 import math
 import hashlib
@@ -34,45 +33,26 @@ if TYPE_CHECKING:
 class Item:
     """
     Represents an item (a key-value pair) for insertion in G-trees and k-lists.
-    Each item has an associated UTC timestamp, which denotes the last time the item was changed.
-    This timestamp must be provided during initialization.
     """
 
     def __init__(
             self,
             key: str,
-            value: str,
-            timestamp: Optional[datetime.datetime] = None):
+            value: str
+    ):
         """
         Initialize an Item.
 
         Parameters:
             key (str): The item's key.
             value (str): The item's value.
-            timestamp (datetime.datetime): The UTC timestamp of the item's last change.
         """
         self.key = key
         self.value = value
-        self.timestamp = timestamp
+    
 
     def short_key(self) -> str:
         return self.key if len(self.key) <= 10 else f"{self.key[:3]}...{self.key[-3:]}"
-
-    def update_value(self, new_value, new_timestamp):
-        """
-        Update the item's value, provided the new timestamp differs from the current one.
-
-        Parameters:
-            new_value (any): The new value to update the item with.
-            new_timestamp (datetime.datetime): The timestamp associated with the new value.
-
-        Raises:
-            ValueError: If the new timestamp is exactly the same as the current timestamp.
-        """
-        if new_timestamp == self.timestamp:
-            raise ValueError("Update failed: the provided timestamp is identical to the current timestamp.")
-        self.value = new_value
-        self.timestamp = new_timestamp
     
     def get_rank(self, k):
         """
@@ -90,15 +70,12 @@ class Item:
         return calculate_item_rank(self.key, k)
 
     def __repr__(self):
-        # ts = self.timestamp.isoformat() if self.timestamp is not None else "None"
-        # return (f"Item(key={self.key!r}, value={self.value!r}, timestamp={ts})")
+        return (f"Item(key={self.key!r}, value={self.value!r}")
         return self.__str__()
 
     def __str__(self):
-        ts = self.timestamp.isoformat() if self.timestamp is not None else "None"
-        return (f"Item(key={self.key}, value={self.value}, timestamp={ts})")
-
-        # return f"(key: {self.short_key()}, value: {self.value})"
+        # return (f"Item(key={self.key}, value={self.value}")
+        return (f"Item(key={self.short_key()}, value={self.value}")
 
 class AbstractSetDataStructure(ABC):
     """
@@ -122,11 +99,7 @@ class AbstractSetDataStructure(ABC):
     @abstractmethod
     def delete(self, key: str) -> 'AbstractSetDataStructure':
         """
-        Delete the item corresponding to the given key by inserting a tombstone.
-        
-        Instead of physically removing the item, this method places a tombstone
-        with a maximal timestamp (e.g. datetime.datetime.max) so that the item cannot
-        be updated in the future.
+        Delete the item corresponding to the given key from the corresponding set data structure.
         
         Parameters:
             key (str): The key of the item to be deleted.
