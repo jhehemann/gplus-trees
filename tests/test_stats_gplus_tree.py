@@ -20,7 +20,7 @@
 """Tests for gplus tree abstract data structure."""
 # pylint: skip-file
 
-import difflib
+import logging
 import math
 import random
 from statistics import mean
@@ -34,23 +34,84 @@ from packages.jhehemann.customs.gtree.base import (
 )
 from packages.jhehemann.customs.gtree.gplus_tree import (
     GPlusTree,
-    gtree_stats_
+    gtree_stats_,
+    Stats,
 )
 
-def geometric(p: float) -> int:
-    """
-    Draw a sample from a geometric distribution with success probability p.
-    The result is in {1, 2, 3, ...}.
-    """
-    u = random.random()  # uniform in [0, 1)
-    # Use the inverse transform: X = floor(log(u) / log(1-p)) + 1
-    return math.floor(math.log(u) / math.log(1 - p)) + 1
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s: [%(levelname)s] %(message)s"
+)
+
+
+
+
+# def geometric(p: float) -> int:
+#     """
+#     Draw a sample from a geometric distribution with success probability p.
+#     The result is in {1, 2, 3, ...}.
+#     """
+#     u = random.random()  # uniform in [0, 1)
+#     # Use the inverse transform: X = floor(log(u) / log(1-p)) + 1
+#     return math.floor(math.log(u) / math.log(1 - p)) + 1
+
+TREE_FLAGS = (
+    "is_heap",
+    "is_search_tree",
+    "internal_has_replicas",
+    "internal_packed",
+    "linked_leaf_nodes",
+    "all_leaf_values_present",
+    "leaf_keys_in_order",
+)
+
+def assert_invariants(t: GPlusTree, stats: Stats) -> None:
+    """Check all invariants, but only log ERROR messages on failures."""
+    for flag in TREE_FLAGS:
+        if not getattr(stats, flag):
+            logging.error("Invariant failed: %s is False", flag)
+
+    if not t.is_empty():
+        if stats.item_count <= 0:
+            logging.error(
+                "Invariant failed: item_count=%d ≤ 0 for non-empty tree",
+                stats.item_count
+            )
+        if stats.item_slot_count <= 0:
+            logging.error(
+                "Invariant failed: item_slot_count=%d ≤ 0 for non-empty tree",
+                stats.item_slot_count
+            )
+        if stats.gnode_count <= 0:
+            logging.error(
+                "Invariant failed: gnode_count=%d ≤ 0 for non-empty tree",
+                stats.gnode_count
+            )
+        if stats.gnode_height <= 0:
+            logging.error(
+                "Invariant failed: gnode_height=%d ≤ 0 for non-empty tree",
+                stats.gnode_height
+            )
+        if stats.rank <= 0:
+            logging.error(
+                "Invariant failed: rank=%d ≤ 0 for non-empty tree",
+                stats.rank
+            )
+        if stats.least_item is None:
+            logging.error(
+                "Invariant failed: least_item is None for non-empty tree"
+            )
+        if stats.greatest_item is None:
+            logging.error(
+                "Invariant failed: greatest_item is None for non-empty tree"
+            )
 
 # Assume create_gtree(items) builds a GPlusTree from a list of (Item, rank) pairs.
 def create_gtree(items):
     """
     Mimics the Rust create_gtree: build a tree by inserting each (item, rank) pair.
-    Replace this with your actual tree‐creation logic.
+    Replace this with your actual tree-creation logic.
     """
     tree = GPlusTree()
     for (item, rank) in items:
@@ -146,15 +207,47 @@ def repeated_experiment(size: int, repetitions: int, K: int, p_override: float =
       K : target node size (used to compute the rank distribution as p = 1 - 1/(K+1))
       p_override : If provided, use this probability instead (optional)
     """
-    # for i in range(repetitions):
-    #     if i and i % 10 == 0:
-    #         print(f"    completed {i}/{repetitions} trials…")
+    def log_stats_table():
+        rows = [
+            ("Item count",            avg_item_count,       var_item_count),
+            ("Item slot count",       avg_item_slot_count,  var_item_slot_count),
+            ("Space amplification",    avg_space_amp,        var_space_amp),
+            ("G-node count",          avg_gnode_count,      var_gnode_count),
+            ("Avg G-node size",       avg_avg_gnode_size,   var_avg_gnode_size),
+            ("Maximum rank",          avg_max_rank,         var_max_rank),
+            ("G-node height",         avg_gnode_height,     var_gnode_height),
+            ("Actual height",         avg_physical_height,  var_physical_height),
+            ("Perfect height",        perfect_height,       None),
+            ("Height amplification",  avg_height_amp,       var_height_amp),
+        ]
+
+        # header
+       
+        
+        header = f"{'Metric':<25} {'Avg':>15} {'(Var)':>15}"
+        sep_1 = "#" * (len(header) + len(header) // 2)
+        sep_2    = "-" * len(header)
+        
+        
+        logging.info(f"n = {size}; K = {K}; {repetitions} repetitions")
+        logging.info(header)
+        logging.info(sep_2)
+
+        for name, avg, var in rows:
+            if var is None:
+                # e.g. perfect_height has no variance
+                logging.info(f"{name:<25} {avg:>15}")
+            else:
+                var_str = f"({var:.2f})"
+                logging.info(f"{name:<25} {avg:15.2f} {var_str:>15}")
+        
+        logging.info(sep_1)
 
     results = []  # List of tuples: (stats, physical_height)
 
     # Generate results from repeated experiments.
     for _ in range(repetitions):
-        print(f"\n\n\n#################################################### Starting experiment {_+1}/{repetitions} ####################################################")
+        # print(f"\n\n\n#################################################### Starting experiment {_+1}/{repetitions} ####################################################")
         tree = random_klist_tree(size, K)
         stats = gtree_stats_(tree, {})
         phy_height = tree.physical_height()
@@ -168,8 +261,6 @@ def repeated_experiment(size: int, repetitions: int, K: int, p_override: float =
             for leaf in tree.iter_leaf_nodes()
             for entry in leaf.set
         ]
-        # print("Leaf items in order:", leaf_keys)
-        
         sorted_keys = sorted(leaf_keys)
 
         # 1) Side-by-side mismatch list
@@ -178,28 +269,17 @@ def repeated_experiment(size: int, repetitions: int, K: int, p_override: float =
             for i in range(len(leaf_keys))
             if leaf_keys[i] != sorted_keys[i]
         ]
+
         if mismatches:
-            print(f"\nMismatch in {len(mismatches)} keys:")
-            print("Index │ actual  │ expected")
-            print("──────┼─────────┼─────────")
+            logging.error(f"Mismatch in {len(mismatches)} keys:")
+            logging.debug("Index │ actual  │ expected")
+            logging.debug("──────┼─────────┼─────────")
             for i, actual, expected in mismatches:
-                print(f"{i:5d} │ {actual!r:7} │ {expected!r:7}")
+                logging.debug(f"{i:5d} │ {actual!r:7} │ {expected!r:7}")
 
-            print("Tree structure:")
-            print(tree.print_structure())
-        # else:
-            # print("All keys are in sorted order ✓")
+            logging.debug("Tree structure:")
+            logging.debug(tree.print_structure())
 
-        # 2) (Optional) A unified-diff style quick-scan
-        # print("\nDiff against sorted version:")
-        # for line in difflib.unified_diff(
-        #         [repr(x) for x in sorted_keys],
-        #         [repr(x) for x in leaf_keys],
-        #         lineterm="",
-        #         n=2
-        #     ):
-        #     print(line)
-    
     # Perfect height: ceil( log_{K+1}(size) )
     perfect_height = math.ceil(math.log(size, K + 1)) if size > 0 else 0
 
@@ -227,26 +307,31 @@ def repeated_experiment(size: int, repetitions: int, K: int, p_override: float =
     var_avg_gnode_size  = mean(((stats.item_count / stats.gnode_count) - avg_avg_gnode_size)**2 for stats, _ in results)
     var_max_rank        = mean((stats.rank - avg_max_rank)**2 for stats, _ in results)
 
-    print(f"n = {size}; K = {K}; {repetitions} repetitions")
-    print("Legend: name <average> (<variance>)")
-    print("---------------------------------------")
-    print(f"Item count: {avg_item_count:.2f} ({var_item_count:.2f})")
-    print(f"Item slot count: {avg_item_slot_count:.2f} ({var_item_slot_count:.2f})")
-    print(f"Space amplification: {avg_space_amp:.2f} ({var_space_amp:.2f})")
-    print(f"G-node count: {avg_gnode_count:.2f} ({var_gnode_count:.2f})")
-    print(f"Average G-node size: {avg_avg_gnode_size:.2f} ({var_avg_gnode_size:.2f})")
-    print(f"Maximum rank: {avg_max_rank:.2f} ({var_max_rank:.2f})")
-    print(f"G-node height: {avg_gnode_height:.2f} ({var_gnode_height:.2f})")
-    print(f"Actual height: {avg_physical_height:.2f} ({var_physical_height:.2f})")
-    print(f"Perfect height: {perfect_height}")
-    print(f"Height amplification: {avg_height_amp:.2f} ({var_height_amp:.2f})")
+    log_stats_table()
+
+    # logging.info(f"n = {size}; K = {K}; {repetitions} repetitions")
+    # logging.info("Legend: name <average> (<variance>)")
+    # logging.info("---------------------------------------")
+    # logging.info(f"Item count: {avg_item_count:.2f} ({var_item_count:.2f})")
+    # logging.info(f"Item slot count: {avg_item_slot_count:.2f} ({var_item_slot_count:.2f})")
+    # logging.info(f"Space amplification: {avg_space_amp:.2f} ({var_space_amp:.2f})")
+    # logging.info(f"G-node count: {avg_gnode_count:.2f} ({var_gnode_count:.2f})")
+    # logging.info(f"Average G-node size: {avg_avg_gnode_size:.2f} ({var_avg_gnode_size:.2f})")
+    # logging.info(f"Maximum rank: {avg_max_rank:.2f} ({var_max_rank:.2f})")
+    # logging.info(f"G-node height: {avg_gnode_height:.2f} ({var_gnode_height:.2f})")
+    # logging.info(f"Actual height: {avg_physical_height:.2f} ({var_physical_height:.2f})")
+    # logging.info(f"Perfect height: {perfect_height}")
+    # logging.info(f"Height amplification: {avg_height_amp:.2f} ({var_height_amp:.2f})")
+
+    
+
     # print(f"Tree structure:\n{tree.print_structure()}")
-    print("\n\n")
+    #print("\n\n")
 
 if __name__ == "__main__":
     # List of tree sizes to test.
-    sizes = [10]
-    # sizes = [10, 100, 1000]
+    # sizes = [10]
+    sizes = [10, 100, 1000]
     # List of K values for which we want to run experiments.
     # Ks = [2, 4, 16, 64]
     Ks = [2]
@@ -254,5 +339,7 @@ if __name__ == "__main__":
 
     for n in sizes:
         for K in Ks:
-            print(f"\n--- Running experiment: n = {n}, K = {K} ---")
+            # logging.info(f"{'#'*20} Running experiment: n = {n}, K = {K} {'#'*20}")
+
+            logging.info(f"--- Running experiment: n = {n}, K = {K} ---")
             repeated_experiment(size=n, repetitions=repetitions, K=K)

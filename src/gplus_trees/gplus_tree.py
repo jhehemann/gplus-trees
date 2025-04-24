@@ -208,7 +208,7 @@ class GPlusTree(AbstractSetDataStructure):
         # Descend until we find a matching rank or run out of subtrees.
 
         if DEBUG:
-            print(f"> Descending to find gnode with rank >= {rank}")
+            print(f"> Descending to find gnode with rank <= {rank}")
 
         while current_tree.node.rank > rank:
             if DEBUG:
@@ -229,6 +229,8 @@ class GPlusTree(AbstractSetDataStructure):
                         print(f"> Current tree: {current_tree.print_structure()}")
                 # Descend into right subtree
                 parent_tree = current_tree
+                parent_entry = None
+
                 current_tree = current_tree.node.right_subtree
             if DEBUG:
                 print(f"> Is next current empty? {current_tree.is_empty()}")
@@ -236,7 +238,7 @@ class GPlusTree(AbstractSetDataStructure):
         if DEBUG:
             print(f"> inserting gnode found")
 
-        # If the current node's rank is still less than the required rank,
+        # If the current node's rank is less than the required rank,
         # we must "unfold" an in-between node or create a new root.
         if current_tree.node.rank < rank:
             current_tree = self._handle_rank_mismatch(
@@ -300,13 +302,11 @@ class GPlusTree(AbstractSetDataStructure):
                 print(">>> Unfolding a node in between parent and current tree")
             # Unfold a layer in between parent and current node.
             new_set = KList()
-            # Insert the current node's min (a "replica") to new node.
+            # Insert a replica of the current node's min to new node.
             result = current_tree.node.set.get_min()
             min_entry = result.found_entry
-
             if min_entry is None:
                 raise RuntimeError(f"Expected nonempty set during rank mismatch handling, but get_min() returned None.\n\nParent Tree:\n {parent_tree.print_structure()}\n\nCurrent tree:\n {current_tree.print_structure()}\n\nSelf:\n {self.print_structure()}")
-            
             new_min_replica = _create_replica(min_entry.item.key)
 
             new_set = new_set.insert(new_min_replica, GPlusTree())
@@ -609,10 +609,11 @@ class GPlusTree(AbstractSetDataStructure):
 
                 if is_leaf:
                     # If leaf, link 'next' references if needed
-                    if DEBUG:
-                        print(">>>>> Leaf node reached, linking next references")   
                     new_tree.node.next = current_tree.node.next
                     current_tree.node.next = new_tree
+                    if DEBUG:
+                        print(">>>>> Leaf node reached, linking next references")
+
                 # print(f"\nNew current tree (left): {current_tree.print_structure()}")
                 current_tree = new_current_tree
                 if DEBUG:
@@ -626,7 +627,7 @@ class GPlusTree(AbstractSetDataStructure):
             if is_leaf:
                 if DEBUG:
                     print(">>> Leaf node reached, stopping descent.")
-                # print("\n\nFinal tree structure after insertion:\n", self.print_structure())
+                    print("\n\nFinal tree structure after insertion:\n", self.print_structure())
                 # print("\n\nRight subtree structure after insertion:\n", current_tree.node.right_subtree.print_structure())
                 return self
 
@@ -810,6 +811,20 @@ class Stats:
     linked_leaf_nodes: bool
     all_leaf_values_present: bool
     leaf_keys_in_order: bool
+
+    # def __post_init__(self):
+    #     # 1) all of these must be True
+    #     for flag in (
+    #         "is_heap",
+    #         "is_search_tree",
+    #         "internal_has_replicas",
+    #         "internal_packed",
+    #         "linked_leaf_nodes",
+    #         "all_leaf_values_present",
+    #         "leaf_keys_in_order",
+    #     ):
+    #         if not getattr(self, flag):
+    #             raise AssertionError(f"{flag!r} must be True, got {getattr(self, flag)}")
     
 
 # def gtree_stats_(t: GPlusTree, rank_distribution: Dict[int, int]) -> Stats:
@@ -1107,6 +1122,7 @@ def gtree_stats_(t: GPlusTree,
                 leaf_values.append(e.item.value)
         stats.all_leaf_values_present = all(v is not None for v in leaf_values)
         stats.leaf_keys_in_order      = (leaf_keys == sorted(leaf_keys))
+
 
     return stats
 
