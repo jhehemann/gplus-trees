@@ -349,11 +349,11 @@ if __name__ == "__main__":
     )
     
     # List of tree sizes to test.
-    sizes = [10, 100, 1000]
-    # sizes = [10, 100, 1000, 10000, 100000]
+    # sizes = [10, 100, 1000]
+    sizes = [10, 100, 1000, 10000, 100000]
     # List of K values for which we want to run experiments.
-    # Ks = [2, 4, 16, 64]
-    Ks = [2, 16]
+    Ks = [2, 4, 16, 64]
+    # Ks = [2, 16]
     repetitions = 200
 
     for n in sizes:
