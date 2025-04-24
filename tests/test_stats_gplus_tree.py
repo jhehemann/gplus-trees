@@ -20,13 +20,16 @@
 """Tests for gplus tree abstract data structure."""
 # pylint: skip-file
 
+import os
 import logging
 import math
 import random
+import time
 from statistics import mean
 from typing import List, Optional, Tuple
 from pprint import pprint
 from dataclasses import asdict
+from datetime import datetime
 
 from packages.jhehemann.customs.gtree.base import (
     Item,
@@ -39,22 +42,10 @@ from packages.jhehemann.customs.gtree.gplus_tree import (
 )
 
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s: [%(levelname)s] %(message)s"
-)
-
-
-
-
-# def geometric(p: float) -> int:
-#     """
-#     Draw a sample from a geometric distribution with success probability p.
-#     The result is in {1, 2, 3, ...}.
-#     """
-#     u = random.random()  # uniform in [0, 1)
-#     # Use the inverse transform: X = floor(log(u) / log(1-p)) + 1
-#     return math.floor(math.log(u) / math.log(1 - p)) + 1
+# logging.basicConfig(
+#     level=logging.INFO,
+#     format="%(asctime)s: [%(levelname)s] %(message)s"
+# )
 
 TREE_FLAGS = (
     "is_heap",
@@ -195,151 +186,182 @@ def check_leaf_keys_and_values(
 
     return keys, presence_ok, all_have_values, order_ok
 
-# --- The repeated_experiment function ---
-def repeated_experiment(size: int, repetitions: int, K: int, p_override: float = None):
+
+
+
+def repeated_experiment(
+        size: int,
+        repetitions: int,
+        K: int,
+        p_override: Optional[float] = None
+    ) -> None:
     """
     Repeatedly builds random GPlusTrees (with size items) using ranks drawn from a geometric distribution.
-    Uses K as target node size to compute the geometric parameter. Aggregates statistics over many trees.
-    
-    Parameters:
-      size : number of items in each tree
-      repetitions : number of trees to generate
-      K : target node size (used to compute the rank distribution as p = 1 - 1/(K+1))
-      p_override : If provided, use this probability instead (optional)
+    Uses K as target node size to compute the geometric parameter. Aggregates statistics and timings over many trees.
     """
-    def log_stats_table():
-        rows = [
-            ("Item count",            avg_item_count,       var_item_count),
-            ("Item slot count",       avg_item_slot_count,  var_item_slot_count),
-            ("Space amplification",    avg_space_amp,        var_space_amp),
-            ("G-node count",          avg_gnode_count,      var_gnode_count),
-            ("Avg G-node size",       avg_avg_gnode_size,   var_avg_gnode_size),
-            ("Maximum rank",          avg_max_rank,         var_max_rank),
-            ("G-node height",         avg_gnode_height,     var_gnode_height),
-            ("Actual height",         avg_physical_height,  var_physical_height),
-            ("Perfect height",        perfect_height,       None),
-            ("Height amplification",  avg_height_amp,       var_height_amp),
-        ]
+    t_all_0 = time.perf_counter()
 
-        # header
-       
-        
-        header = f"{'Metric':<25} {'Avg':>15} {'(Var)':>15}"
-        sep_1 = "#" * (len(header) + len(header) // 2)
-        sep_2    = "-" * len(header)
-        
-        
-        logging.info(f"n = {size}; K = {K}; {repetitions} repetitions")
-        logging.info(header)
-        logging.info(sep_2)
-
-        for name, avg, var in rows:
-            if var is None:
-                # e.g. perfect_height has no variance
-                logging.info(f"{name:<25} {avg:>15}")
-            else:
-                var_str = f"({var:.2f})"
-                logging.info(f"{name:<25} {avg:15.2f} {var_str:>15}")
-        
-        logging.info(sep_1)
-
-    results = []  # List of tuples: (stats, physical_height)
+    # Storage for stats and timings
+    results = []  # List of tuples: (stats, phy_height)
+    times_build = []
+    times_stats = []
+    times_phy = []
 
     # Generate results from repeated experiments.
     for _ in range(repetitions):
-        # print(f"\n\n\n#################################################### Starting experiment {_+1}/{repetitions} ####################################################")
+        # Time tree construction
+        t0 = time.perf_counter()
         tree = random_klist_tree(size, K)
+        times_build.append(time.perf_counter() - t0)
+
+        # Time stats computation
+        t0 = time.perf_counter()
         stats = gtree_stats_(tree, {})
+        times_stats.append(time.perf_counter() - t0)
+
+        # Time physical height computation
+        t0 = time.perf_counter()
         phy_height = tree.physical_height()
+        times_phy.append(time.perf_counter() - t0)
+
         results.append((stats, phy_height))
-        
-        # print("\nTree stats: ")
-        # pprint(asdict(stats))
-
-        leaf_keys = [
-            entry.item.key
-            for leaf in tree.iter_leaf_nodes()
-            for entry in leaf.set
-        ]
-        sorted_keys = sorted(leaf_keys)
-
-        # 1) Side-by-side mismatch list
-        mismatches = [
-            (i, leaf_keys[i], sorted_keys[i])
-            for i in range(len(leaf_keys))
-            if leaf_keys[i] != sorted_keys[i]
-        ]
-
-        if mismatches:
-            logging.error(f"Mismatch in {len(mismatches)} keys:")
-            logging.debug("Index │ actual  │ expected")
-            logging.debug("──────┼─────────┼─────────")
-            for i, actual, expected in mismatches:
-                logging.debug(f"{i:5d} │ {actual!r:7} │ {expected!r:7}")
-
-            logging.debug("Tree structure:")
-            logging.debug(tree.print_structure())
 
     # Perfect height: ceil( log_{K+1}(size) )
     perfect_height = math.ceil(math.log(size, K + 1)) if size > 0 else 0
 
-    # Aggregate averages
-    avg_gnode_height    = mean(stats.gnode_height for stats, _ in results)
-    avg_gnode_count     = mean(stats.gnode_count for stats, _ in results)
-    avg_item_count      = mean(stats.item_count for stats, _ in results)
-    avg_item_slot_count = mean(stats.item_slot_count for stats, _ in results)
-    avg_space_amp       = mean((stats.item_slot_count / stats.item_count)
-                               for stats, _ in results)
-    avg_physical_height = mean(phy_height for _, phy_height in results)
-    avg_height_amp      = mean((phy_height / perfect_height) for _, phy_height in results) if perfect_height else 0
-    avg_avg_gnode_size  = mean((stats.item_count / stats.gnode_count)
-                               for stats, _ in results)
-    avg_max_rank        = mean(stats.rank for stats, _ in results)
-    
-    # Compute variances
-    var_gnode_height    = mean((stats.gnode_height - avg_gnode_height)**2 for stats, _ in results)
-    var_gnode_count     = mean((stats.gnode_count - avg_gnode_count)**2 for stats, _ in results)
-    var_item_count      = mean((stats.item_count - avg_item_count)**2 for stats, _ in results)
-    var_item_slot_count = mean((stats.item_slot_count - avg_item_slot_count)**2 for stats, _ in results)
-    var_space_amp       = mean(((stats.item_slot_count / stats.item_count) - avg_space_amp)**2 for stats, _ in results)
-    var_physical_height = mean((phy_height - avg_physical_height)**2 for _, phy_height in results)
-    var_height_amp      = mean(((phy_height / perfect_height) - avg_height_amp)**2 for _, phy_height in results) if perfect_height else 0
-    var_avg_gnode_size  = mean(((stats.item_count / stats.gnode_count) - avg_avg_gnode_size)**2 for stats, _ in results)
-    var_max_rank        = mean((stats.rank - avg_max_rank)**2 for stats, _ in results)
+    # Aggregate averages for stats
+    avg_gnode_height    = mean(s.gnode_height for s, _ in results)
+    avg_gnode_count     = mean(s.gnode_count for s, _ in results)
+    avg_item_count      = mean(s.item_count for s, _ in results)
+    avg_item_slot_count = mean(s.item_slot_count for s, _ in results)
+    avg_space_amp       = mean((s.item_slot_count / s.item_count) for s, _ in results)
+    avg_physical_height = mean(h for _, h in results)
+    avg_height_amp      = mean((h / perfect_height) for _, h in results) if perfect_height else 0
+    avg_avg_gnode_size  = mean((s.item_count / s.gnode_count) for s, _ in results)
+    avg_max_rank        = mean(s.rank for s, _ in results)
 
-    log_stats_table()
+    # Aggregate averages for timings
+    avg_build_time      = mean(times_build)
+    avg_stats_time      = mean(times_stats)
+    avg_phy_time        = mean(times_phy)
+
+    # Compute variances for stats
+    var_gnode_height    = mean((s.gnode_height - avg_gnode_height)**2 for s, _ in results)
+    var_gnode_count     = mean((s.gnode_count - avg_gnode_count)**2 for s, _ in results)
+    var_item_count      = mean((s.item_count - avg_item_count)**2 for s, _ in results)
+    var_item_slot_count = mean((s.item_slot_count - avg_item_slot_count)**2 for s, _ in results)
+    var_space_amp       = mean(((s.item_slot_count / s.item_count) - avg_space_amp)**2 for s, _ in results)
+    var_physical_height = mean((h - avg_physical_height)**2 for _, h in results)
+    var_height_amp      = mean(((h / perfect_height) - avg_height_amp)**2 for _, h in results) if perfect_height else 0
+    var_avg_gnode_size  = mean(((s.item_count / s.gnode_count) - avg_avg_gnode_size)**2 for s, _ in results)
+    var_max_rank        = mean((s.rank - avg_max_rank)**2 for s, _ in results)
+
+    # Compute variances for timings
+    var_build_time      = mean((t - avg_build_time)**2 for t in times_build)
+    var_stats_time      = mean((t - avg_stats_time)**2 for t in times_stats)
+    var_phy_time        = mean((t - avg_phy_time)**2 for t in times_phy)
+
+    # Prepare rows for stats and timings
+    rows = [
+        ("Item count",            avg_item_count,       var_item_count),
+        ("Item slot count",       avg_item_slot_count,  var_item_slot_count),
+        ("Space amplification",    avg_space_amp,        var_space_amp),
+        ("G-node count",          avg_gnode_count,      var_gnode_count),
+        ("Avg G-node size",       avg_avg_gnode_size,   var_avg_gnode_size),
+        ("Maximum rank",          avg_max_rank,         var_max_rank),
+        ("G-node height",         avg_gnode_height,     var_gnode_height),
+        ("Actual height",         avg_physical_height,  var_physical_height),
+        ("Perfect height",        perfect_height,       None),
+        ("Height amplification",  avg_height_amp,       var_height_amp),
+    ]
+
+    # Log table
+    header = f"{'Metric':<20} {'Avg':>15} {'(Var)':>15}"
+    sep_line = "-" * len(header)
 
     # logging.info(f"n = {size}; K = {K}; {repetitions} repetitions")
-    # logging.info("Legend: name <average> (<variance>)")
-    # logging.info("---------------------------------------")
-    # logging.info(f"Item count: {avg_item_count:.2f} ({var_item_count:.2f})")
-    # logging.info(f"Item slot count: {avg_item_slot_count:.2f} ({var_item_slot_count:.2f})")
-    # logging.info(f"Space amplification: {avg_space_amp:.2f} ({var_space_amp:.2f})")
-    # logging.info(f"G-node count: {avg_gnode_count:.2f} ({var_gnode_count:.2f})")
-    # logging.info(f"Average G-node size: {avg_avg_gnode_size:.2f} ({var_avg_gnode_size:.2f})")
-    # logging.info(f"Maximum rank: {avg_max_rank:.2f} ({var_max_rank:.2f})")
-    # logging.info(f"G-node height: {avg_gnode_height:.2f} ({var_gnode_height:.2f})")
-    # logging.info(f"Actual height: {avg_physical_height:.2f} ({var_physical_height:.2f})")
-    # logging.info(f"Perfect height: {perfect_height}")
-    # logging.info(f"Height amplification: {avg_height_amp:.2f} ({var_height_amp:.2f})")
-
+    logging.info(header)
+    logging.info(sep_line)
+    for name, avg, var in rows:
+        if var is None:
+            logging.info(f"{name:<20} {avg:>15}")
+        else:
+            var_str = f"({var:.2f})"
+            avg_fmt = f"{avg:15.2f}"
+            logging.info(f"{name:<20} {avg_fmt} {var_str:>15}")
     
 
-    # print(f"Tree structure:\n{tree.print_structure()}")
-    #print("\n\n")
+
+    # Performance metrics
+    sum_build = sum(times_build)
+    sum_stats = sum(times_stats)
+    sum_phy   = sum(times_phy)
+    total_sum = sum_build + sum_stats + sum_phy
+
+    pct_build = (sum_build / total_sum * 100) if total_sum else 0
+    pct_stats = (sum_stats / total_sum * 100) if total_sum else 0
+    pct_phy   = (sum_phy   / total_sum * 100) if total_sum else 0
+
+    perf_rows = [
+        ("Build time (s)", avg_build_time, var_build_time, sum_build, pct_build),
+        ("Stats time (s)", avg_stats_time, var_stats_time, sum_stats, pct_stats),
+        ("Phy height time (s)", avg_phy_time, var_phy_time, sum_phy, pct_phy),
+    ]
+    
+
+    # 2) Log a separate performance table
+    header = f"{'Metric':<20}{'Avg(s)':>12}{'Var(s)':>12}{'Total(s)':>12}{'%Total':>10}"
+    sep    = "-" * len(header)
+
+    logging.info("")  # blank line for separation
+    logging.info("Performance summary:")
+    logging.info(header)
+    logging.info(sep)
+    for name, avg, var, total, pct in perf_rows:
+        logging.info(
+            f"{name:<20}"
+            f"{avg:12.6f}"
+            f"{var:12.6f}"
+            f"{total:12.6f}"
+            f"{pct:10.2f}%"
+        )
+    logging.info(sep)
+
+    t_all_1 = time.perf_counter() - t_all_0
+    logging.info("Overall execution time: %.3f seconds", t_all_1)
 
 if __name__ == "__main__":
+    log_dir = os.path.join(os.getcwd(), "logs")
+    os.makedirs(log_dir, exist_ok=True)
+
+    # 2) Create a timestamped logfile name
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    log_path = os.path.join(log_dir, f"run_{ts}.log")
+
+    # 3) Configure logging to write to that file (and still print to console, if you like)
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        handlers=[
+            logging.FileHandler(log_path, mode="w"),
+            logging.StreamHandler()         # comment this out if you don't want console output
+        ]
+    )
+    
     # List of tree sizes to test.
     # sizes = [10]
-    sizes = [10, 100, 1000]
+    sizes = [10, 100, 1000, 10000, 100000]
     # List of K values for which we want to run experiments.
-    # Ks = [2, 4, 16, 64]
-    Ks = [2]
-    repetitions = 100
+    Ks = [2, 4, 16, 64]
+    # Ks = [2]
+    repetitions = 200
 
     for n in sizes:
         for K in Ks:
-            # logging.info(f"{'#'*20} Running experiment: n = {n}, K = {K} {'#'*20}")
-
-            logging.info(f"--- Running experiment: n = {n}, K = {K} ---")
+            logging.info("")
+            logging.info("")
+            logging.info(f"-------- NOW RUNNING EXPERIMENT: n = {n}, K = {K}, repetitions = {repetitions} --------")
+            t0 = time.perf_counter()
             repeated_experiment(size=n, repetitions=repetitions, K=K)
+            elapsed = time.perf_counter() - t0
+            

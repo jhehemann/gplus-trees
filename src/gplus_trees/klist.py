@@ -41,7 +41,7 @@ class KListNode:
         (item, left_subtree)
     where `left_subtree` is a G-tree associated with this entry.
     """
-    CAPACITY = K
+    CAPACITY = 4
 
     def __init__(self):
         self.entries: list[Entry] = []
