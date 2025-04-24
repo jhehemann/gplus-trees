@@ -310,7 +310,7 @@ def repeated_experiment(
     
 
     # 2) Log a separate performance table
-    header = f"{'Metric':<20}{'Avg(s)':>12}{'Var(s)':>12}{'Total(s)':>12}{'%Total':>10}"
+    header = f"{'Metric':<20}{'Avg(s)':>13}{'Var(s)':>13}{'Total(s)':>13}{'%Total':>10}"
     sep    = "-" * len(header)
 
     logging.info("")  # blank line for separation
@@ -320,15 +320,15 @@ def repeated_experiment(
     for name, avg, var, total, pct in perf_rows:
         logging.info(
             f"{name:<20}"
-            f"{avg:12.6f}"
-            f"{var:12.6f}"
-            f"{total:12.6f}"
+            f"{avg:13.6f}"
+            f"{var:13.6f}"
+            f"{total:13.6f}"
             f"{pct:10.2f}%"
         )
     logging.info(sep)
 
     t_all_1 = time.perf_counter() - t_all_0
-    logging.info("Overall execution time: %.3f seconds", t_all_1)
+    logging.info("Execution time: %.3f seconds", t_all_1)
 
 if __name__ == "__main__":
     log_dir = os.path.join(os.getcwd(), "logs")
@@ -349,11 +349,11 @@ if __name__ == "__main__":
     )
     
     # List of tree sizes to test.
-    # sizes = [10]
-    sizes = [10, 100, 1000, 10000, 100000]
+    sizes = [10, 100, 1000]
+    # sizes = [10, 100, 1000, 10000, 100000]
     # List of K values for which we want to run experiments.
-    Ks = [2, 4, 16, 64]
-    # Ks = [2]
+    # Ks = [2, 4, 16, 64]
+    Ks = [2, 16]
     repetitions = 200
 
     for n in sizes:

@@ -40,21 +40,21 @@ DUMMY_ITEM = Item(DUMMY_KEY, DUMMY_VALUE)
 
 DEBUG = False
 
-@dataclass
+@dataclass(slots=True)
 class GPlusNode:
     """
     A G+-node is the core component of a G+-tree.
     
     Attributes:
         rank (int): A natural number greater than 0.
-        set (AbstractSetDataStructure): A k-list that stores elements which are item subtree pairs (item, left_subtree).
-        right_subtree (GPlusTree): The right subtree (a GPlusTree) of this G+-node.
-        next (Optional[GPlusTree]): The next G+-node in the linked list of leaf nodes.
+        set (AbstractSetDataStructure): Set data structure storing node entries
+        right_subtree (GPlusTree): The right subtree of this G+-node.
+        next [GPlusTree]: The next G+-node in the linked list of leaf nodes or None
     """
     rank: int
-    set: 'AbstractSetDataStructure'
-    right_subtree: 'GPlusTree'
-    next: Optional['GPlusTree'] = None
+    set: AbstractSetDataStructure
+    right_subtree: GPlusTree
+    next: Optional[GPlusTree] = None
 
     def __post_init__(self):
         if self.rank <= 0:
@@ -71,23 +71,19 @@ class GPlusTree(AbstractSetDataStructure):
         node (Optional[GPlusNode]): The G+-node that the tree contains. If None, the tree is empty.
         dim (int): The dimension of the G+-tree.
     """
-    def __init__(
-        self,
-        node: Optional[GPlusNode] = None,
-        dim: int = 1,
-    ):
-        """
-        Initialize a G+-tree.
-        
-        Parameters:
-            node (G+Node or None): The G+-node that the tree contains. If None, the tree is empty.
-            dim (int): The dimension of the G+-tree.
-        """
+    __slots__ = ("node", "dim")
+    
+    def __init__(self, node: Optional[GPlusNode] = None, dim: int = 1):
         self.node = node
         self.dim = dim
 
     def is_empty(self) -> bool:
         return self.node is None
+    
+    def __str__(self):
+        return "Empty GPlusTree" if self.is_empty() else f"GPlusTree(dim={self.dim}, node={self.node})"
+
+    __repr__ = __str__
     
     def delete(self, item):
         raise NotImplementedError("delete not implemented yet")
@@ -98,20 +94,14 @@ class GPlusTree(AbstractSetDataStructure):
     def split_inplace(self):
         raise NotImplementedError("split_inplace not implemented yet")
     
-    def instantiate_dummy_item(self):
-        """
-        Instantiate a dummy item with a key of 64 zero bits.
-        This is used to represent the first entry in each layer of the G+-tree.
-        """
-        return Item(DUMMY_KEY, DUMMY_VALUE)
+    # def instantiate_dummy_item(self):
+    #     """
+    #     Instantiate a dummy item with a key of 64 zero bits.
+    #     This is used to represent the first entry in each layer of the G+-tree.
+    #     """
+    #     return Item(DUMMY_KEY, DUMMY_VALUE)
 
-    def __str__(self):
-        if self.is_empty():
-            return "Empty GPlusTree"
-        return str(self.node)
-
-    def __repr__(self):
-        return self.__str__()
+    
         
     def insert(self, x_item: Item, rank: int) -> 'GPlusTree':
         """

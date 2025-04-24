@@ -30,31 +30,32 @@ from packages.jhehemann.customs.gtree.base import (
     Item,
     Entry,
     _create_replica,
+    RetrievalResult,
 )
 from packages.jhehemann.customs.gtree.klist import KList
 
-DUMMY_KEY_STR = "0" * 64
-DUMMY_KEY = int(DUMMY_KEY_STR, 16)
+# Constants
+DUMMY_KEY = int("0" * 64, 16)
 DUMMY_VALUE = None
 DUMMY_ITEM = Item(DUMMY_KEY, DUMMY_VALUE)
 
 DEBUG = False
 
-@dataclass
+@dataclass(slots=True)
 class GPlusNode:
     """
     A G+-node is the core component of a G+-tree.
     
     Attributes:
         rank (int): A natural number greater than 0.
-        set (AbstractSetDataStructure): A k-list that stores elements which are item subtree pairs (item, left_subtree).
-        right_subtree (GPlusTree): The right subtree (a GPlusTree) of this G+-node.
-        next (Optional[GPlusTree]): The next G+-node in the linked list of leaf nodes.
+        set (AbstractSetDataStructure): Set data structure storing node entries
+        right_subtree (GPlusTree): The right subtree of this G+-node.
+        next [GPlusTree]: The next G+-node in the linked list of leaf nodes or None
     """
     rank: int
-    set: 'AbstractSetDataStructure'
-    right_subtree: 'GPlusTree'
-    next: Optional['GPlusTree'] = None
+    set: AbstractSetDataStructure
+    right_subtree: GPlusTree
+    next: Optional[GPlusTree] = None
 
     def __post_init__(self):
         if self.rank <= 0:
@@ -71,23 +72,83 @@ class GPlusTree(AbstractSetDataStructure):
         node (Optional[GPlusNode]): The G+-node that the tree contains. If None, the tree is empty.
         dim (int): The dimension of the G+-tree.
     """
-    def __init__(
-        self,
-        node: Optional[GPlusNode] = None,
-        dim: int = 1,
-    ):
-        """
-        Initialize a G+-tree.
-        
-        Parameters:
-            node (G+Node or None): The G+-node that the tree contains. If None, the tree is empty.
-            dim (int): The dimension of the G+-tree.
-        """
+    __slots__ = ("node", "dim")
+    
+    def __init__(self, node: Optional[GPlusNode] = None, dim: int = 1):
         self.node = node
         self.dim = dim
 
     def is_empty(self) -> bool:
         return self.node is None
+    
+    def __str__(self):
+        return "Empty GPlusTree" if self.is_empty() else f"GPlusTree(dim={self.dim}, node={self.node})"
+
+    __repr__ = __str__
+    
+    # Public API
+    def insert(self, x: Item, rank: int) -> GPlusTree:
+        """
+        Public method (average-case O(log n)): Insert an item into the G+-tree. 
+        If the item already exists, updates its value at the leaf node.
+        
+        Args:
+            x_item (Item): The item (key, value) to be inserted.
+            rank (int): The rank of the item. Must be a natural number > 0.
+        Returns:
+            GPlusTree: The updated G+-tree.
+
+        Raises:
+            TypeError: If x_item is not an Item or rank is not a positive int.
+        """
+        if not isinstance(x, Item):
+            raise TypeError(f"insert(): expected Item, got {type(x).__name__}")
+        if not isinstance(rank, int) or rank <= 0:
+            raise TypeError(f"insert(): rank must be a positive int, got {rank!r}")
+        if self.is_empty():
+            return self._insert_empty(x, rank)
+        return self._insert_non_empty(x, rank)
+    
+    def retrieve(
+        self, key: int
+    ) -> Tuple[Optional[Item], Tuple[Optional[Item], Optional['GPlusTree']]]:
+        """
+        Searches for an item with a matching key in the G+-tree.
+
+        Iteratively traverses the tree (O(log n) with high probability)
+        with O(k) additional memory by descending into left or right subtrees
+        based on key comparisons.
+
+        Args:
+            key (int): The key to search for.
+
+        Returns:
+            RetrievalResult: Contains:
+                found_item (Optional[Item]): The value associated with the key, or None if not found.
+                next_pair (Tuple[Optional[Item], Optional[GPlusTree]]):
+                    The next item in sorted order and its associated subtree, or (None, None).
+        """
+        current_tree = self
+        found_item: Optional[Item] = None
+        next_pair: Tuple[Optional[Item], Optional[GPlusTree]] = (None, None)
+
+        while not current_tree.is_empty():
+            node = current_tree.node
+            # Attempt to retrieve in this node's k-list
+            found, next_pair = node.set.retrieve(key)
+            found_item = found or found_item
+
+            # Descend based on presence of next_pair
+            if next_pair is not None:
+                _, subtree = next_pair
+                current_tree = subtree
+            else:
+                # If leaf has a linked next node, update next_pair
+                if node.next is not None:
+                    next_pair = node.next.set.get_min()
+                current_tree = node.right_subtree
+
+        return RetrievalResult(found_item, next_pair)
     
     def delete(self, item):
         raise NotImplementedError("delete not implemented yet")
@@ -98,92 +159,119 @@ class GPlusTree(AbstractSetDataStructure):
     def split_inplace(self):
         raise NotImplementedError("split_inplace not implemented yet")
     
-    def instantiate_dummy_item(self):
-        """
-        Instantiate a dummy item with a key of 64 zero bits.
-        This is used to represent the first entry in each layer of the G+-tree.
-        """
-        return Item(DUMMY_KEY, DUMMY_VALUE)
+    # Private Methods
+    def _make_leaf_klist(self, x_item: Item) -> KList:
+        """Builds a KList for a single leaf node containing the dummy and x_item."""
+        return (
+            KList()
+            .insert(DUMMY_ITEM, GPlusTree())
+            .insert(x_item, GPlusTree())
+        )
 
-    def __str__(self):
-        if self.is_empty():
-            return "Empty GPlusTree"
-        return str(self.node)
-
-    def __repr__(self):
-        return self.__str__()
-        
-    def insert(self, x_item: Item, rank: int) -> 'GPlusTree':
-        """
-        Insert an item into the G+-tree.
-        Attributes:
-            x_item (Item): The item to be inserted.
-            rank (int): The rank of the item.
-        """
-        if DEBUG:
-            print(f"\n\n\n>>>>>>>>>>>>>> Inserting item {x_item} with rank {rank}")
-        # 1) If the tree is empty, handle the initial creation logic.
-        if self.is_empty():
-            return self._handle_empty_insertion(x_item, rank)
-
-        # 2) Otherwise, insert into a non-empty tree.
-        return self._insert_non_empty(x_item, rank)
+    def _make_leaf_trees(self, x_item: Item) -> Tuple[GPlusTree, GPlusTree]:
+        """Builds two linked leaf-level GPlusTree nodes for x_item insertion.
+        and returns the corresponding G+-trees."""
+        # Right leaf tree containing x_item
+        r_leaf_set = KList().insert(x_item, GPlusTree())
+        r_leaf_t = GPlusTree(GPlusNode(1, r_leaf_set, GPlusTree()))
+        # Left leaf tree containing dummy
+        l_leaf_set = KList().insert(DUMMY_ITEM, GPlusTree())
+        l_leaf_t = GPlusTree(GPlusNode(1, l_leaf_set, GPlusTree()))
+        # Link leaves
+        l_leaf_t.node.next = r_leaf_t
+        return l_leaf_t, r_leaf_t
     
-    def _handle_empty_insertion(self, x_item: Item, rank: int) -> 'GPlusTree':
-        """
-        If the tree is empty, build the initial structure depending on rank.
-        Attributes:
-            x_item (Item): The item to be inserted.
-            rank (int): The rank of the item.
-        Returns:
-            GPlusTree: The updated G+-tree.
-        """
-        if DEBUG:
-            print("> Handling empty insertion")
-        # Rank 1: single leaf node with dummy item.
+    def _insert_empty(self, x_item: Item, rank: int) -> 'GPlusTree':
+        """Build the initial tree structure depending on rank."""
+        # Single-level leaf
         if rank == 1:
-            if DEBUG:
-                print(">> Rank 1: creating single leaf node")
-            leaf_set = KList()
-            leaf_set = leaf_set.insert(self.instantiate_dummy_item(), GPlusTree())
-            leaf_set = leaf_set.insert(x_item, GPlusTree())
+            leaf_set = self._make_leaf_klist(x_item)
             self.node = GPlusNode(rank, leaf_set, GPlusTree())
             return self
 
-        # Rank > 1: create a root node with a dummy, an item replica, 
-        # plus left and right subtrees.
-        elif rank > 1:
-            if DEBUG:
-                print(f">> Rank > 1, i.e {rank}: creating root node with dummy item")
-            root_set = KList()
-            root_set = root_set.insert(self.instantiate_dummy_item(), GPlusTree())
+        # Higher-level root with two linked leaf children
+        l_leaf_t, r_leaf_t = self._make_leaf_trees(x_item)
+        root_set = KList().insert(DUMMY_ITEM, GPlusTree())
+        root_set = root_set.insert(_create_replica(x_item.key), l_leaf_t)
+        self.node = GPlusNode(rank, root_set, r_leaf_t)
+        return self
 
-            # Create replica (key only) for internal node
-            replica = _create_replica(x_item.key)
+        # # Initialize chained list of 2 leaf nodes
+        # r_leaf_tree = GPlusTree(GPlusNode(  # right leaf
+        #     1,
+        #     KList().insert(x_item, GPlusTree()),
+        #     GPlusTree()
+        # ))
+        # l_leaf_tree = GPlusTree(GPlusNode(  # left leaf
+        #     1,
+        #     KList().insert(DUMMY_ITEM, GPlusTree()),
+        #     GPlusTree()
+        # ))
+        # l_leaf_tree.node.next = r_leaf_tree
 
-            # Left subtree with just a dummy
-            left_subtree_set = KList()
-            left_subtree_set = left_subtree_set.insert(self.instantiate_dummy_item(), GPlusTree())
-            left_subtree = GPlusTree(
-                GPlusNode(1, left_subtree_set, GPlusTree())
-            )
-            root_set.insert(replica, left_subtree)
+        # # Build root with target rank
+        # self.node = GPlusNode(
+        #     rank,
+        #     (
+        #         KList()
+        #         .insert(DUMMY_ITEM, GPlusTree())
+        #         .insert(_create_replica(x_item.key), l_leaf_tree)
+        #     ),
+        #     r_leaf_tree
+        # )
+        # return self
 
-            # Right subtree with the actual item
-            right_subtree_set = KList()
-            right_subtree_set = right_subtree_set.insert(x_item, GPlusTree())
-            right_subtree = GPlusTree(
-                GPlusNode(1, right_subtree_set, GPlusTree())
-            )
+        # if DEBUG:
+        #     print("> Handling empty insertion")
+        # # single leaf node with dummy and x_item
+        # if rank == 1:
+        #     if DEBUG:
+        #         print(">> Rank 1: creating single leaf node")
+        #     leaf = (
+        #         KList()
+        #         .insert(DUMMY_ITEM, GPlusTree())
+        #         .insert(x_item, GPlusTree())
+        #     )
+        #     self.node = GPlusNode(rank, leaf, GPlusTree())
+        #     return self
 
-            # Link leaf nodes
-            left_subtree.node.next = right_subtree
+        # # Rank > 1: create a root node with a dummy, an item replica, 
+        # # plus left and right subtrees.
+        # elif rank > 1:
+        #     if DEBUG:
+        #         print(f">> Rank > 1, i.e {rank}: creating root node with dummy item")
+        #     root_set = KList()
+        #     root_set = root_set.insert(DUMMY_ITEM, GPlusTree())
 
-            self.node = GPlusNode(rank, root_set, right_subtree)
-            return self
+        #     # Create replica (key only) for internal node
+        #     replica = _create_replica(x_item.key)
+
+        #     # Left subtree with just a dummy
+        #     left_subtree_set = KList()
+        #     left_subtree_set = left_subtree_set.insert(DUMMY_ITEM, GPlusTree())
+        #     left_subtree = GPlusTree(
+        #         GPlusNode(1, left_subtree_set, GPlusTree())
+        #     )
+        #     root_set.insert(replica, left_subtree)
+
+        #     # Right subtree with the actual item
+        #     right_subtree_set = KList()
+        #     right_subtree_set = right_subtree_set.insert(x_item, GPlusTree())
+        #     right_subtree = GPlusTree(
+        #         GPlusNode(1, right_subtree_set, GPlusTree())
+        #     )
+
+        #     # Link leaf nodes
+        #     left_subtree.node.next = right_subtree
+
+        #     self.node = GPlusNode(rank, root_set, right_subtree)
+        #     return self
         
-        else:
-            raise ValueError("Rank must be a natural number greater than 0.")
+        # else:
+        #     raise ValueError("Rank must be a natural number greater than 0.")
+        
+
+
 
     
     def _insert_non_empty(self, x_item: Item, rank: int) -> 'GPlusTree':
@@ -291,7 +379,7 @@ class GPlusTree(AbstractSetDataStructure):
             # No parent => we are at the root. Create a new root with dummy.
             old_node = self.node
             root_set = KList()
-            root_set = root_set.insert(self.instantiate_dummy_item(), GPlusTree())
+            root_set = root_set.insert(DUMMY_ITEM, GPlusTree())
             # print("\nCurrent tree:", current_tree.print_structure())
             self.node = GPlusNode(rank, root_set, GPlusTree(old_node))
 
@@ -646,59 +734,7 @@ class GPlusTree(AbstractSetDataStructure):
             # print(f"\n\n######################################## ITERATION FINISHED ########################################\n")
             # found_item, next_entry = current_tree.node.set.retrieve(x_item.key)
 
-    def retrieve(
-        self, key: str
-    ) -> Tuple[Optional[Item], Tuple[Optional[Item], Optional['GPlusTree']]]:
-        """
-        Searches for an item with a matching key in the G+-tree.
-
-        Iteratively traverses the tree with O(k) additional memory, where k is the expected G+-node size.
-        
-        The search algorithm:
-          - At each non-empty GPlusTree, let current_node = self.node.
-          - For each entry in current_node.set (in sorted order):
-                If entry.item.key == key, return the item.
-                Else if key < entry.item.key, then descend into that entry's left subtree.
-          - If no entry in the KList is suitable, then descend into the node's right subtree.
-        
-        Parameters:
-            key (str): The key to search for.
-        
-        Returns:
-            A tuple of two elements:
-            - item (Optional[Item]): The value associated with the key, or None if not found.
-            - next_entry (Tuple[Optional[Item], Optional[GPlusTree]]): 
-                    A tuple containing:
-                    * The next item in the sorted order (if any),
-                    * The left subtree associated with the next item (if any).
-                    If no subsequent entry exists, returns (None, None).
-        """
-        cur_tree = self
-        item = None
-        next_entry = None
-        while not cur_tree.is_empty():
-            cur_node = cur_tree.node
-
-            # Retrieve possibly non existent item and next entry from current node.
-            item, next_entry = cur_node.set.retrieve(key)
-            #(next_item, left_subtree) = next_entry
-            
-            # Determine where to descend.
-            if next_entry is not None:
-                # An item greater than key exists, so we descend into its left subtree.
-                cur_tree = next_entry[1]
-                continue
-            else:
-                # No next item exists in the current node, so we must descend into the node's right subtree.
-                # If the node has a next pointer, it is a leaf node and we can use it to find the next entry within the tree, before descending
-                if cur_node.next is not None:
-                    # The next entry is the first entry in the next node.
-                    next_entry = cur_node.next.set.get_min()
-                cur_tree = cur_node.right_subtree
-                continue
-        
-        # By the traversal logic and the key ordering in a G+tree, if we reach here, it means that we have reached a leaf node's empty subtree and we can return the last seen item and next entry.
-        return (item, next_entry)
+    
 
     def iter_leaf_nodes(self):
         """
