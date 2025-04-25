@@ -22,7 +22,7 @@
 from typing import TYPE_CHECKING, List, Optional, Tuple
 import bisect
 
-from packages.jhehemann.customs.gtree.base import (
+from src.gplus_trees.base import (
     Item,
     AbstractSetDataStructure,
     RetrievalResult,
@@ -30,7 +30,7 @@ from packages.jhehemann.customs.gtree.base import (
 )
 
 if TYPE_CHECKING:
-    from packages.jhehemann.customs.gtree.gplus_tree import GPlusTree
+    from src.gplus_trees.gplus_tree import GPlusTree
 
 class KListNode:
     """

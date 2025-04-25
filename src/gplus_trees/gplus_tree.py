@@ -25,14 +25,14 @@ from dataclasses import dataclass, asdict
 from pprint import pprint
 import collections
 
-from packages.jhehemann.customs.gtree.base import (
+from src.gplus_trees.base import (
     AbstractSetDataStructure,
     Item,
     Entry,
     _create_replica,
     RetrievalResult,
 )
-from packages.jhehemann.customs.gtree.klist import KList
+from src.gplus_trees.klist import KList
 
 # Constants
 DUMMY_KEY = int("0" * 64, 16)

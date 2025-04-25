@@ -24,14 +24,14 @@ import unittest
 
 from typing import Tuple, Optional, List
 
-from packages.jhehemann.customs.gtree.gplus_tree import (
+from src.gplus_trees.gplus_tree import (
     GPlusTree,
     GPlusNode,
     DUMMY_ITEM,
     gtree_stats_,
     collect_leaf_keys,
 )
-from packages.jhehemann.customs.gtree.base import (
+from src.gplus_trees.base import (
     Item,
     Entry,
     _create_replica

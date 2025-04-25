@@ -31,11 +31,11 @@ from pprint import pprint
 from dataclasses import asdict
 from datetime import datetime
 
-from packages.jhehemann.customs.gtree.base import (
+from src.gplus_trees.base import (
     Item,
     calculate_item_rank
 )
-from packages.jhehemann.customs.gtree.gplus_tree import (
+from src.gplus_trees.gplus_tree import (
     GPlusTree,
     gtree_stats_,
     Stats,

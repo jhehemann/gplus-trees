@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "gplustree"
+version = "0.1.0"
+description = "A history-independent tree data structure for O(log(n)) tree operations with high probability and fast sequential access"
+authors = ["Jannik Hehemann <jannik@hehemann-melle.de>"]
+license = "MIT"
+readme = "README.md"
+packages = [
+  { include = "gplus_trees", from = "src" }
+]
+
+[tool.poetry.dependencies]
+python = "<3.12,>=3.10"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

@@ -26,10 +26,10 @@ import json
 import os
 import statistics
 
-from packages.jhehemann.customs.gtree.klist import KList, KListNode
-from packages.jhehemann.customs.gtree.gplus_tree import GPlusTree
-from packages.jhehemann.customs.gtree.base import Item
-from packages.jhehemann.customs.gtree.base import calculate_item_rank
+from src.gplus_trees.klist import KList, KListNode
+from src.gplus_trees.gplus_tree import GPlusTree
+from src.gplus_trees.base import Item
+from src.gplus_trees.base import calculate_item_rank
 
 class TestKList(unittest.TestCase):
 
