@@ -7,8 +7,8 @@ import hashlib
 
 
 if TYPE_CHECKING:
-    from .gplus_tree import GPlusTree
-    from .klist import KList
+    from gplus_trees.gplus_tree import GPlusTree
+    from gplus_trees.klist import KList
 
 class Item:
     """

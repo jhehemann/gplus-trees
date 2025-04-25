@@ -3,7 +3,7 @@
 from typing import TYPE_CHECKING, List, Optional, Tuple
 import bisect
 
-from src.gplus_trees.base import (
+from gplus_trees.base import (
     Item,
     AbstractSetDataStructure,
     RetrievalResult,
@@ -11,7 +11,7 @@ from src.gplus_trees.base import (
 )
 
 if TYPE_CHECKING:
-    from src.gplus_trees.gplus_tree import GPlusTree
+    from gplus_trees.gplus_tree import GPlusTree
 
 class KListNode:
     """

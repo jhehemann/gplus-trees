@@ -5,14 +5,14 @@ import unittest
 
 from typing import Tuple, Optional, List
 
-from src.gplus_trees.gplus_tree import (
+from gplus_trees.gplus_tree import (
     GPlusTree,
     GPlusNode,
     DUMMY_ITEM,
     gtree_stats_,
     collect_leaf_keys,
 )
-from src.gplus_trees.base import (
+from gplus_trees.base import (
     Item,
     Entry,
     _create_replica
@@ -104,35 +104,6 @@ class TreeTestCase(unittest.TestCase):
                 presence_ok,
                 f"Leaf keys {keys} do not match expected {expected_keys}"
             )
-
-    
-        
-    # def _assert_min_then_next(self, node, min, next):
-    #     """Check that the minimum item is the expected key, and the next entry is also correct."""
-    #     result = node.set.get_min()
-    #     min_entry, next_entry = result.found_entry, result.next_entry
-    #     self.assertIsNotNone(min_entry, f"{min.key} entry missing")
-    #     self.assertEqual(min_entry.item.key, min.key, 
-    #                      f"Minimum item should be {min.key}")
-    #     self.assertEqual(
-    #         min_entry.item.value, min.value, 
-    #         f"Minimum item {min.key} should have value {min.value}"
-    #     )
-    #     self.assertTrue(min_entry.left_subtree.is_empty(),
-    #                     f"Minimum item {min.key} should have no left subtree")
-        
-    #     if next is not None:
-    #         self.assertIsNotNone(next_entry, "Next entry missing")
-    #         self.assertEqual(next_entry.item.key, next.key,
-    #                          f"Next item should be {next.key}")
-    #         self.assertEqual(
-    #             next_entry.item.value, next.value,
-    #             f"Next item {next.key} should have value {next.value}"
-    #         )
-    #     else:
-    #         self.assertIsNone(next_entry, f"Next entry should be None {next_entry}")
-            
-    #     return min_entry, next_entry
     
     def _assert_internal_node_properties(
             self, node: GPlusNode, items: List[Item], rank: int
@@ -358,6 +329,7 @@ class TestInsertInNonEmptyTreeLeaf(TestInsertInTree):
         )
         self.expected_leaf_keys = [2, 3, 4]
         
+
 class TestInsertInNonEmptyTreeGTMaxRankCreatesRoot(TestInsertInTree):
     def setUp(self):
         super().setUp()
@@ -465,6 +437,7 @@ class TestInsertInNonEmptyTreeGTMaxRankCreatesRoot(TestInsertInTree):
 
         self.expected_leaf_keys = [2, 3, 4]
         
+
 class TestInsertInNonEmptyTreeRankGT1(TestInsertInTree):
     def setUp(self):
         super().setUp()
@@ -481,7 +454,6 @@ class TestInsertInNonEmptyTreeRankGT1(TestInsertInTree):
         self.expected_root_rank = self.insert_rank
         self.expected_gnode_count = 4
         self.expected_item_count = 8    # currently incl. replicas & dummys
-
 
     def test_insert_lowest_key_splits_leaf(self):
         key, rank = 1, self.insert_rank
@@ -651,6 +623,7 @@ class TestInsertInNonEmptyTreeRankGT1(TestInsertInTree):
         
         self.expected_leaf_keys = [2, 4, 6, 7]
 
+
 class TestInsertInNonEmptyTreeCollapsedLayerCreatesInternal(TestInsertInTree):
     def setUp(self):
         super().setUp()
@@ -765,6 +738,7 @@ class TestInsertInNonEmptyTreeCollapsedLayerCreatesInternal(TestInsertInTree):
                               "Leaf 3 should have no next pointer")
         
         self.expected_leaf_keys = [2, 4, 5]
+
 
 class TestInsertInNonEmptyTreeRankGT2LowestKey(TestInsertInTree):
     def setUp(self):
@@ -1588,6 +1562,7 @@ class TestInsertNonemptyTreeHighCollapsingNodesLeftRight(TestInsertInTree):
             
         self.expected_leaf_keys = [1, 2, 3, 4]
 
+
 class TestInsertNonemptyTreeMidCollapsingNodesLeftRight(TestInsertInTree):
     def setUp(self):
         super().setUp()
@@ -1810,7 +1785,6 @@ class TestInsertNonemptyRank4TreeUnfoldRank2(TestInsertInTree):
                               "Leaf 5 should have no next pointer")
 
         self.expected_leaf_keys = [1, 2, 3, 4, 5]
-
 
 
 class TestInsertInNonEmptyTree(TestInsertInTree):

@@ -12,21 +12,15 @@ from pprint import pprint
 from dataclasses import asdict
 from datetime import datetime
 
-from src.gplus_trees.base import (
+from gplus_trees.base import (
     Item,
     calculate_item_rank
 )
-from src.gplus_trees.gplus_tree import (
+from gplus_trees.gplus_tree import (
     GPlusTree,
     gtree_stats_,
     Stats,
 )
-
-
-# logging.basicConfig(
-#     level=logging.INFO,
-#     format="%(asctime)s: [%(levelname)s] %(message)s"
-# )
 
 TREE_FLAGS = (
     "is_heap",
@@ -271,8 +265,6 @@ def repeated_experiment(
             avg_fmt = f"{avg:15.2f}"
             logging.info(f"{name:<20} {avg_fmt} {var_str:>15}")
     
-
-
     # Performance metrics
     sum_build = sum(times_build)
     sum_stats = sum(times_stats)
@@ -289,7 +281,6 @@ def repeated_experiment(
         ("Phy height time (s)", avg_phy_time, var_phy_time, sum_phy, pct_phy),
     ]
     
-
     # 2) Log a separate performance table
     header = f"{'Metric':<20}{'Avg(s)':>13}{'Var(s)':>13}{'Total(s)':>13}{'%Total':>10}"
     sep    = "-" * len(header)
@@ -312,7 +303,7 @@ def repeated_experiment(
     logging.info("Execution time: %.3f seconds", t_all_1)
 
 if __name__ == "__main__":
-    log_dir = os.path.join(os.getcwd(), "logs")
+    log_dir = os.path.join(os.getcwd(), "tests/logs")
     os.makedirs(log_dir, exist_ok=True)
 
     # 2) Create a timestamped logfile name
@@ -331,10 +322,10 @@ if __name__ == "__main__":
     
     # List of tree sizes to test.
     # sizes = [10, 100, 1000]
-    sizes = [10, 100, 1000, 10000, 100000]
+    sizes = [10, 100, 1000, 10000]
     # List of K values for which we want to run experiments.
-    Ks = [2, 4, 16, 64]
-    # Ks = [2, 16]
+    # Ks = [2, 4, 16, 64]
+    Ks = [2, 16]
     repetitions = 200
 
     for n in sizes:

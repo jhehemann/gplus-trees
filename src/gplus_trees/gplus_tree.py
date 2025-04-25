@@ -6,14 +6,14 @@ from dataclasses import dataclass, asdict
 from pprint import pprint
 import collections
 
-from src.gplus_trees.base import (
+from gplus_trees.base import (
     AbstractSetDataStructure,
     Item,
     Entry,
     _create_replica,
     RetrievalResult,
 )
-from src.gplus_trees.klist import KList
+from gplus_trees.klist import KList
 
 # Constants
 DUMMY_KEY = int("0" * 64, 16)
