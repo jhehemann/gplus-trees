@@ -21,6 +21,7 @@ from gplus_trees.gplus_tree import (
     GPlusTree,
     gtree_stats_,
     Stats,
+    DUMMY_ITEM,
 )
 
 TREE_FLAGS = (
@@ -141,25 +142,28 @@ def check_leaf_keys_and_values(
     keys = []
     all_have_values = True
     order_ok = True
-
+    
     # Traverse leaf nodes and collect keys
+    leaf_nodes = list(tree.iter_leaf_nodes())
     prev_key = None
-    for leaf in tree.iter_leaf_nodes():
-        for entry in leaf.set:
-            # Skip dummy or internal replicas (they have value=None)
-            if entry.item.value is None:
-                continue
+    for leaf in leaf_nodes:
+        leaf_set = leaf.set
+        for entry in leaf_set:
+            item = entry.item
+            key = item.key
+            if prev_key is None:
+                if not item is DUMMY_ITEM:
+                    order_ok = False
+            else:
+                keys.append(key)
 
-            key = entry.item.key
-            keys.append(key)
+                # Check if value is non-None
+                if item.value is None:
+                    all_have_values = False
 
-            # Check if all values are non-None
-            if entry.item.value is None:
-                all_have_values = False
-
-            # Check if keys are in sorted order
-            if prev_key is not None and key < prev_key:
-                order_ok = False
+                # Check if keys are in sorted order
+                if key < prev_key:
+                    order_ok = False
             prev_key = key
 
     # Check presence only if expected_keys is provided
