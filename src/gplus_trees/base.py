@@ -1,19 +1,20 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
-from typing import NamedTuple, Optional, Tuple, TYPE_CHECKING
-import math
+from typing import NamedTuple, Optional, Tuple
 import hashlib
 
 
-if TYPE_CHECKING:
-    from gplus_trees.gplus_tree import GPlusTree
-    from gplus_trees.klist import KList
+# if TYPE_CHECKING:
+#     from gplus_trees.gplus_tree import GPlusTree
+#     from gplus_trees.klist import KList
 
 class Item:
     """
     Represents an item (a key-value pair) for insertion in G-trees and k-lists.
     """
+
+    __slots__ = ("key", "value")  # Define slots for memory efficiency
 
     def __init__(
             self,
@@ -195,27 +196,29 @@ class RetrievalResult(NamedTuple):
     found_entry: Optional[Entry]
     next_entry: Optional[Entry]
 
-def calculate_item_rank(key: int, k: int):
+
+def calculate_group_size(k: int) -> int:
     """
-    Calculate the rank for an item based on its key and a g-node size k (power of 2).
+    Calculate the group size of trailing zero-groupings of an item key's hash to count based on an expected g-node size k (power of 2).
     
-    1. Verify k is a power of 2.
-    2. Compute group_size = log2(k).
-    3. SHA-256 hash of str(key) (UTF-8).
-    4. Convert hash to integer.
-    5. Count trailing zero bits via bit-ops.
-    6. rank = (trailing_zero_bits // group_size) + 1.
+    Parameters:
+        k (int): The g-node size, must be a positive power of 2.
+    
+    Returns:
+        int: The group size, which is log2(k).
+    
+    Raises:
+        ValueError: If k is not a positive power of 2.
     """
-    if not isinstance(key, int):
-        raise TypeError(f"key must be int, got {type(key).__name__!r}")
-    
-    # check that k is a power of 2.
     if k <= 0 or (k & (k - 1)) != 0:
         raise ValueError("k must be a positive power of 2")
     
-    # calculate the grouping size of zero-bits to count (exponent of k).
-    group_size = k.bit_length() - 1
-    
+    return k.bit_length() - 1
+
+def calculate_item_rank(key: int, group_size: int):
+    """
+    Calculate the rank for an item by counting the number of complete groups of trailing zero-bits in the SHA-256 hash of its key.
+    """
     # hash the decimal string of the int key
     key_bytes = str(key).encode("utf-8")
     digest = hashlib.sha256(key_bytes).digest()
