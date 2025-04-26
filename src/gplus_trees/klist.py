@@ -130,12 +130,10 @@ class KList(AbstractSetDataStructure):
         return self.head is None
     
     def item_count(self) -> int:
-        count = 0
-        current = self.head
-        while current is not None:
-            count += len(current.entries)
-            current = current.next
-        return count
+        """Returns the total number of entries in the KList in O(1) time."""
+        if not self._prefix_counts:
+            return 0
+        return self._prefix_counts[-1]
     
     def item_slot_count(self) -> int:
         """
