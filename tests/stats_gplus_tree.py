@@ -144,9 +144,8 @@ def check_leaf_keys_and_values(
     order_ok = True
     
     # Traverse leaf nodes and collect keys
-    leaf_nodes = list(tree.iter_leaf_nodes())
     prev_key = None
-    for leaf in leaf_nodes:
+    for leaf in tree.iter_leaf_nodes():
         leaf_set = leaf.set
         for entry in leaf_set:
             item = entry.item
@@ -176,8 +175,6 @@ def check_leaf_keys_and_values(
             presence_ok = set(keys) == set(expected_keys)
 
     return keys, presence_ok, all_have_values, order_ok
-
-
 
 
 def repeated_experiment(
