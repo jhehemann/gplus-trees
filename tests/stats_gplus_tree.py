@@ -14,7 +14,8 @@ from datetime import datetime
 
 from gplus_trees.base import (
     Item,
-    calculate_item_rank
+    calculate_item_rank,
+    calculate_group_size,
 )
 from gplus_trees.gplus_tree import (
     GPlusTree,
@@ -79,9 +80,11 @@ def create_gtree(items):
     Mimics the Rust create_gtree: build a tree by inserting each (item, rank) pair.
     Replace this with your actual tree-creation logic.
     """
+    logging.info("Creating GPlusTree from items")
     tree = GPlusTree()
+    insert = tree.insert
     for (item, rank) in items:
-        tree.insert(item, rank)
+        insert(item, rank)
     return tree
 
 # Create a random GPlusTree with n items and target node size (K) determining the rank distribution.
@@ -89,25 +92,31 @@ def random_gtree_of_size(n: int, target_node_size: int) -> GPlusTree:
     # cache globals
     calc_rank = calculate_item_rank
     make_item = Item
+    group_size = calculate_group_size(target_node_size)
 
     # we need at least n unique values; 2^24 = 16 777 216 > 1 000 000
     space = 1 << 24
-    assert space >= n, "key-space too small!"
+    if space <= n:
+        raise ValueError(f"Key-space too small! Required: {n + 1}, Available: {space}")
 
-    # sample unique indices once (random order baked in)
-    indices = random.sample(range(space), k=n)
+    # Reservoir sampling to generate n unique random keys
+    reservoir = list(range(n))  # Start with the first n elements
+    for i in range(n, space):
+        j = random.randint(0, i)
+        if j < n:
+            reservoir[j] = i
 
     items = []
     append = items.append
 
-    for idx in indices:
+    for idx in reservoir:
         # 3 bytes → 6 hex digits, all lowercase, C‐level speed
         key = idx
         # for your demo value:
         val = f"val_{idx}"
 
         item = make_item(key, val)
-        rank = calc_rank(item.key, target_node_size)
+        rank = calc_rank(item.key, group_size)
         append((item, rank))
 
     return create_gtree(items)
@@ -135,29 +144,38 @@ def check_leaf_keys_and_values(
     Returns:
         (keys, presence_ok, all_have_values, order_ok)
     """
-    actual = []
+    keys = []
+    all_have_values = True
+    order_ok = True
+
+    # Traverse leaf nodes and collect keys
+    prev_key = None
     for leaf in tree.iter_leaf_nodes():
         for entry in leaf.set:
-            # skip dummy or internal replicas (they have value=None)
+            # Skip dummy or internal replicas (they have value=None)
             if entry.item.value is None:
                 continue
-            actual.append((entry.item.key, entry.item.value))
 
-    # unzip into separate lists
-    keys   = [k for k, _ in actual]
-    values = [v for _, v in actual]
+            key = entry.item.key
+            keys.append(key)
 
-    # 1) presence: only if expected_keys was provided
-    if expected_keys is None:
-        presence_ok = True
-    else:
-        presence_ok = set(keys) == set(expected_keys)
+            # Check if all values are non-None
+            if entry.item.value is None:
+                all_have_values = False
 
-    # 2) all real items have non-None values
-    all_have_values = all(v is not None for v in values)
+            # Check if keys are in sorted order
+            if prev_key is not None and key < prev_key:
+                order_ok = False
+            prev_key = key
 
-    # 3) keys are in sorted order
-    order_ok = (keys == sorted(keys))
+    # Check presence only if expected_keys is provided
+    presence_ok = True
+    if expected_keys is not None:
+        if len(keys) != len(expected_keys):
+            presence_ok = False
+        else:
+            # Use a single pass to check presence equivalence
+            presence_ok = set(keys) == set(expected_keys)
 
     return keys, presence_ok, all_have_values, order_ok
 
@@ -321,8 +339,8 @@ if __name__ == "__main__":
     )
     
     # List of tree sizes to test.
-    # sizes = [10, 100, 1000]
-    sizes = [10, 100, 1000, 10000]
+    sizes = [10, 100, 1000]
+    # sizes = [10, 100, 1000, 10000]
     # List of K values for which we want to run experiments.
     # Ks = [2, 4, 16, 64]
     Ks = [2, 16]
