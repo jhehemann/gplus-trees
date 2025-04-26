@@ -80,11 +80,10 @@ def create_gtree(items):
     Mimics the Rust create_gtree: build a tree by inserting each (item, rank) pair.
     Replace this with your actual tree-creation logic.
     """
-    logging.info("Creating GPlusTree from items")
     tree = GPlusTree()
-    insert = tree.insert
+    tree_insert = tree.insert
     for (item, rank) in items:
-        insert(item, rank)
+        tree_insert(item, rank)
     return tree
 
 # Create a random GPlusTree with n items and target node size (K) determining the rank distribution.
@@ -99,17 +98,12 @@ def random_gtree_of_size(n: int, target_node_size: int) -> GPlusTree:
     if space <= n:
         raise ValueError(f"Key-space too small! Required: {n + 1}, Available: {space}")
 
-    # Reservoir sampling to generate n unique random keys
-    reservoir = list(range(n))  # Start with the first n elements
-    for i in range(n, space):
-        j = random.randint(0, i)
-        if j < n:
-            reservoir[j] = i
+    indices = random.sample(range(space), k=n)
 
     items = []
     append = items.append
 
-    for idx in reservoir:
+    for idx in indices:
         # 3 bytes → 6 hex digits, all lowercase, C‐level speed
         key = idx
         # for your demo value:

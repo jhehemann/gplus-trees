@@ -667,9 +667,6 @@ class GPlusTree(AbstractSetDataStructure):
             res = cur.node.set.retrieve(x_item.key)
             next_entry = res.next_entry
 
-
-    
-
     def iter_leaf_nodes(self):
         """
         Iterates over all leaf-level GPlusNodes in the tree,
@@ -683,19 +680,16 @@ class GPlusTree(AbstractSetDataStructure):
 
         # Descend to the leftmost leaf
         current = self
-        while not current.is_empty() and current.node.rank > 1:
-            if current.node.set.is_empty():
-                raise RuntimeError("Expected non-empty set for a non-empty GPlusTree during iteration. \nCurrent tree:\n", current.print_structure())
-                # current = current.node.right_subtree
+        # while not current.is_empty() and current.node.rank > 1:
+        while current.node.rank > 1:
+            result = current.node.set.get_min()
+            if result.next_entry is not None:
+                current = result.next_entry.left_subtree
             else:
-                result = current.node.set.get_min()
-                if result.next_entry is not None:
-                    current = result.next_entry.left_subtree
-                else:
-                    current = current.node.right_subtree
+                current = current.node.right_subtree
 
         # At this point, current is the leftmost leaf-level GPlusTree
-        while current is not None and not current.is_empty():
+        while current is not None:
             yield current.node
             current = current.node.next
     
