@@ -283,7 +283,7 @@ class GPlusTree(AbstractSetDataStructure):
 
         # Parent tracking variables
         right_parent = None    # Parent node for right-side updates
-        right_key = None       # Key in right parent pointing to current subtree
+        right_entry = None     # Entry in right parent points to current subtree
         left_parent = None     # Parent node for left-side updates
         left_has_x = False     # Whether x_key is stored in left parent
         
@@ -310,7 +310,7 @@ class GPlusTree(AbstractSetDataStructure):
                 
                 # Update parent tracking for next iteration
                 right_parent = left_parent = cur
-                right_key = next_entry.item.key if next_entry else None
+                right_entry = next_entry if next_entry else None
                 left_has_x = True
                 cur = subtree
             else:
@@ -331,24 +331,25 @@ class GPlusTree(AbstractSetDataStructure):
                     )
 
                     # Update parent reference to the new tree
-                    if right_key is not None:
-                        right_parent.node.set = right_parent.node.set.update_left_subtree(
-                            right_key, new_tree
-                        )
+                    if right_entry is not None:
+                        # right_parent.node.set = right_parent.node.set.update_left_subtree(
+                        #     right_entry.item.key, new_tree
+                        # )
+                        right_entry.left_subtree = new_tree
                     else:
                         right_parent.node.right_subtree = new_tree
 
                     # Update right parent tracking
                     next_right_parent = new_tree
-                    next_right_key = next_entry.item.key if next_entry else None
+                    next_right_entry = next_entry if next_entry else None
                 else:
                     # Keep existing parent references
                     next_right_parent = right_parent
-                    next_right_key = right_key
+                    next_right_entry = right_entry
 
                 # Update right parent variables for next iteration
                 right_parent = next_right_parent
-                right_key = next_right_key
+                right_entry = next_right_entry
                 
                 # --- Handle left side of the split ---
                 # Determine if we need to create/update using left split
