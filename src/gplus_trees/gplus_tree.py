@@ -285,7 +285,7 @@ class GPlusTree(AbstractSetDataStructure):
         right_parent = None    # Parent node for right-side updates
         right_entry = None     # Entry in right parent points to current subtree
         left_parent = None     # Parent node for left-side updates
-        left_has_x = False     # Whether x_key is stored in left parent
+        left_x_entry = None    # x_item stored in left parent
         
         while True:
             node = cur.node
@@ -308,10 +308,10 @@ class GPlusTree(AbstractSetDataStructure):
                 if is_leaf:
                     return self
                 
-                # Update parent tracking for next iteration
+                # Assign parent tracking for next iteration
                 right_parent = left_parent = cur
                 right_entry = next_entry if next_entry else None
-                left_has_x = True
+                left_x_entry = node.set.retrieve(x_key).found_entry
                 cur = subtree
             else:
                 # Node splitting required - get updated next_entry
@@ -360,15 +360,16 @@ class GPlusTree(AbstractSetDataStructure):
                         cur.node.right_subtree = next_entry.left_subtree
 
                     # Update parent reference if needed
-                    if left_has_x:
-                        left_parent.node.set = (
-                            left_parent.node.set
-                            .update_left_subtree(x_key, cur)
-                        )
+                    if left_x_entry is not None:
+                        # left_parent.node.set = (
+                        #     left_parent.node.set
+                        #     .update_left_subtree(x_key, cur)
+                        # )
+                        left_x_entry.left_subtree = cur
                     
                     # Make current node the new left parent
                     next_left_parent = cur
-                    next_left_has_x = False  # Left split never contains x_item
+                    next_left_x_entry = None  # Left split never contains x_item
                     next_cur = cur.node.right_subtree
                 else:
                     # Collapse single-item nodes for non-leaves
@@ -377,22 +378,23 @@ class GPlusTree(AbstractSetDataStructure):
                     )
                     
                     # Update parent reference
-                    if left_has_x:
-                        left_parent.node.set = (
-                            left_parent.node.set
-                            .update_left_subtree(x_key, new_subtree)
-                        )
+                    if left_x_entry is not None:
+                        # left_parent.node.set = (
+                        #     left_parent.node.set
+                        #     .update_left_subtree(x_key, new_subtree)
+                        # )
+                        left_x_entry.left_subtree = new_subtree
                     else:
                         left_parent.node.right_subtree = new_subtree
 
                     # Prepare for next iteration
                     next_left_parent = left_parent
-                    next_left_has_x = left_has_x
+                    next_left_x_entry = left_x_entry
                     next_cur = new_subtree
                 
                 # Update left parent variables for next iteration
                 left_parent = next_left_parent
-                left_has_x = next_left_has_x
+                left_x_entry = next_left_x_entry
 
                 # Update leaf node 'next' pointers if at leaf level
                 if is_leaf:
