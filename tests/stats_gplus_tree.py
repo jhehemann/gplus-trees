@@ -222,7 +222,7 @@ def repeated_experiment(
         results.append((stats, phy_height))
 
     # Perfect height: ceil( log_{K+1}(size) )
-    perfect_height = math.ceil(math.log(size, K + 1)) if size > 0 else 0
+    perfect_height = math.ceil(math.log(size, K)) if size > 0 else 0
 
     # Aggregate averages for stats
     avg_gnode_height    = mean(s.gnode_height for s, _ in results)
@@ -353,12 +353,12 @@ if __name__ == "__main__":
     logging.info("Performance tracking enabled")
 
     # List of tree sizes to test.
-    sizes = [1000]
+    sizes = [10_000]
     # sizes = [10, 100, 1000, 10000]
     # List of K values for which we want to run experiments.
     # Ks = [2, 4, 16, 64]
-    Ks = [2, 64]
-    repetitions = 200
+    Ks = [16]
+    repetitions = 400
 
     for n in sizes:
         for K in Ks:
