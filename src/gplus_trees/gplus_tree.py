@@ -63,7 +63,7 @@ class GPlusTree(AbstractSetDataStructure):
         self.node = node
         self.dim = dim
 
-    @track_performance
+    # @track_performance
     def is_empty(self) -> bool:
         return self.node is None
     
@@ -73,7 +73,7 @@ class GPlusTree(AbstractSetDataStructure):
     __repr__ = __str__
     
     # Public API
-    @track_performance
+    # @track_performance
     def insert(self, x: Item, rank: int) -> GPlusTree:
         """
         Public method (average-case O(log n)): Insert an item into the G+-tree. 
@@ -96,7 +96,7 @@ class GPlusTree(AbstractSetDataStructure):
             return self._insert_empty(x, rank)
         return self._insert_non_empty(x, rank)
     
-    @track_performance
+    # @track_performance
     def retrieve(
         self, key: int
     ) -> Tuple[Optional[Item], Tuple[Optional[Item], Optional['GPlusTree']]]:
@@ -180,33 +180,49 @@ class GPlusTree(AbstractSetDataStructure):
         root_set = root_set.insert(_create_replica(x_item.key), l_leaf_t)
         self.node = GPlusNode(rank, root_set, r_leaf_t)
         return self
-    
-    @track_performance
-    def _insert_non_empty(self, x_item: Item, rank: int) -> GPlusTree:
-        cur = self
-        parent: Optional[GPlusTree] = None
-        p_next_entry: Optional[Entry] = None
 
+    # @track_performance
+    def _insert_non_empty(self, x_item: Item, rank: int) -> GPlusTree:
+        """Optimized version for inserting into a non-empty tree."""
+        cur = self
+        parent = None
+        p_next_entry = None
+
+        # Loop until we find where to insert
         while True:
             node = cur.node
-            if node.rank == rank:
+            node_rank = node.rank  # Cache attribute access
+            
+            # Case 1: Found node with matching rank - ready to insert
+            if node_rank == rank:
+                # Only retrieve once
                 res = node.set.retrieve(x_item.key)
+                
+                # Fast path: update existing item
                 if res.found_entry:
+                    # Direct update for leaf nodes (common case)
+                    if rank == 1:
+                        res.found_entry.item.value = x_item.value
+                        return self
                     return self._update_existing_item(cur, x_item)
+                
+                # Insert new item
                 return self._insert_new_item(cur, x_item, res.next_entry)
 
-            if node.rank < rank:
-                cur = self._handle_rank_mismatch(
-                    cur, parent, p_next_entry, rank
-                )
+            # Case 2: Current rank too small - handle rank mismatch
+            if node_rank < rank:
+                cur = self._handle_rank_mismatch(cur, parent, p_next_entry, rank)
                 continue
 
-            # Descend to the next level
+            # Case 3: Descend to next level (current rank > rank)
             res = node.set.retrieve(x_item.key)
             parent = cur
-            if res.next_entry:
-                p_next_entry = res.next_entry
-                cur = res.next_entry.left_subtree
+            
+            # Cache the next_entry to avoid repeated access
+            next_entry = res.next_entry
+            if next_entry:
+                p_next_entry = next_entry
+                cur = next_entry.left_subtree
             else:
                 p_next_entry = None
                 cur = node.right_subtree
@@ -253,7 +269,7 @@ class GPlusTree(AbstractSetDataStructure):
 
         return new_tree
 
-    @track_performance
+    # @track_performance
     def _update_existing_item(
         self, cur: GPlusTree, new_item: Item
     ) -> GPlusTree:
@@ -269,7 +285,7 @@ class GPlusTree(AbstractSetDataStructure):
             next = node.set.retrieve(key).next_entry
             cur = next.left_subtree if next else node.right_subtree
         
-    @track_performance
+    # @track_performance
     def _insert_new_item(
         self,
         cur: 'GPlusTree',
@@ -441,7 +457,7 @@ class GPlusTree(AbstractSetDataStructure):
             yield current.node
             current = current.node.next
     
-    @track_performance
+    # @track_performance
     def physical_height(self) -> int:
         """
         The “real” pointer-follow height of the G⁺-tree:
@@ -467,7 +483,7 @@ class GPlusTree(AbstractSetDataStructure):
         # total physical height = this node’s chain length + deepest child
         return base + max_child
 
-    @track_performance
+    # @track_performance
     def print_structure(self, indent: int = 0, depth: int = 0, max_depth: int = 2):
         prefix = ' ' * indent
         if self.is_empty() or self is None:
@@ -681,7 +697,7 @@ def gtree_stats_(t: GPlusTree,
 
     return stats
 
-@track_performance
+# @track_performance
 def collect_leaf_keys(tree: 'GPlusTree') -> list[str]:
         out = []
         for leaf in tree.iter_leaf_nodes():

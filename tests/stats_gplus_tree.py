@@ -38,7 +38,7 @@ TREE_FLAGS = (
     "leaf_keys_in_order",
 )
 
-@track_performance
+# @track_performance
 def assert_invariants(t: GPlusTree, stats: Stats) -> None:
     """Check all invariants, but only log ERROR messages on failures."""
     for flag in TREE_FLAGS:
@@ -81,7 +81,7 @@ def assert_invariants(t: GPlusTree, stats: Stats) -> None:
             )
 
 # Assume create_gtree(items) builds a GPlusTree from a list of (Item, rank) pairs.
-@track_performance
+# @track_performance
 def create_gtree(items):
     """
     Mimics the Rust create_gtree: build a tree by inserting each (item, rank) pair.
@@ -94,7 +94,7 @@ def create_gtree(items):
     return tree
 
 # Create a random GPlusTree with n items and target node size (K) determining the rank distribution.
-@track_performance
+# @track_performance
 def random_gtree_of_size(n: int, target_node_size: int) -> GPlusTree:
     # cache globals
     # calc_rank = calculate_item_rank
@@ -127,7 +127,7 @@ def random_gtree_of_size(n: int, target_node_size: int) -> GPlusTree:
 def random_klist_tree(n: int, K: int) -> GPlusTree:
     return random_gtree_of_size(n, K)
 
-@track_performance
+# @track_performance
 def check_leaf_keys_and_values(
     tree: GPlusTree,
     expected_keys: Optional[List[str]] = None
@@ -184,7 +184,7 @@ def check_leaf_keys_and_values(
 
     return keys, presence_ok, all_have_values, order_ok
 
-@track_performance
+# @track_performance
 def repeated_experiment(
         size: int,
         repetitions: int,
