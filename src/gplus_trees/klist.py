@@ -44,10 +44,43 @@ class KListNode:
         Returns:
             Optional[Entry]: The last entry if the node overflows; otherwise, None.
         """
-        bisect.insort(self.entries, entry)  # nutzt nun __lt__-Logik
-        if len(self.entries) > KListNode.CAPACITY:
-            return self.entries.pop()
+        entries = self.entries
+        key = entry.item.key
+        entries_len = len(self.entries)
+
+        # Empty list case
+        if not entries:
+            entries.append(entry)
+            return None
+        
+        # Fast path: Append at end (common case)
+        if key > entries[-1].item.key:
+            entries.append(entry)
+        # Fast path: Insert at beginning
+        elif key < entries[0].item.key:
+            entries.insert(0, entry)
+        else:
+            # Choose algorithm based on list length
+            if entries_len < 8:
+                # Linear search for very small lists
+                for i in range(entries_len):
+                    if key <= entries[i].item.key:
+                        entries.insert(i, entry)
+                        break
+            else:
+                # Binary search for larger lists - more efficient with higher capacities
+                i = bisect.bisect_left([e.item.key for e in entries], key)
+                entries.insert(i, entry)
+        
+        # Handle overflow
+        if len(entries) > KListNode.CAPACITY:
+            return entries.pop()
         return None
+
+        # bisect.insort(self.entries, entry)  # nutzt __lt__-Logik
+        # if len(self.entries) > KListNode.CAPACITY:
+        #     return self.entries.pop()
+        # return None
     
     @track_performance
     def retrieve_entry(
@@ -282,61 +315,85 @@ class KList(AbstractSetDataStructure):
         self._rebuild_index()
         return self
     
+    
     @track_performance
     def retrieve(self, key: int) -> RetrievalResult:
         """
-        Search for `key` in O(l·log k) time:
-        – for each node, do a bisect on its sorted entries (size k).
-        – skip whole nodes when key < first or key > last.
-        – return (found_entry, successor) or (None, successor) correctly.
+        Search for `key` using linear search on the list or binary search O(log l + log k) on the index, based on the number of entries in the node.
         """
         if not isinstance(key, int):
             raise TypeError(f"key must be int, got {type(key).__name__!r}")
-
-        node = self.head
-        while node:
-            entries = node.entries
-            if not entries:
-                node = node.next
-                continue
-
-            first = entries[0].item.key
-            last  = entries[-1].item.key
-
-            # if key < first, successor is entries[0]
-            if key < first:
-                return RetrievalResult(found_entry=None,
-                                    next_entry=entries[0])
-
-            # if key > last, skip to next node
-            if key > last:
-                node = node.next
-                continue
-
-            # now key is in [first, last], find it by bisect
-            # build a local list of keys (cheap when k is small)
+        
+        # Empty list case
+        if not self._bounds:
+            return RetrievalResult(found_entry=None, next_entry=None)
+        
+        # Find node that might contain key using binary search on max keys
+        # Use bisect_left instead of bisect_right to correctly handle exact matches
+        node_idx = bisect.bisect_left(self._bounds, key)
+        
+        # Case: key > max of any node
+        if node_idx >= len(self._nodes):
+            return RetrievalResult(found_entry=None, next_entry=None)
+        
+        # Get the target node
+        node = self._nodes[node_idx]
+        entries = node.entries
+        
+        # Empty node (shouldn't happen if index is maintained)
+        if not entries:
+            return RetrievalResult(found_entry=None, next_entry=None)
+        
+        # Case: key < first entry in this node
+        first = entries[0].item.key
+        if key < first:
+            return RetrievalResult(found_entry=None, next_entry=entries[0])
+        
+        if len(entries) < 8:
+            # Linear search for very small lists
+            for i, entry in enumerate(entries):
+                if key <= entry.item.key:
+                    # Exact match?
+                    if entry.item.key == key:
+                        found = entry
+                        # Find successor
+                        if i + 1 < len(entries):
+                            succ = entries[i+1]
+                        else:
+                            succ = (node.next.entries[0] if node.next and node.next.entries else None)
+                        return RetrievalResult(found_entry=found, next_entry=succ)
+                    # Not found, but we know the successor
+                    return RetrievalResult(found_entry=None, next_entry=entry)
+            
+            # Fell off the end of this node
+            if node.next and node.next.entries:
+                return RetrievalResult(found_entry=None, next_entry=node.next.entries[0])
+            return RetrievalResult(found_entry=None, next_entry=None)
+        else:
+            # Binary search for larger lists
             keys = [e.item.key for e in entries]
-            i    = bisect.bisect_left(keys, key)
-
-            # exact match?
-            if i < len(entries) and entries[i].item.key == key:
-                found = entries[i]
-                # in‐node successor?
-                if i + 1 < len(entries):
-                    succ = entries[i+1]
-                else:
-                    # boundary: pull from next node if exists
-                    succ = (node.next.entries[0]
-                            if node.next and node.next.entries
-                            else None)
-                return RetrievalResult(found_entry=found, next_entry=succ)
-
-            # not found, but entries[i] is the next larger key
-            return RetrievalResult(found_entry=None,
-                                next_entry=entries[i])
-
-        # fell off the end
-        return RetrievalResult(found_entry=None, next_entry=None)    
+            i = bisect.bisect_left(keys, key)
+        
+        # Exact match?
+        if i < len(entries) and entries[i].item.key == key:
+            found = entries[i]
+            # Find successor (in-node or from next node)
+            if i + 1 < len(entries):
+                succ = entries[i+1]
+            else:
+                succ = (node.next.entries[0] if node.next and node.next.entries else None)
+            return RetrievalResult(found_entry=found, next_entry=succ)
+        
+        # Not found, but we know the successor
+        if i < len(entries):
+            return RetrievalResult(found_entry=None, next_entry=entries[i])
+        
+        # Check next node for successor if we fell off the end of this node
+        if node.next and node.next.entries:
+            return RetrievalResult(found_entry=None, next_entry=node.next.entries[0])
+        
+        # No successor found
+        return RetrievalResult(found_entry=None, next_entry=None)
     
     @track_performance
     def get_entry(self, index: int) -> RetrievalResult:

@@ -353,11 +353,11 @@ if __name__ == "__main__":
     logging.info("Performance tracking enabled")
 
     # List of tree sizes to test.
-    sizes = [1000, 10000]
+    sizes = [1000]
     # sizes = [10, 100, 1000, 10000]
     # List of K values for which we want to run experiments.
     # Ks = [2, 4, 16, 64]
-    Ks = [2, 4, 16, 64]
+    Ks = [2, 64]
     repetitions = 200
 
     for n in sizes:
