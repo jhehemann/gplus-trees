@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import NamedTuple, Optional, Tuple
 import hashlib
 
+from gplus_trees.profiling import track_performance
 
 # if TYPE_CHECKING:
 #     from gplus_trees.gplus_tree import GPlusTree
@@ -31,7 +32,6 @@ class Item:
         self.key = key
         self.value = value
     
-
     def short_key(self) -> str:
         # 1) Turn your key into a plain string of characters to slice:
         if isinstance(self.key, (bytes, bytearray)):
@@ -66,7 +66,7 @@ class Item:
         cls = self.__class__.__name__
         return f"{cls}(key={self.short_key()}, value={self.value})"
 
-
+@track_performance
 def _create_replica(key):
     """Create a replica item with given key and no value."""
     return Item(key, None)
@@ -196,7 +196,7 @@ class RetrievalResult(NamedTuple):
     found_entry: Optional[Entry]
     next_entry: Optional[Entry]
 
-
+@track_performance
 def calculate_group_size(k: int) -> int:
     """
     Calculate the group size of trailing zero-groupings of an item key's hash to count based on an expected g-node size k (power of 2).
@@ -215,6 +215,7 @@ def calculate_group_size(k: int) -> int:
     
     return k.bit_length() - 1
 
+@track_performance
 def calculate_item_rank(key: int, group_size: int):
     """
     Calculate the rank for an item by counting the number of complete groups of trailing zero-bits in the SHA-256 hash of its key.

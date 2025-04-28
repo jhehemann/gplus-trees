@@ -14,6 +14,10 @@ from gplus_trees.base import (
     RetrievalResult,
 )
 from gplus_trees.klist import KList
+from gplus_trees.profiling import (
+    track_performance,
+    PerformanceTracker
+)
 
 # Constants
 DUMMY_KEY = int("0" * 64, 16)
@@ -59,6 +63,7 @@ class GPlusTree(AbstractSetDataStructure):
         self.node = node
         self.dim = dim
 
+    @track_performance
     def is_empty(self) -> bool:
         return self.node is None
     
@@ -68,6 +73,7 @@ class GPlusTree(AbstractSetDataStructure):
     __repr__ = __str__
     
     # Public API
+    @track_performance
     def insert(self, x: Item, rank: int) -> GPlusTree:
         """
         Public method (average-case O(log n)): Insert an item into the G+-tree. 
@@ -90,6 +96,7 @@ class GPlusTree(AbstractSetDataStructure):
             return self._insert_empty(x, rank)
         return self._insert_non_empty(x, rank)
     
+    @track_performance
     def retrieve(
         self, key: int
     ) -> Tuple[Optional[Item], Tuple[Optional[Item], Optional['GPlusTree']]]:
@@ -148,7 +155,7 @@ class GPlusTree(AbstractSetDataStructure):
             .insert(DUMMY_ITEM, GPlusTree())
             .insert(x_item, GPlusTree())
         )
-
+    
     def _make_leaf_trees(self, x_item: Item) -> Tuple[GPlusTree, GPlusTree]:
         """Builds two linked leaf-level GPlusTree nodes for x_item insertion.
         and returns the corresponding G+-trees."""
@@ -174,6 +181,7 @@ class GPlusTree(AbstractSetDataStructure):
         self.node = GPlusNode(rank, root_set, r_leaf_t)
         return self
     
+    @track_performance
     def _insert_non_empty(self, x_item: Item, rank: int) -> GPlusTree:
         cur = self
         parent: Optional[GPlusTree] = None
@@ -236,14 +244,16 @@ class GPlusTree(AbstractSetDataStructure):
         new_set = KList().insert(min_replica, GPlusTree())
         new_tree = GPlusTree(GPlusNode(rank, new_set, cur))
         if p_next:
-            parent.node.set = parent.node.set.update_left_subtree(
-                p_next.item.key, new_tree
-            )
+            # parent.node.set = parent.node.set.update_left_subtree(
+            #     p_next.item.key, new_tree
+            # )
+            p_next.left_subtree = new_tree
         else:
             parent.node.right_subtree = new_tree
 
         return new_tree
 
+    @track_performance
     def _update_existing_item(
         self, cur: GPlusTree, new_item: Item
     ) -> GPlusTree:
@@ -259,7 +269,7 @@ class GPlusTree(AbstractSetDataStructure):
             next = node.set.retrieve(key).next_entry
             cur = next.left_subtree if next else node.right_subtree
         
-
+    @track_performance
     def _insert_new_item(
         self,
         cur: 'GPlusTree',
@@ -431,10 +441,11 @@ class GPlusTree(AbstractSetDataStructure):
             yield current.node
             current = current.node.next
     
+    @track_performance
     def physical_height(self) -> int:
         """
-        The “real” pointer‑follow height of the G⁺‑tree:
-        –  the number of KListNode segments in this node’s k‑list, plus
+        The “real” pointer-follow height of the G⁺-tree:
+        –  the number of KListNode segments in this node’s k-list, plus
         –  the maximum physical_height() of any of its subtrees.
         """
         if self.is_empty():
@@ -456,6 +467,7 @@ class GPlusTree(AbstractSetDataStructure):
         # total physical height = this node’s chain length + deepest child
         return base + max_child
 
+    @track_performance
     def print_structure(self, indent: int = 0, depth: int = 0, max_depth: int = 2):
         prefix = ' ' * indent
         if self.is_empty() or self is None:
@@ -496,6 +508,35 @@ class GPlusTree(AbstractSetDataStructure):
         elif node.rank == 1 and hasattr(node, 'next') and node.next is None:
                 result.append(f"{prefix}    Next: Empty")
         return "\n".join(result)
+    
+    # Add a method to get performance metrics
+    @classmethod
+    def get_performance_report(cls, sort_by: str = 'total_time') -> str:
+        """
+        Get a formatted report of performance metrics.
+        
+        Args:
+            sort_by: Field to sort by ('total_time', 'avg_time', 'call_count', etc.)
+            
+        Returns:
+            str: Formatted performance report
+        """
+        return PerformanceTracker.get_instance().report(sort_by=sort_by)
+    
+    @classmethod
+    def reset_performance_metrics(cls) -> None:
+        """Reset all performance metrics."""
+        PerformanceTracker.get_instance().reset()
+    
+    @classmethod
+    def enable_performance_tracking(cls) -> None:
+        """Enable performance tracking."""
+        PerformanceTracker.get_instance().enable()
+    
+    @classmethod
+    def disable_performance_tracking(cls) -> None:
+        """Disable performance tracking."""
+        PerformanceTracker.get_instance().disable()
 
 @dataclass
 class Stats:
@@ -640,6 +681,7 @@ def gtree_stats_(t: GPlusTree,
 
     return stats
 
+@track_performance
 def collect_leaf_keys(tree: 'GPlusTree') -> list[str]:
         out = []
         for leaf in tree.iter_leaf_nodes():

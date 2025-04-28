@@ -11,6 +11,7 @@ from typing import List, Optional, Tuple
 from pprint import pprint
 from dataclasses import asdict
 from datetime import datetime
+import numpy as np
 
 from gplus_trees.base import (
     Item,
@@ -23,6 +24,9 @@ from gplus_trees.gplus_tree import (
     Stats,
     DUMMY_ITEM,
 )
+from gplus_trees.profiling import (
+    track_performance,
+)
 
 TREE_FLAGS = (
     "is_heap",
@@ -34,6 +38,7 @@ TREE_FLAGS = (
     "leaf_keys_in_order",
 )
 
+@track_performance
 def assert_invariants(t: GPlusTree, stats: Stats) -> None:
     """Check all invariants, but only log ERROR messages on failures."""
     for flag in TREE_FLAGS:
@@ -76,6 +81,7 @@ def assert_invariants(t: GPlusTree, stats: Stats) -> None:
             )
 
 # Assume create_gtree(items) builds a GPlusTree from a list of (Item, rank) pairs.
+@track_performance
 def create_gtree(items):
     """
     Mimics the Rust create_gtree: build a tree by inserting each (item, rank) pair.
@@ -88,11 +94,13 @@ def create_gtree(items):
     return tree
 
 # Create a random GPlusTree with n items and target node size (K) determining the rank distribution.
+@track_performance
 def random_gtree_of_size(n: int, target_node_size: int) -> GPlusTree:
     # cache globals
-    calc_rank = calculate_item_rank
+    # calc_rank = calculate_item_rank
+    # group_size = calculate_group_size(target_node_size)
     make_item = Item
-    group_size = calculate_group_size(target_node_size)
+    p = 1.0 - (1.0 / (target_node_size))    # probability for geometric dist
 
     # we need at least n unique values; 2^24 = 16 777 216 > 1 000 000
     space = 1 << 24
@@ -101,18 +109,17 @@ def random_gtree_of_size(n: int, target_node_size: int) -> GPlusTree:
 
     indices = random.sample(range(space), k=n)
 
-    items = []
-    append = items.append
+    # Pre-allocate items list
+    items = [(None, None)] * n
 
-    for idx in indices:
-        # 3 bytes → 6 hex digits, all lowercase, C‐level speed
+    ranks = np.random.geometric(p, size=n)
+
+    # Process all items in a single pass
+    for i, idx in enumerate(indices):
+        # Use the index directly as the key
         key = idx
-        # for your demo value:
-        val = f"val_{idx}"
-
-        item = make_item(key, val)
-        rank = calc_rank(item.key, group_size)
-        append((item, rank))
+        val = "val"
+        items[i] = (make_item(key, val), int(ranks[i]))
 
     return create_gtree(items)
 
@@ -120,6 +127,7 @@ def random_gtree_of_size(n: int, target_node_size: int) -> GPlusTree:
 def random_klist_tree(n: int, K: int) -> GPlusTree:
     return random_gtree_of_size(n, K)
 
+@track_performance
 def check_leaf_keys_and_values(
     tree: GPlusTree,
     expected_keys: Optional[List[str]] = None
@@ -176,12 +184,11 @@ def check_leaf_keys_and_values(
 
     return keys, presence_ok, all_have_values, order_ok
 
-
+@track_performance
 def repeated_experiment(
         size: int,
         repetitions: int,
         K: int,
-        p_override: Optional[float] = None
     ) -> None:
     """
     Repeatedly builds random GPlusTrees (with size items) using ranks drawn from a geometric distribution.
@@ -310,8 +317,16 @@ def repeated_experiment(
             f"{total:13.6f}"
             f"{pct:10.2f}%"
         )
-    logging.info(sep)
+    
 
+    # Add method-level performance breakdown
+    logging.info("")
+    logging.info("Method-level performance breakdown:")
+    report = GPlusTree.get_performance_report(sort_by='total_time')
+    for line in report.split('\n'):
+        logging.info(line)
+
+    logging.info(sep)
     t_all_1 = time.perf_counter() - t_all_0
     logging.info("Execution time: %.3f seconds", t_all_1)
 
@@ -333,20 +348,34 @@ if __name__ == "__main__":
         ]
     )
     
+    # Enable performance tracking before experiments
+    GPlusTree.enable_performance_tracking()
+    logging.info("Performance tracking enabled")
+
     # List of tree sizes to test.
-    sizes = [10, 100, 1000]
+    sizes = [1000, 10000]
     # sizes = [10, 100, 1000, 10000]
     # List of K values for which we want to run experiments.
     # Ks = [2, 4, 16, 64]
-    Ks = [2, 16]
+    Ks = [2, 4, 16, 64]
     repetitions = 200
 
     for n in sizes:
         for K in Ks:
             logging.info("")
             logging.info("")
-            logging.info(f"-------- NOW RUNNING EXPERIMENT: n = {n}, K = {K}, repetitions = {repetitions} --------")
+            logging.info(f"---------------- NOW RUNNING EXPERIMENT: n = {n}, K = {K}, repetitions = {repetitions} ----------------")
             t0 = time.perf_counter()
             repeated_experiment(size=n, repetitions=repetitions, K=K)
             elapsed = time.perf_counter() - t0
+
+            # Reset performance metrics for next experiment
+            GPlusTree.reset_performance_metrics()
+            logging.info(f"Total experiment time: {elapsed:.3f} seconds")
+            logging.info("Performance metrics reset for next experiment")
+
+    # Disable tracking when completely done
+    GPlusTree.disable_performance_tracking()
+    logging.info("")
+    logging.info("Performance tracking disabled")
             
