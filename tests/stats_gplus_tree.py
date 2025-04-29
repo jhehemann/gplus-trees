@@ -221,6 +221,10 @@ def repeated_experiment(
 
         results.append((stats, phy_height))
 
+        assert_invariants(tree, stats)
+        print("Tree stats:")
+        pprint(asdict(stats))
+
     # Perfect height: ceil( log_{K+1}(size) )
     perfect_height = math.ceil(math.log(size, K)) if size > 0 else 0
 
@@ -319,12 +323,12 @@ def repeated_experiment(
         )
     
 
-    # Add method-level performance breakdown
-    logging.info("")
-    logging.info("Method-level performance breakdown:")
-    report = GPlusTree.get_performance_report(sort_by='total_time')
-    for line in report.split('\n'):
-        logging.info(line)
+    # # Add method-level performance breakdown
+    # logging.info("")
+    # logging.info("Method-level performance breakdown:")
+    # report = GPlusTree.get_performance_report(sort_by='total_time')
+    # for line in report.split('\n'):
+    #     logging.info(line)
 
     logging.info(sep)
     t_all_1 = time.perf_counter() - t_all_0
@@ -348,17 +352,17 @@ if __name__ == "__main__":
         ]
     )
     
-    # Enable performance tracking before experiments
-    GPlusTree.enable_performance_tracking()
-    logging.info("Performance tracking enabled")
+    # # Enable performance tracking before experiments
+    # GPlusTree.enable_performance_tracking()
+    # logging.info("Performance tracking enabled")
 
     # List of tree sizes to test.
-    sizes = [10_000]
-    # sizes = [10, 100, 1000, 10000]
+    sizes = [1000]
+    # sizes = [10, 100, 1000, 10_000, 100_000]
     # List of K values for which we want to run experiments.
     # Ks = [2, 4, 16, 64]
-    Ks = [16]
-    repetitions = 400
+    Ks = [2]
+    repetitions = 1
 
     for n in sizes:
         for K in Ks:
@@ -372,10 +376,10 @@ if __name__ == "__main__":
             # Reset performance metrics for next experiment
             GPlusTree.reset_performance_metrics()
             logging.info(f"Total experiment time: {elapsed:.3f} seconds")
-            logging.info("Performance metrics reset for next experiment")
+            # logging.info("Performance metrics reset for next experiment")
 
-    # Disable tracking when completely done
-    GPlusTree.disable_performance_tracking()
-    logging.info("")
-    logging.info("Performance tracking disabled")
+    # # Disable tracking when completely done
+    # GPlusTree.disable_performance_tracking()
+    # logging.info("")
+    # logging.info("Performance tracking disabled")
             

@@ -559,7 +559,9 @@ class Stats:
     gnode_height: int
     gnode_count: int
     item_count: int
+    true_item_count: int
     item_slot_count: int
+    leaf_count: int
     rank: int
     is_heap: bool
     least_item: Optional[Any]
@@ -589,7 +591,9 @@ def gtree_stats_(t: GPlusTree,
         return Stats(gnode_height        = 0,
                      gnode_count         = 0,
                      item_count          = 0,
+                     true_item_count     = 0,
                      item_slot_count     = 0,
+                     leaf_count          = 0,
                      rank                = -1,
                      is_heap             = True,
                      least_item          = None,
@@ -599,11 +603,13 @@ def gtree_stats_(t: GPlusTree,
                      internal_packed     = True,
                      linked_leaf_nodes   = True,
                      all_leaf_values_present = True,
-                     leaf_keys_in_order  = True)
+                     leaf_keys_in_order  = True,)
 
     node       = t.node
     node_set   = node.set
-    rank_hist[node.rank] = rank_hist.get(node.rank, 0) + node_set.item_count()
+    node_rank = node.rank
+    node_item_count = node_set.item_count()
+    rank_hist[node_rank] = rank_hist.get(node_rank, 0) + node_set.item_count()
 
     # ---------- recurse on children ------------------------------------
     child_stats = [gtree_stats_(e.left_subtree, rank_hist, False) for e in node_set]
@@ -614,7 +620,9 @@ def gtree_stats_(t: GPlusTree,
         gnode_height=0,
         gnode_count=0,
         item_count=0,
+        true_item_count=0,
         item_slot_count=0,
+        leaf_count=0,
         rank=-1,
         is_heap=True,
         least_item=None,
@@ -626,9 +634,10 @@ def gtree_stats_(t: GPlusTree,
         all_leaf_values_present=True,
         leaf_keys_in_order=True,
     )
-    stats.rank = node.rank
+    
+    stats.rank = node_rank
     stats.gnode_count     = 1 + right_stats.gnode_count
-    stats.item_count      = node_set.item_count() + right_stats.item_count
+    stats.item_count      = node_item_count + right_stats.item_count
     stats.item_slot_count = node_set.item_slot_count() + right_stats.item_slot_count
     stats.gnode_height    = 1 + max(right_stats.gnode_height,
                                     max((cs.gnode_height for cs in child_stats), default=0))
@@ -636,22 +645,38 @@ def gtree_stats_(t: GPlusTree,
     # Single pass over children to fold in all counts and booleans
     prev_key = None
     for entry, cs in zip(node_set, child_stats):
-        stats.gnode_count     += cs.gnode_count
-        stats.item_count      += cs.item_count
+        current_key = entry.item.key
+
+        if node_rank >= 2:
+            if entry.item.value is not None:
+                stats.internal_has_replicas = False
+        
+        # Accumulate counts
+        stats.gnode_count += cs.gnode_count
+        stats.item_count += cs.item_count
         stats.item_slot_count += cs.item_slot_count
 
-        stats.is_heap            &= (node.rank > cs.rank) and cs.is_heap
-        stats.is_search_tree     &= cs.is_search_tree
-        if prev_key is not None and cs.least_item and cs.least_item.key < prev_key:
-            stats.is_search_tree = False
-        if cs.greatest_item and cs.greatest_item.key >= entry.item.key:
-            stats.is_search_tree = False
-
+        # Update boolean flags
+        stats.is_heap &= (node_rank > cs.rank) and cs.is_heap
         stats.internal_has_replicas &= cs.internal_has_replicas
-        stats.internal_packed       &= cs.internal_packed
-        stats.linked_leaf_nodes     &= cs.linked_leaf_nodes
-
-        prev_key = entry.item.key
+        stats.internal_packed &= cs.internal_packed
+        stats.linked_leaf_nodes &= cs.linked_leaf_nodes
+        
+        # Check search tree property with early termination
+        if stats.is_search_tree:
+            # First check child's own search tree property
+            stats.is_search_tree &= cs.is_search_tree
+            
+            # Check key ordering between nodes and children
+            if stats.is_search_tree and prev_key is not None:
+                if prev_key >= current_key or (cs.least_item and cs.least_item.key < prev_key):
+                    stats.is_search_tree = False
+            
+            # Check child's greatest item
+            if stats.is_search_tree and cs.greatest_item and cs.greatest_item.key >= current_key:
+                stats.is_search_tree = False
+        
+        prev_key = current_key
 
     # Fold in right subtree flags and ordering
     stats.is_heap              &= right_stats.is_heap
@@ -679,31 +704,59 @@ def gtree_stats_(t: GPlusTree,
         stats.greatest_item = res_last.found_entry.item
 
     # ---------- leaf walk ONCE at the root -----------------------------
-    if node.rank == 1:          # leaf node: base values
+    if node_rank == 1:          # leaf node: base values
         keys   = [e.item.key   for e in node_set if e.item.key != DUMMY_KEY]
         values = [e.item.value for e in node_set if e.item.key != DUMMY_KEY]
         stats.all_leaf_values_present = all(v is not None for v in values)
         stats.leaf_keys_in_order      = True               # a single node is sorted
-    elif _is_root:         # root call (only true once)
+        stats.true_item_count += len(keys)
+        stats.leaf_count += 1
+    else:
+        if node_rank > 1:
+            if node_set.item_count() <= 1:
+                stats.internal_packed = False
+
+
+    if _is_root:         # root call (only true once)
         leaf_keys, leaf_values = [], []
+        leaf_count = 0
+        item_count = 0
+        last_leaf = None
         for leaf in t.iter_leaf_nodes():
+            last_leaf = leaf
+            leaf_count += 1
             for e in leaf.set:
                 if e.item.key == DUMMY_KEY:
                     continue
+                item_count += 1
                 leaf_keys.append(e.item.key)
                 leaf_values.append(e.item.value)
         stats.all_leaf_values_present = all(v is not None for v in leaf_values)
         stats.leaf_keys_in_order      = (leaf_keys == sorted(leaf_keys))
+        last_count = last_leaf.set.item_count()
+        max_idx = last_count - 1
+        if leaf_count != stats.leaf_count:
+            stats.leaf_count = max(leaf_count, stats.leaf_count)
+            stats.linked_leaf_nodes = False
+        if item_count != stats.true_item_count:
+            stats.true_item_count = max(item_count, stats.true_item_count)
+            stats.linked_leaf_nodes = False
+        if stats.greatest_item is not last_leaf.set.get_entry(max_idx).found_entry.item:
+            stats.linked_leaf_nodes = False
+        
+        if leaf_count == stats.leaf_count and item_count == stats.true_item_count and stats.greatest_item is last_leaf.set.get_entry(max_idx).found_entry.item:
+            stats.linked_leaf_nodes = True
+
 
     return stats
 
 # @track_performance
 def collect_leaf_keys(tree: 'GPlusTree') -> list[str]:
-        out = []
-        for leaf in tree.iter_leaf_nodes():
-            for e in leaf.set:
-                if e.item.key != DUMMY_KEY:
-                    out.append(e.item.key)
-        return out
+    out = []
+    for leaf in tree.iter_leaf_nodes():
+        for e in leaf.set:
+            if e.item.key != DUMMY_KEY:
+                out.append(e.item.key)
+    return out
 
 
