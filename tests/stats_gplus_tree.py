@@ -13,72 +13,19 @@ from dataclasses import asdict
 from datetime import datetime
 import numpy as np
 
-from gplus_trees.base import (
-    Item,
-    calculate_item_rank,
-    calculate_group_size,
-)
+from gplus_trees.base import Item
 from gplus_trees.gplus_tree import (
     GPlusTree,
     gtree_stats_,
-    Stats,
     DUMMY_ITEM,
 )
 from gplus_trees.profiling import (
     track_performance,
 )
 
-TREE_FLAGS = (
-    "is_heap",
-    "is_search_tree",
-    "internal_has_replicas",
-    "internal_packed",
-    "linked_leaf_nodes",
-    "all_leaf_values_present",
-    "leaf_keys_in_order",
+from utils import (
+    assert_tree_invariants_raise,
 )
-
-# @track_performance
-def assert_invariants(t: GPlusTree, stats: Stats) -> None:
-    """Check all invariants, but only log ERROR messages on failures."""
-    for flag in TREE_FLAGS:
-        if not getattr(stats, flag):
-            logging.error("Invariant failed: %s is False", flag)
-
-    if not t.is_empty():
-        if stats.item_count <= 0:
-            logging.error(
-                "Invariant failed: item_count=%d ≤ 0 for non-empty tree",
-                stats.item_count
-            )
-        if stats.item_slot_count <= 0:
-            logging.error(
-                "Invariant failed: item_slot_count=%d ≤ 0 for non-empty tree",
-                stats.item_slot_count
-            )
-        if stats.gnode_count <= 0:
-            logging.error(
-                "Invariant failed: gnode_count=%d ≤ 0 for non-empty tree",
-                stats.gnode_count
-            )
-        if stats.gnode_height <= 0:
-            logging.error(
-                "Invariant failed: gnode_height=%d ≤ 0 for non-empty tree",
-                stats.gnode_height
-            )
-        if stats.rank <= 0:
-            logging.error(
-                "Invariant failed: rank=%d ≤ 0 for non-empty tree",
-                stats.rank
-            )
-        if stats.least_item is None:
-            logging.error(
-                "Invariant failed: least_item is None for non-empty tree"
-            )
-        if stats.greatest_item is None:
-            logging.error(
-                "Invariant failed: greatest_item is None for non-empty tree"
-            )
 
 # Assume create_gtree(items) builds a GPlusTree from a list of (Item, rank) pairs.
 # @track_performance
@@ -221,9 +168,9 @@ def repeated_experiment(
 
         results.append((stats, phy_height))
 
-        assert_invariants(tree, stats)
-        print("Tree stats:")
-        pprint(asdict(stats))
+        assert_tree_invariants_raise(tree, stats)
+        # print("Tree stats:")
+        # pprint(asdict(stats))
 
     # Perfect height: ceil( log_{K+1}(size) )
     perfect_height = math.ceil(math.log(size, K)) if size > 0 else 0
@@ -322,7 +269,6 @@ def repeated_experiment(
             f"{pct:10.2f}%"
         )
     
-
     # # Add method-level performance breakdown
     # logging.info("")
     # logging.info("Method-level performance breakdown:")
@@ -357,12 +303,12 @@ if __name__ == "__main__":
     # logging.info("Performance tracking enabled")
 
     # List of tree sizes to test.
-    sizes = [1000]
+    sizes = [10000]
     # sizes = [10, 100, 1000, 10_000, 100_000]
     # List of K values for which we want to run experiments.
     # Ks = [2, 4, 16, 64]
-    Ks = [2]
-    repetitions = 1
+    Ks = [4]
+    repetitions = 200
 
     for n in sizes:
         for K in Ks:

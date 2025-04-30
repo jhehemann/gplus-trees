@@ -586,7 +586,7 @@ def gtree_stats_(t: GPlusTree,
     if rank_hist is None:
         rank_hist = collections.Counter()
 
-    # ---------- empty tree fast-return ---------------------------------
+    # ---------- empty tree return ---------------------------------
     if t is None or t.is_empty():
         return Stats(gnode_height        = 0,
                      gnode_count         = 0,
@@ -615,7 +615,8 @@ def gtree_stats_(t: GPlusTree,
     child_stats = [gtree_stats_(e.left_subtree, rank_hist, False) for e in node_set]
     right_stats = gtree_stats_(node.right_subtree,   rank_hist, False)
 
-    # ---------- aggregate in one pass ----------------------------------
+    # ---------- aggregate ----------------------------------
+    # Initialize with default values for the current node
     stats = Stats(
         gnode_height=0,
         gnode_count=0,
@@ -623,63 +624,80 @@ def gtree_stats_(t: GPlusTree,
         true_item_count=0,
         item_slot_count=0,
         leaf_count=0,
-        rank=-1,
+        rank=node_rank,
         is_heap=True,
         least_item=None,
         greatest_item=None,
         is_search_tree=True,
         internal_has_replicas=True,
-        internal_packed=True,
+        internal_packed=(node_rank <= 1 or node_item_count > 1),
         linked_leaf_nodes=True,
         all_leaf_values_present=True,
         leaf_keys_in_order=True,
     )
     
-    stats.rank = node_rank
+    # Precompute common values using right subtree stats
     stats.gnode_count     = 1 + right_stats.gnode_count
     stats.item_count      = node_item_count + right_stats.item_count
+    stats.true_item_count += right_stats.true_item_count
     stats.item_slot_count = node_set.item_slot_count() + right_stats.item_slot_count
-    stats.gnode_height    = 1 + max(right_stats.gnode_height,
-                                    max((cs.gnode_height for cs in child_stats), default=0))
+    stats.leaf_count += right_stats.leaf_count
+    # stats.gnode_height    = 1 + max(right_stats.gnode_height,
+    #                                 max((cs.gnode_height for cs in child_stats), default=0))
+
+    max_child_height = 0
 
     # Single pass over children to fold in all counts and booleans
     prev_key = None
     for entry, cs in zip(node_set, child_stats):
         current_key = entry.item.key
-
-        if node_rank >= 2:
-            if entry.item.value is not None:
-                stats.internal_has_replicas = False
         
-        # Accumulate counts
+        max_child_height = max(max_child_height, cs.gnode_height)
+
+        if node_rank >= 2 and entry.item.value is not None:
+            stats.internal_has_replicas = False
+        
+        # Accumulate counts for common values
         stats.gnode_count += cs.gnode_count
         stats.item_count += cs.item_count
         stats.item_slot_count += cs.item_slot_count
+        stats.leaf_count += cs.leaf_count
+        stats.true_item_count += cs.true_item_count
 
         # Update boolean flags
-        stats.is_heap &= (node_rank > cs.rank) and cs.is_heap
+        if stats.is_heap and not ((node_rank > cs.rank) and cs.is_heap):
+            stats.is_heap = False
+            
         stats.internal_has_replicas &= cs.internal_has_replicas
         stats.internal_packed &= cs.internal_packed
         stats.linked_leaf_nodes &= cs.linked_leaf_nodes
         
-        # Check search tree property with early termination
+        # Check search tree property
         if stats.is_search_tree:
-            # First check child's own search tree property
-            stats.is_search_tree &= cs.is_search_tree
-            
-            # Check key ordering between nodes and children
-            if stats.is_search_tree and prev_key is not None:
+            if not cs.is_search_tree:
+                stats.is_search_tree = False
+            elif prev_key is not None:
                 if prev_key >= current_key or (cs.least_item and cs.least_item.key < prev_key):
                     stats.is_search_tree = False
-            
-            # Check child's greatest item
-            if stats.is_search_tree and cs.greatest_item and cs.greatest_item.key >= current_key:
-                stats.is_search_tree = False
+                elif cs.greatest_item and cs.greatest_item.key >= current_key:
+                    stats.is_search_tree = False
         
         prev_key = current_key
+    
+    # Calculate final height
+    stats.gnode_height = 1 + max(right_stats.gnode_height, max_child_height)
 
-    # Fold in right subtree flags and ordering
-    stats.is_heap              &= right_stats.is_heap
+    # Fold in right subtree flags
+    if stats.is_heap and not right_stats.is_heap:
+        stats.is_heap = False
+    
+    if stats.is_search_tree:
+        if not right_stats.is_search_tree:
+            stats.is_search_tree = False
+        elif right_stats.least_item and prev_key is not None and right_stats.least_item.key < prev_key:
+            stats.is_search_tree = False
+
+
     stats.is_search_tree       &= right_stats.is_search_tree
     if right_stats.least_item and right_stats.least_item.key < prev_key:
         stats.is_search_tree = False
@@ -688,65 +706,75 @@ def gtree_stats_(t: GPlusTree,
     stats.internal_packed       &= right_stats.internal_packed
     stats.linked_leaf_nodes     &= right_stats.linked_leaf_nodes
 
-    # ----- LEAST / GREATEST PATCHED -----
-    # Instead of list(node_set)[0] / [-1], do:
+    # ----- LEAST / GREATEST -----
     if child_stats and child_stats[0].least_item is not None:
         stats.least_item = child_stats[0].least_item
     else:
-        res0 = node_set.get_entry(0)
-        stats.least_item = res0.found_entry.item
+        stats.least_item = node_set.get_entry(0).found_entry.item
 
     if right_stats.greatest_item is not None:
         stats.greatest_item = right_stats.greatest_item
     else:
-        last_idx = node_set.item_count() - 1
-        res_last = node_set.get_entry(last_idx)
-        stats.greatest_item = res_last.found_entry.item
+        stats.greatest_item = node_set.get_entry(node_item_count - 1).found_entry.item
 
     # ---------- leaf walk ONCE at the root -----------------------------
     if node_rank == 1:          # leaf node: base values
-        keys   = [e.item.key   for e in node_set if e.item.key != DUMMY_KEY]
-        values = [e.item.value for e in node_set if e.item.key != DUMMY_KEY]
-        stats.all_leaf_values_present = all(v is not None for v in values)
-        stats.leaf_keys_in_order      = True               # a single node is sorted
-        stats.true_item_count += len(keys)
-        stats.leaf_count += 1
-    else:
-        if node_rank > 1:
-            if node_set.item_count() <= 1:
-                stats.internal_packed = False
+        # Count non-dummy items
+        true_count = 0
+        all_values_present = True
+        
+        for entry in node_set:
+            item = entry.item
+            if item.key != DUMMY_KEY:
+                true_count += 1
+                if item.value is None:
+                    all_values_present = False
 
+        stats.all_leaf_values_present = all_values_present
+        stats.true_item_count = true_count
+        stats.leaf_count = 1
 
+    # Root-level validation (only occurs once)
     if _is_root:         # root call (only true once)
         leaf_keys, leaf_values = [], []
-        leaf_count = 0
-        item_count = 0
-        last_leaf = None
+        leaf_count, item_count = 0, 0
+        last_leaf, prev_key = None, None
+        keys_in_order = True
+
         for leaf in t.iter_leaf_nodes():
             last_leaf = leaf
             leaf_count += 1
-            for e in leaf.set:
-                if e.item.key == DUMMY_KEY:
+            
+            for entry in leaf.set:
+                item = entry.item
+                if item == DUMMY_ITEM:
                     continue
-                item_count += 1
-                leaf_keys.append(e.item.key)
-                leaf_values.append(e.item.value)
-        stats.all_leaf_values_present = all(v is not None for v in leaf_values)
-        stats.leaf_keys_in_order      = (leaf_keys == sorted(leaf_keys))
-        last_count = last_leaf.set.item_count()
-        max_idx = last_count - 1
-        if leaf_count != stats.leaf_count:
-            stats.leaf_count = max(leaf_count, stats.leaf_count)
-            stats.linked_leaf_nodes = False
-        if item_count != stats.true_item_count:
-            stats.true_item_count = max(item_count, stats.true_item_count)
-            stats.linked_leaf_nodes = False
-        if stats.greatest_item is not last_leaf.set.get_entry(max_idx).found_entry.item:
-            stats.linked_leaf_nodes = False
-        
-        if leaf_count == stats.leaf_count and item_count == stats.true_item_count and stats.greatest_item is last_leaf.set.get_entry(max_idx).found_entry.item:
-            stats.linked_leaf_nodes = True
 
+                item_count += 1
+                key = item.key
+
+                # Check orderin
+                if prev_key is not None and key < prev_key:
+                    keys_in_order = False
+                prev_key = key
+
+                leaf_keys.append(key)
+                leaf_values.append(item.value)
+
+        # Set values from leaf traversal
+        stats.leaf_keys_in_order = keys_in_order
+
+        # Check leaf_count and true_item_count consistency
+        if leaf_count != stats.leaf_count or item_count != stats.true_item_count:
+            stats.linked_leaf_nodes = False
+            stats.leaf_count = max(leaf_count, stats.leaf_count)
+            stats.true_item_count = max(item_count, stats.true_item_count)
+        elif last_leaf is not None:
+            # Check if greatest item matches last leaf's greatest item
+            last_count = last_leaf.set.item_count()
+            last_item = last_leaf.set.get_entry(last_count - 1).found_entry.item
+            if stats.greatest_item is not last_item:
+                stats.linked_leaf_nodes = False
 
     return stats
 

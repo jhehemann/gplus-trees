@@ -11,18 +11,17 @@ from gplus_trees.gplus_tree import (
     DUMMY_ITEM,
     gtree_stats_,
     collect_leaf_keys,
+    Stats,
 )
 from gplus_trees.base import (
     Item,
     Entry,
     _create_replica
 )
-from stats_gplus_tree import (
-    check_leaf_keys_and_values,
-)
+from tests.stats_gplus_tree import check_leaf_keys_and_values
+from tests.utils import assert_tree_invariants_tc
 
 class TreeTestCase(unittest.TestCase):
-
     def setUp(self):
         self.tree = GPlusTree()
 
@@ -32,28 +31,8 @@ class TreeTestCase(unittest.TestCase):
             return
 
         stats = gtree_stats_(self.tree, {})
-
-        # --- core invariants ---
-        self.assertTrue(stats.is_search_tree, "Search-tree invariant violated")
-        self.assertTrue(stats.is_heap, "Heap invariant violated")
-        self.assertTrue(stats.linked_leaf_nodes, "Not all leaf nodes linked")
-        self.assertTrue(
-            stats.internal_has_replicas,
-            "Internal nodes do not contain replicas only"
-        )
-        self.assertTrue(
-            stats.internal_packed,
-            "Internal nodes with single entry not collapsed"
-        )
-        self.assertTrue(
-            stats.all_leaf_values_present,
-            "Leaf nodes do not contain full values"
-        )
-        self.assertTrue(
-            stats.leaf_keys_in_order,
-            "Leaf nodes do not contain sorted keys"
-        )
-
+        assert_tree_invariants_tc(self, self.tree, stats)
+        
         # --- optional invariants ---
         expected_item_count = getattr(self, 'expected_item_count', None)
         if expected_item_count is not None:
