@@ -54,7 +54,7 @@ def random_gtree_of_size(n: int, target_node_size: int) -> GPlusTree:
     if space <= n:
         raise ValueError(f"Key-space too small! Required: {n + 1}, Available: {space}")
 
-    indices = random.sample(range(space), k=n)
+    indices = random.sample(range(1, space), k=n) # Exclude dummy key 0
 
     # Pre-allocate items list
     items = [(None, None)] * n
@@ -303,11 +303,11 @@ if __name__ == "__main__":
     # logging.info("Performance tracking enabled")
 
     # List of tree sizes to test.
-    sizes = [10000]
-    # sizes = [10, 100, 1000, 10_000, 100_000]
+    # sizes = [10000]
+    sizes = [10, 100, 1000, 10_000, 100_000]
     # List of K values for which we want to run experiments.
-    # Ks = [2, 4, 16, 64]
-    Ks = [4]
+    Ks = [2, 4, 16, 64]
+    # Ks = [16]
     repetitions = 200
 
     for n in sizes:

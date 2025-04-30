@@ -1,6 +1,7 @@
 """G+-tree implementation"""
 
 from __future__ import annotations
+import logging
 from typing import Dict, Optional, Tuple, Any
 from dataclasses import dataclass, asdict
 from pprint import pprint
@@ -656,6 +657,8 @@ def gtree_stats_(t: GPlusTree,
 
         if node_rank >= 2 and entry.item.value is not None:
             stats.internal_has_replicas = False
+            print(f"Internal node item is not a replica (rank {node.rank}): {current_key} -> {entry.item.value}")
+            # print(f"Node: {node.set!r}")
         
         # Accumulate counts for common values
         stats.gnode_count += cs.gnode_count
