@@ -5,6 +5,7 @@ from typing import NamedTuple, Optional, Tuple
 import hashlib
 
 from gplus_trees.profiling import track_performance
+from typing import TypeVar, Generic, Optional
 
 # if TYPE_CHECKING:
 #     from gplus_trees.gplus_tree import GPlusTree
@@ -71,13 +72,16 @@ def _create_replica(key):
     """Create a replica item with given key and no value."""
     return Item(key, None)
 
-class AbstractSetDataStructure(ABC):
+
+T = TypeVar("T", bound="AbstractSetDataStructure")
+
+class AbstractSetDataStructure(ABC, Generic[T]):
     """
     Abstract base class for a set data structure storing tuples of items and their left subtrees.
     """
     
     @abstractmethod
-    def insert(self, item: 'Item', rank: int) -> 'AbstractSetDataStructure':
+    def insert(self, item: 'Item', rank: int) -> T:
         """
         Insert an item into the set with the provided rank.
         
@@ -91,7 +95,7 @@ class AbstractSetDataStructure(ABC):
         pass
 
     @abstractmethod
-    def delete(self, key: int) -> 'AbstractSetDataStructure':
+    def delete(self, key: int) -> T:
         """
         Delete the item corresponding to the given key from the corresponding set data structure.
         
@@ -143,7 +147,7 @@ class AbstractSetDataStructure(ABC):
     @abstractmethod
     def split_inplace(
             self, key: int
-    ) -> Tuple['AbstractSetDataStructure', Optional['AbstractSetDataStructure'], 'AbstractSetDataStructure']:
+    ) -> Tuple[T, Optional[T], T]:
         """
         Split the set into two parts based on the provided key.
         
@@ -175,7 +179,7 @@ class Entry:
     __slots__ = ("item", "left_subtree")
 
     item: Item
-    left_subtree: AbstractSetDataStructure
+    left_subtree: T
 
     def __lt__(self, other: "Entry") -> bool:
         return self.item.key < other.item.key

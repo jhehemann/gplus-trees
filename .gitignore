@@ -27,7 +27,7 @@ htmlcov
 __pycache__/
 .env
 
-**/factory.py
+
 /tests/benchmarks.py
 
 **/*.log
