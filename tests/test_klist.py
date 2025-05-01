@@ -1,20 +1,66 @@
-
-"""Tests for k-lists"""
+"""Tests for k-lists with factory pattern"""
 # pylint: skip-file
 
 import unittest
 import random
 
-from gplus_trees.klist import KList, KListNode
-from gplus_trees.gplus_tree import GPlusTree
-from gplus_trees.base import Item
+# Import factory function instead of concrete classes
+from gplus_trees.factory import make_gplustree_classes, create_gplustree
+from gplus_trees.base import Item, AbstractSetDataStructure
+from gplus_trees.klist_base import KListBase
+import logging
 
-class TestKList(unittest.TestCase):
+# Configure logging for test
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
+# Test with different capacities to ensure factory works correctly
+TEST_CAPACITIES = [4, 8, 16]
+
+class TestKListFactory(unittest.TestCase):
+    """Test the factory pattern itself with various capacities"""
+    
+    def test_factory_creates_different_classes(self):
+        """Verify that factory creates different class types for different K values"""
+        classes = {}
+        for K in TEST_CAPACITIES:
+            tree_class, node_class, klist_class, knode_class = make_gplustree_classes(K)
+            classes[K] = (tree_class, node_class, klist_class, knode_class)
+            
+            # Check class names contain K value
+            self.assertIn(str(K), tree_class.__name__)
+            self.assertIn(str(K), klist_class.__name__)
+            self.assertIn(str(K), knode_class.__name__)
+            
+            # Check that capacity is correctly set
+            self.assertEqual(knode_class.CAPACITY, K)
+            
+            # Verify proper class relationships
+            self.assertEqual(tree_class.SetClass, klist_class)
+            self.assertEqual(node_class.SetClass, klist_class)
+            self.assertEqual(klist_class.KListNodeClass, knode_class)
+        
+        # Different K values should create different classes
+        for k1 in TEST_CAPACITIES:
+            for k2 in TEST_CAPACITIES:
+                if k1 != k2:
+                    self.assertNotEqual(classes[k1][2], classes[k2][2], 
+                                       f"KList classes for K={k1} and K={k2} should be different")
+
+
+class TestKListBase(unittest.TestCase):
+    """Base class for all KList factory tests"""
+    
     def setUp(self):
-        self.klist = KList()
-
+        # Use the factory to create classes with the test capacity
+        self.K = 4  # Default capacity for tests
+        _, _, self.KListClass, self.KListNodeClass = make_gplustree_classes(self.K)
+        self.klist = self.KListClass()
+        self.cap = self.K  # Use factory-defined capacity
+        logger.debug(f"Created KList test with K={self.K}, using class {self.KListClass.__name__}")
+    
     def tearDown(self):
-        # automatically verify invariants after each test
+        # Verify invariants after each test
         self.klist.check_invariant()
 
     def _count_nodes(self, klist):
@@ -24,6 +70,9 @@ class TestKList(unittest.TestCase):
             count += 1
             node = node.next
         return count
+
+class TestKList(TestKListBase):
+    """Basic insertion tests for factory-created klists"""
 
     def test_insert_in_order(self):
         for key in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 10]:
@@ -35,16 +84,22 @@ class TestKList(unittest.TestCase):
             self.klist.insert(Item(key, f"val_{key}"))
         # invariant is checked in tearDown()
     
+    def test_capacity_matches_factory(self):
+        """Verify that the KListNodeClass has the correct CAPACITY value"""
+        node = self.KListNodeClass()
+        self.assertEqual(node.__class__.CAPACITY, self.K)
+        
+        # Fill to capacity and ensure overflow behavior
+        for i in range(self.K + 1):
+            self.klist.insert(Item(i, f"val_{i}"))
+        
+        # Should have created a second node for the overflow
+        self.assertIsNotNone(self.klist.head.next)
+        self.assertEqual(len(self.klist.head.entries), self.K)
+        self.assertEqual(len(self.klist.head.next.entries), 1)
 
-class TestKListInsert(unittest.TestCase):
-    def setUp(self):
-        self.klist = KList()
-        self.cap = KListNode.CAPACITY
 
-    def tearDown(self):
-        # Always verify the core invariants after each test
-        self.klist.check_invariant()
-
+class TestKListInsert(TestKListBase):
     def extract_all_keys(self):
         """Traverse the KList and collect all item keys in order."""
         keys = []
@@ -147,11 +202,7 @@ class TestKListInsert(unittest.TestCase):
         self.assertEqual(len(all_keys), self.cap * 2 * 5)
 
 
-class TestKListDelete(unittest.TestCase):
-    def setUp(self):
-        self.klist = KList()
-        self.cap = KListNode.CAPACITY
-
+class TestKListDelete(TestKListBase):
     def insert_keys(self, keys):
         """Helper: insert a sequence of integer keys with dummy values."""
         for k in keys:
@@ -270,11 +321,7 @@ class TestKListDelete(unittest.TestCase):
         self.assertIsNone(self.klist.tail)
 
 
-class TestKListRetrieve(unittest.TestCase):
-    def setUp(self):
-        self.klist = KList()
-        self.cap = KListNode.CAPACITY
-
+class TestKListRetrieve(TestKListBase):
     def insert_sequence(self, keys):
         """Helper to insert integer keys with dummy values."""
         for k in keys:
@@ -399,11 +446,7 @@ class TestKListRetrieve(unittest.TestCase):
             self.assertRetrieval(x, None, nxt)
 
 
-class TestKListGetEntry(unittest.TestCase):
-    def setUp(self):
-        self.klist = KList()
-        self.cap = KListNode.CAPACITY
-
+class TestKListGetEntry(TestKListBase):
     def insert_sequence(self, keys):
         """Helper: insert integer keys with dummy values."""
         for k in keys:
@@ -494,11 +537,7 @@ class TestKListGetEntry(unittest.TestCase):
         self.assertGet(1, 3, 4)
 
 
-class TestKListIndex(unittest.TestCase):
-    def setUp(self):
-        self.klist = KList()
-        self.cap = KListNode.CAPACITY
-
+class TestKListIndex(TestKListBase):
     def test_empty_index(self):
         # Before any operations, index lists should exist and be empty
         self.assertTrue(hasattr(self.klist, "_nodes"))
@@ -579,13 +618,15 @@ class TestKListIndex(unittest.TestCase):
         )
 
 
-class TestUpdateLeftSubtree(unittest.TestCase):
+class TestUpdateLeftSubtree(TestKListBase):
     def setUp(self):
-        self.klist = KList()
-        self.cap = KListNode.CAPACITY
+        super().setUp()
+        # Use factory to create tree instances
+        self.TreeClass, _, _, _ = make_gplustree_classes(self.K)
         # Trees to attach
-        self.treeA = GPlusTree()
-        self.treeB = GPlusTree()
+        self.treeA = self.TreeClass()
+        self.treeB = self.TreeClass()
+        logger.debug(f"Created trees of type {type(self.treeA).__name__}")
 
     def extract_left_subtrees(self):
         """Helper to collect left_subtree pointers for all entries."""
@@ -684,12 +725,8 @@ class TestUpdateLeftSubtree(unittest.TestCase):
             self.klist.update_left_subtree("not-int", self.treeA)
 
 
-class TestSplitInplace(unittest.TestCase):
-    def setUp(self):
-        self.klist = KList()
-        self.cap = KListNode.CAPACITY
-
-    def extract_keys(self, kl: KList):
+class TestSplitInplace(TestKListBase):
+    def extract_keys(self, kl):
         """Return list of keys in order from KList."""
         keys = []
         node = kl.head
@@ -777,7 +814,9 @@ class TestSplitInplace(unittest.TestCase):
         for k in keys:
             self.klist.insert(Item(k, f"v{k}"))
         # update left_subtree for key=2
-        subtree = GPlusTree()
+        # Create tree using the factory
+        self.TreeClass, _, _, _ = make_gplustree_classes(self.K)
+        subtree = self.TreeClass()
         self.klist.update_left_subtree(2, subtree)
         left, st, right = self.klist.split_inplace(2)
         # left contains [1], subtree returned

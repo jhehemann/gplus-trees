@@ -14,11 +14,12 @@ from datetime import datetime
 import numpy as np
 
 from gplus_trees.base import Item
-from gplus_trees.gplus_tree import (
-    GPlusTree,
+from gplus_trees.gplus_tree_base import (
+    GPlusTreeBase,
     gtree_stats_,
     DUMMY_ITEM,
 )
+from gplus_trees.factory import create_gplustree
 from gplus_trees.profiling import (
     track_performance,
 )
@@ -29,12 +30,12 @@ from utils import (
 
 # Assume create_gtree(items) builds a GPlusTree from a list of (Item, rank) pairs.
 # @track_performance
-def create_gtree(items):
+def create_gtree(items, K=16):
     """
     Mimics the Rust create_gtree: build a tree by inserting each (item, rank) pair.
-    Replace this with your actual tree-creation logic.
+    Uses the factory pattern to create a tree with the specified capacity K.
     """
-    tree = GPlusTree()
+    tree = create_gplustree(K)
     tree_insert = tree.insert
     for (item, rank) in items:
         tree_insert(item, rank)
@@ -42,14 +43,14 @@ def create_gtree(items):
 
 # Create a random GPlusTree with n items and target node size (K) determining the rank distribution.
 # @track_performance
-def random_gtree_of_size(n: int, target_node_size: int) -> GPlusTree:
+def random_gtree_of_size(n: int, target_node_size: int) -> GPlusTreeBase:
     # cache globals
     # calc_rank = calculate_item_rank
     # group_size = calculate_group_size(target_node_size)
     make_item = Item
     p = 1.0 - (1.0 / (target_node_size))    # probability for geometric dist
 
-    # we need at least n unique values; 2^24 = 16 777 216 > 1 000 000
+    # we need at least n unique values; 2^24 = 16 777 216 > 1 000 000
     space = 1 << 24
     if space <= n:
         raise ValueError(f"Key-space too small! Required: {n + 1}, Available: {space}")
@@ -68,15 +69,15 @@ def random_gtree_of_size(n: int, target_node_size: int) -> GPlusTree:
         val = "val"
         items[i] = (make_item(key, val), int(ranks[i]))
 
-    return create_gtree(items)
+    return create_gtree(items, K=target_node_size)
 
 # The function random_klist_tree just wraps random_gtree_of_size with a given K.
-def random_klist_tree(n: int, K: int) -> GPlusTree:
+def random_klist_tree(n: int, K: int) -> GPlusTreeBase:
     return random_gtree_of_size(n, K)
 
 # @track_performance
 def check_leaf_keys_and_values(
-    tree: GPlusTree,
+    tree: GPlusTreeBase,
     expected_keys: Optional[List[int]] = None
 ) -> Tuple[List[int], bool, bool, bool]:
     """
@@ -88,7 +89,7 @@ def check_leaf_keys_and_values(
       3. order_ok: are the keys in strictly sorted order?
     
     Parameters:
-        tree:           The GPlusTree to examine.
+        tree:           The GPlusTreeBase to examine.
         expected_keys:  Optional list of keys that must match exactly. If None, skip presence test.
     
     Returns:
@@ -272,7 +273,7 @@ def repeated_experiment(
     # # Add method-level performance breakdown
     # logging.info("")
     # logging.info("Method-level performance breakdown:")
-    # report = GPlusTree.get_performance_report(sort_by='total_time')
+    # report = GPlusTreeBase.get_performance_report(sort_by='total_time')
     # for line in report.split('\n'):
     #     logging.info(line)
 
@@ -299,7 +300,7 @@ if __name__ == "__main__":
     )
     
     # # Enable performance tracking before experiments
-    # GPlusTree.enable_performance_tracking()
+    # GPlusTreeBase.enable_performance_tracking()
     # logging.info("Performance tracking enabled")
 
     # List of tree sizes to test.
@@ -307,7 +308,7 @@ if __name__ == "__main__":
     # sizes = [10, 100, 1000, 10_000, 100_000]
     # List of K values for which we want to run experiments.
     # Ks = [2, 4, 16, 64]
-    Ks = [16]
+    Ks = [2, 4, 16, 64]
     repetitions = 200
 
     for n in sizes:
@@ -320,12 +321,11 @@ if __name__ == "__main__":
             elapsed = time.perf_counter() - t0
 
             # Reset performance metrics for next experiment
-            GPlusTree.reset_performance_metrics()
+            GPlusTreeBase.reset_performance_metrics()
             logging.info(f"Total experiment time: {elapsed:.3f} seconds")
             # logging.info("Performance metrics reset for next experiment")
 
     # # Disable tracking when completely done
-    # GPlusTree.disable_performance_tracking()
+    # GPlusTreeBase.disable_performance_tracking()
     # logging.info("")
     # logging.info("Performance tracking disabled")
-            

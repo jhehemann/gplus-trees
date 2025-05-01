@@ -6,15 +6,6 @@ import logging
 from gplus_trees.gplus_tree_base import GPlusTreeBase, GPlusNodeBase
 from gplus_trees.klist_base import KListBase, KListNodeBase
 
-# Configure logging
-logger = logging.getLogger(__name__)
-if not logger.handlers:
-    handler = logging.StreamHandler()
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
-    logger.setLevel(logging.INFO)
-
 # Cache for previously created classes to avoid recreating them
 _class_cache: Dict[int, Tuple[Type, Type, Type, Type]] = {}
 
@@ -36,10 +27,7 @@ def make_gplustree_classes(K: int) -> Tuple[
     """
     # Check if we've already created classes for this K value
     if K in _class_cache:
-        logger.debug(f"Using cached classes for K={K}")
         return _class_cache[K]
-
-    logger.debug(f"Creating new classes for K={K}")
     
     # 1) Leaf-list node: capacity K
     KListNodeK = type(
@@ -50,8 +38,6 @@ def make_gplustree_classes(K: int) -> Tuple[
             "__slots__": KListNodeBase.__slots__ if hasattr(KListNodeBase, "__slots__") else ()
         }
     )
-    logger.debug(f"Created KListNode_K{K} with CAPACITY={K}")
-    logger.debug(f"KListNode_K{K}.__slots__: {KListNodeK.__slots__ if hasattr(KListNodeK, '__slots__') else 'None'}")
 
     # 2) KList class points at the node class
     KListK = type(
@@ -62,8 +48,6 @@ def make_gplustree_classes(K: int) -> Tuple[
             "__slots__": KListBase.__slots__ if hasattr(KListBase, "__slots__") else ()
         }
     )
-    logger.debug(f"Created KList_K{K} with KListNodeClass={KListNodeK.__name__}")
-    logger.debug(f"KList_K{K}.__slots__: {KListK.__slots__ if hasattr(KListK, '__slots__') else 'None'}")
 
     # 3) Create GPlusTreeK with a forward reference (to be set later)
     GPlusTreeK = type(
@@ -74,8 +58,6 @@ def make_gplustree_classes(K: int) -> Tuple[
             "__slots__": GPlusTreeBase.__slots__ if hasattr(GPlusTreeBase, "__slots__") else ()
         }
     )
-    logger.debug(f"Created GPlusTree_K{K} with SetClass={KListK.__name__}")
-    logger.debug(f"GPlusTree_K{K}.__slots__: {GPlusTreeK.__slots__ if hasattr(GPlusTreeK, '__slots__') else 'None'}")
     
     # 4) GPlus-node class uses the KListK and references the already created GPlusTreeK
     GPlusNodeK = type(
@@ -87,16 +69,13 @@ def make_gplustree_classes(K: int) -> Tuple[
             "__slots__": GPlusNodeBase.__slots__ if hasattr(GPlusNodeBase, "__slots__") else ()
         }
     )
-    logger.debug(f"Created GPlusNode_K{K} with SetClass={KListK.__name__}, TreeClass={GPlusTreeK.__name__}")
-    logger.debug(f"GPlusNode_K{K}.__slots__: {GPlusNodeK.__slots__ if hasattr(GPlusNodeK, '__slots__') else 'None'}")
+    
 
     # 5) Set NodeClass on GPlusTreeK now that GPlusNodeK exists
     setattr(GPlusTreeK, "NodeClass", GPlusNodeK)
-    logger.debug(f"Set NodeClass={GPlusNodeK.__name__} on {GPlusTreeK.__name__}")
 
     # Cache the created classes
     _class_cache[K] = (GPlusTreeK, GPlusNodeK, KListK, KListNodeK)
-    logger.debug(f"Cached classes for K={K}")
 
     return GPlusTreeK, GPlusNodeK, KListK, KListNodeK
 
@@ -111,8 +90,6 @@ def create_gplustree(K: int) -> GPlusTreeBase:
     Returns:
         A new empty GPlusTree with the specified capacity
     """
-    logger.debug(f"Creating new tree with K={K}")
     GPlusTreeK, _, _, _ = make_gplustree_classes(K)
     tree = GPlusTreeK()
-    logger.debug(f"Created tree instance of type {type(tree).__name__}")
     return tree
