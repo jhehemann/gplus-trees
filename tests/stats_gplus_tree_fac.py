@@ -19,6 +19,7 @@ from gplus_trees.gplus_tree import (
     gtree_stats_,
     DUMMY_ITEM,
 )
+from gplus_trees.factory import create_gplustree
 from gplus_trees.profiling import (
     track_performance,
 )
@@ -29,12 +30,12 @@ from utils import (
 
 # Assume create_gtree(items) builds a GPlusTree from a list of (Item, rank) pairs.
 # @track_performance
-def create_gtree(items):
+def create_gtree(items, K=16):
     """
     Mimics the Rust create_gtree: build a tree by inserting each (item, rank) pair.
-    Replace this with your actual tree-creation logic.
+    Uses the factory pattern to create a tree with the specified capacity K.
     """
-    tree = GPlusTree()
+    tree = create_gplustree(K)
     tree_insert = tree.insert
     for (item, rank) in items:
         tree_insert(item, rank)
@@ -49,7 +50,7 @@ def random_gtree_of_size(n: int, target_node_size: int) -> GPlusTree:
     make_item = Item
     p = 1.0 - (1.0 / (target_node_size))    # probability for geometric dist
 
-    # we need at least n unique values; 2^24 = 16 777 216 > 1 000 000
+    # we need at least n unique values; 2^24 = 16 777 216 > 1 000 000
     space = 1 << 24
     if space <= n:
         raise ValueError(f"Key-space too small! Required: {n + 1}, Available: {space}")
@@ -68,7 +69,7 @@ def random_gtree_of_size(n: int, target_node_size: int) -> GPlusTree:
         val = "val"
         items[i] = (make_item(key, val), int(ranks[i]))
 
-    return create_gtree(items)
+    return create_gtree(items, K=target_node_size)
 
 # The function random_klist_tree just wraps random_gtree_of_size with a given K.
 def random_klist_tree(n: int, K: int) -> GPlusTree:
@@ -328,4 +329,3 @@ if __name__ == "__main__":
     # GPlusTree.disable_performance_tracking()
     # logging.info("")
     # logging.info("Performance tracking disabled")
-            

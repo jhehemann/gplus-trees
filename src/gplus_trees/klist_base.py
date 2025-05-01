@@ -1,6 +1,6 @@
 """K-list implementation"""
 
-from typing import TYPE_CHECKING, List, Optional, Tuple
+from typing import TYPE_CHECKING, List, Optional, Tuple, Type
 import bisect
 
 from gplus_trees.base import (
@@ -11,7 +11,7 @@ from gplus_trees.base import (
 )
 
 if TYPE_CHECKING:
-    from gplus_trees.gplus_tree import GPlusTree
+    from gplus_trees.gplus_tree_base import GPlusTreeBase
 
 from gplus_trees.profiling import track_performance
 
@@ -24,11 +24,12 @@ class KListNodeBase:
         (item, left_subtree)
     where `left_subtree` is a G-tree associated with this entry.
     """
-    CAPACITY = 4
-
+    # Default capacity that will be overridden by factory-created subclasses
+    CAPACITY: int = 4  # Default value, will usually be overridden by factory
+    
     def __init__(self):
         self.entries: list[Entry] = []
-        self.next: Optional['KListNode'] = None
+        self.next: Optional['KListNodeBase'] = None
 
     # @track_performance
     def insert_entry(
@@ -73,14 +74,9 @@ class KListNodeBase:
                 entries.insert(i, entry)
         
         # Handle overflow
-        if len(entries) > KListNode.CAPACITY:
+        if len(entries) > self.__class__.CAPACITY:
             return entries.pop()
         return None
-
-        # bisect.insort(self.entries, entry)  # nutzt __lt__-Logik
-        # if len(self.entries) > KListNode.CAPACITY:
-        #     return self.entries.pop()
-        # return None
     
     # @track_performance
     def retrieve_entry(
@@ -136,11 +132,13 @@ class KListBase(AbstractSetDataStructure):
     An entry is of the form (item, left_subtree), where left_subtree is a G+-tree (or None).
     The overall order is maintained lexicographically by key.
     """
-
+    # Will be assigned by factory
+    KListNodeClass: Type[KListNodeBase]
+    
     def __init__(self):
         self.head = self.tail = None
         # auxiliary index
-        self._nodes = []           # List[KListNode]
+        self._nodes = []           # List[KListNodeBase]
         self._prefix_counts = []   # List[int]
         self._bounds = []          # List[int], max key per node (optional)
 
@@ -184,7 +182,7 @@ class KListBase(AbstractSetDataStructure):
         count = 0
         current = self.head
         while current is not None:
-            count += KListNode.CAPACITY
+            count += self.KListNodeClass.CAPACITY
             current = current.next
         return count
     
@@ -205,8 +203,8 @@ class KListBase(AbstractSetDataStructure):
     def insert(
             self, 
             item: Item,
-            left_subtree: Optional['GPlusTree'] = None
-    ) -> 'KList':
+            left_subtree: Optional['GPlusTreeBase'] = None
+    ) -> 'KListBase':
         """
         Inserts an item with an optional left subtree into the k-list.
         It is stored as an Entry(item, left_subtree).
@@ -216,13 +214,13 @@ class KListBase(AbstractSetDataStructure):
 
         Parameters:
             item (Item): The item to insert.
-            left_subtree (GPlusTree or None): Optional G+-tree to attach as the left subtree.
+            left_subtree (GPlusTreeBase or None): Optional G+-tree to attach as the left subtree.
         """
         entry = Entry(item, left_subtree)
         
         # If the k-list is empty, create a new node.
         if self.head is None:
-            node = KListNode()
+            node = self.KListNodeClass()
             self.head = self.tail = node
         else:
             # Fast-Path: If the new key > the last key in the tail, insert there.
@@ -246,7 +244,7 @@ class KListBase(AbstractSetDataStructure):
         # Propagate overflow if needed.
         while overflow is not None:
             if node.next is None:
-                node.next = KListNode()
+                node.next = self.KListNodeClass()
                 self.tail = node.next
             node = node.next
             overflow = node.insert_entry(overflow)
@@ -258,7 +256,7 @@ class KListBase(AbstractSetDataStructure):
         return self
 
     # @track_performance
-    def delete(self, key: int) -> "KList":
+    def delete(self, key: int) -> "KListBase":
         node = self.head
         prev = None
         found = False
@@ -300,7 +298,7 @@ class KListBase(AbstractSetDataStructure):
             return self
 
         # 4) Otherwise, rebalance by borrowing one entry from next node.
-        while node.next and len(node.entries) < KListNode.CAPACITY:
+        while node.next and len(node.entries) < self.KListNodeClass.CAPACITY:
             next_node = node.next
             shifted = next_node.entries.pop(0)
             node.entries.append(shifted)
@@ -448,16 +446,16 @@ class KListBase(AbstractSetDataStructure):
         return self.get_entry(index=0)
     
     # @track_performance
-    def update_left_subtree(self, key: int, new_tree: 'GPlusTree') -> 'KList':
+    def update_left_subtree(self, key: int, new_tree: 'GPlusTreeBase') -> 'KListBase':
         """
         Updates the left subtree of the item in the k-list.
 
         Parameters:
             key (int): The key of the item to update.
-            new_tree (GPlusTree or None): The new left subtree to associate with the item.
+            new_tree (GPlusTreeBase or None): The new left subtree to associate with the item.
 
         Returns:
-            KList: The updated k-list.
+            KListBase: The updated k-list.
         """
         if not isinstance(key, int):
             raise TypeError(f"key must be int, got {type(key).__name__!r}")
@@ -470,18 +468,21 @@ class KListBase(AbstractSetDataStructure):
     # @track_performance
     def split_inplace(
         self, key: int
-    ) -> Tuple["KList", Optional["GPlusTree"], "KList"]:
+    ) -> Tuple["KListBase", Optional["GPlusTreeBase"], "KListBase"]:
 
         if not isinstance(key, int):
             raise TypeError(f"key must be int, got {type(key).__name__!r}")
 
         if self.head is None:                        # ··· (1) empty
-            return KList(), None, KList()
+            left = type(self)()  # Create new instances of the same class
+            right = type(self)()
+            return left, None, right
 
         # --- locate split node ------------------------------------------------
         node_idx = bisect.bisect_right(self._bounds, key)
         if node_idx >= len(self._nodes):             # ··· (2) key > max
-            return self, None, KList()
+            right = type(self)()
+            return self, None, right
 
         split_node   = self._nodes[node_idx]
         prev_node    = self._nodes[node_idx - 1] if node_idx else None
@@ -497,7 +498,7 @@ class KListBase(AbstractSetDataStructure):
         left_subtree   = split_node.entries[i].left_subtree if exact else None
 
         # ------------- build LEFT --------------------------------------------
-        left = KList()
+        left = type(self)()
         if left_entries:                             # reuse split_node
             split_node.entries = left_entries
             split_node.next    = None
@@ -512,10 +513,10 @@ class KListBase(AbstractSetDataStructure):
                 left.head = left.tail = None
 
         # ------------- build RIGHT -------------------------------------------
-        right = KList()
+        right = type(self)()
         if right_entries:
             if left_entries:                         # both halves non-empty
-                new_node = KListNode()
+                new_node = self.KListNodeClass()
                 new_node.entries = right_entries
                 new_node.next    = original_next
                 right.head       = new_node
@@ -558,7 +559,7 @@ class KListBase(AbstractSetDataStructure):
         node = self.head
         index = 0
         while node:
-            result.append(f"{' ' * indent}KListNode(idx={index}, K={KListNode.CAPACITY})")
+            result.append(f"{' ' * indent}KListNode(idx={index}, K={self.KListNodeClass.CAPACITY})")
             for entry in node.entries:
                 result.append(f"{' ' * indent}• {str(entry.item)}")
                 if entry.left_subtree is None:

@@ -14,11 +14,21 @@ from gplus_trees.base import (
     _create_replica,
     RetrievalResult,
 )
-from gplus_trees.klist import KList
+from gplus_trees.klist_base import KListBase
 from gplus_trees.profiling import (
     track_performance,
     PerformanceTracker
 )
+
+# Configure logging
+logger = logging.getLogger(__name__)
+if not logger.handlers:
+    # Avoid duplicated handlers when module is imported multiple times
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    logger.setLevel(logging.DEBUG)
 
 t = Type["GPlusTreeBase"]
 
@@ -35,7 +45,7 @@ class GPlusNodeBase:
       - SetClass  : which AbstractSetDataStructure to use for entries
       - TreeClass : which GPlusTree to build for child/subtree pointers
     """
-    __slots__ = ("rank", "entries", "right", "next")
+    __slots__ = ("rank", "set", "right_subtree", "next")
 
     # these two get injected by your factory.py
     SetClass: Type[AbstractSetDataStructure]
@@ -49,11 +59,11 @@ class GPlusNodeBase:
     ) -> None:
         if rank <= 0:
             raise ValueError("rank must be > 0")
-        self.rank    = rank
+        self.rank = rank
         self.set = set
-        # if you didn’t pass a right‐subtree, create an empty one
-        self.right   = right if right is not None else self.TreeClass()
-        self.next    = None    # leaf‐chain pointer
+        # if you didn't pass a right‐subtree, create an empty one
+        self.right_subtree = right if right is not None else self.TreeClass()
+        self.next = None    # leaf‐chain pointer
     
 class GPlusTreeBase(AbstractSetDataStructure):
     """
@@ -167,32 +177,21 @@ class GPlusTreeBase(AbstractSetDataStructure):
         raise NotImplementedError("split_inplace not implemented yet")
     
     # Private Methods
-    def _make_leaf_klist(self, x_item: Item) -> KList:
+    def _make_leaf_klist(self, x_item: Item) -> AbstractSetDataStructure:
         """Builds a KList for a single leaf node containing the dummy and x_item."""
-        TreeK = type(self)
-        SetK  = self.SetClass
-
-        # start with a fresh empty set of entries
-        leaf_set = SetK(self)
-
-        # insert the dummy entry, pointing at an empty subtree
-        leaf_set = leaf_set.insert(DUMMY_ITEM, TreeK())
-
-        # now insert the real item, also pointing at an empty subtree
-        leaf_set = leaf_set.insert(x_item,    TreeK())
-
-        return leaf_set
-    
-    def _make_leaf_klist(self, x_item: Item) -> KList:
-        """Builds a KList for a single leaf node containing the dummy and x_item."""
-        SetK = self.SetClass
-
+        TreeClass = type(self)
+        SetClass = self.SetClass
         
-        return (
-            KList()
-            .insert(DUMMY_ITEM, GPlusTreeBase())
-            .insert(x_item, GPlusTreeBase())
-        )
+        # start with a fresh empty set of entries
+        leaf_set = SetClass()
+        
+        # insert the dummy entry, pointing at an empty subtree
+        leaf_set = leaf_set.insert(DUMMY_ITEM, TreeClass())
+        
+        # now insert the real item, also pointing at an empty subtree
+        leaf_set = leaf_set.insert(x_item, TreeClass())
+        
+        return leaf_set
     
     def _make_leaf_trees(self, x_item) -> Tuple[GPlusTreeBase, GPlusTreeBase]:
         """
@@ -204,34 +203,45 @@ class GPlusTreeBase(AbstractSetDataStructure):
         SetK = self.SetClass
 
         # Build right leaf
-        right_set = SetK(self)
-        right_set.insert(x_item, TreeK())
-        right_node = NodeK(1, right_set, self)
+        right_set = SetK()
+        right_set = right_set.insert(x_item, TreeK())
+        right_node = NodeK(1, right_set, TreeK())
         right_leaf = TreeK.from_root(right_node, self.dim)
 
         # Build left leaf with dummy entry
-        left_set = SetK(self)
-        left_set.insert(DUMMY_ITEM, TreeK())
-        left_node = NodeK(1, left_set, self)
+        left_set = SetK()
+        left_set = left_set.insert(DUMMY_ITEM, TreeK())
+        left_node = NodeK(1, left_set, TreeK())
         left_leaf = TreeK.from_root(left_node, self.dim)
 
         # Link leaves
-        left_leaf.node.right = right_leaf
+        left_leaf.node.next = right_leaf
         return left_leaf, right_leaf
     
     def _insert_empty(self, x_item: Item, rank: int) -> GPlusTreeBase:
         """Build the initial tree structure depending on rank."""
+        logger.debug(f"_insert_empty called with item: {x_item}, rank: {rank}")
+        logger.debug(f"Using tree class: {type(self).__name__}")
+        logger.debug(f"NodeClass: {self.NodeClass.__name__}")
+        logger.debug(f"SetClass: {self.SetClass.__name__}")
+        
         # Single-level leaf
         if rank == 1:
             leaf_set = self._make_leaf_klist(x_item)
-            self.node = GPlusNode(rank, leaf_set, GPlusTreeBase())
+            logger.debug(f"Created leaf set of type: {type(leaf_set).__name__}")
+            self.node = self.NodeClass(rank, leaf_set, type(self)())
+            logger.debug(f"Created node: rank={rank}, set type={type(leaf_set).__name__}, node type={type(self.node).__name__}")
+            logger.debug(f"Tree after empty insert rank 1:\n{self.print_structure()}")
             return self
 
         # Higher-level root with two linked leaf children
         l_leaf_t, r_leaf_t = self._make_leaf_trees(x_item)
-        root_set = KList().insert(DUMMY_ITEM, GPlusTreeBase())
+        logger.debug(f"Created leaf trees: left={type(l_leaf_t).__name__}, right={type(r_leaf_t).__name__}")
+        root_set = self.SetClass().insert(DUMMY_ITEM, type(self)())
         root_set = root_set.insert(_create_replica(x_item.key), l_leaf_t)
-        self.node = GPlusNode(rank, root_set, r_leaf_t)
+        self.node = self.NodeClass(rank, root_set, r_leaf_t)
+        logger.debug(f"Created root node: rank={rank}, set type={type(root_set).__name__}, node type={type(self.node).__name__}")
+        logger.debug(f"Tree after empty insert rank > 1:\n{self.print_structure()}")
         return self
 
     # @track_performance
@@ -299,23 +309,24 @@ class GPlusTreeBase(AbstractSetDataStructure):
         Returns:
             GPlusTreeBase: The updated G+-tree.
         """
+        TreeClass = type(self)
+        
         if parent is None:
             # create a new root node
             old_node = self.node
-            root_set = KList().insert(DUMMY_ITEM, GPlusTreeBase())
-            self.node = GPlusNode(rank, root_set, GPlusTreeBase(old_node))
+            root_set = self.SetClass().insert(DUMMY_ITEM, TreeClass())
+            self.node = self.NodeClass(rank, root_set, TreeClass(old_node))
             return self
 
         # Unfold intermediate node between parent and current
         # Set replica of the current node's min as first entry.
         min_entry = cur.node.set.get_min().found_entry
         min_replica = _create_replica(min_entry.item.key)
-        new_set = KList().insert(min_replica, GPlusTreeBase())
-        new_tree = GPlusTreeBase(GPlusNode(rank, new_set, cur))
+        new_set = self.SetClass().insert(min_replica, TreeClass())
+        new_tree = TreeClass()
+        new_tree.node = self.NodeClass(rank, new_set, cur)
+        
         if p_next:
-            # parent.node.set = parent.node.set.update_left_subtree(
-            #     p_next.item.key, new_tree
-            # )
             p_next.left_subtree = new_tree
         else:
             parent.node.right_subtree = new_tree
@@ -359,6 +370,7 @@ class GPlusTreeBase(AbstractSetDataStructure):
         """
         x_key = x_item.key
         replica = _create_replica(x_key)
+        TreeClass = type(self)
 
         # Parent tracking variables
         right_parent = None    # Parent node for right-side updates
@@ -404,16 +416,12 @@ class GPlusTreeBase(AbstractSetDataStructure):
                 # Determine if we need a new tree for the right split
                 if right_split.item_count() > 0 or is_leaf:
                     # Insert item into right split and create new tree
-                    right_split = right_split.insert(insert_obj, GPlusTreeBase())
-                    new_tree = GPlusTreeBase(
-                        GPlusNode(node.rank, right_split, node.right_subtree)
-                    )
+                    right_split = right_split.insert(insert_obj, TreeClass())
+                    new_tree = TreeClass()
+                    new_tree.node = self.NodeClass(node.rank, right_split, node.right_subtree)
 
                     # Update parent reference to the new tree
                     if right_entry is not None:
-                        # right_parent.node.set = right_parent.node.set.update_left_subtree(
-                        #     right_entry.item.key, new_tree
-                        # )
                         right_entry.left_subtree = new_tree
                     else:
                         right_parent.node.right_subtree = new_tree
@@ -440,10 +448,6 @@ class GPlusTreeBase(AbstractSetDataStructure):
 
                     # Update parent reference if needed
                     if left_x_entry is not None:
-                        # left_parent.node.set = (
-                        #     left_parent.node.set
-                        #     .update_left_subtree(x_key, cur)
-                        # )
                         left_x_entry.left_subtree = cur
                     
                     # Make current node the new left parent
@@ -453,15 +457,11 @@ class GPlusTreeBase(AbstractSetDataStructure):
                 else:
                     # Collapse single-item nodes for non-leaves
                     new_subtree = (
-                        next_entry.left_subtree if next_entry else GPlusTreeBase()
+                        next_entry.left_subtree if next_entry else TreeClass()
                     )
                     
                     # Update parent reference
                     if left_x_entry is not None:
-                        # left_parent.node.set = (
-                        #     left_parent.node.set
-                        #     .update_left_subtree(x_key, new_subtree)
-                        # )
                         left_x_entry.left_subtree = new_subtree
                     else:
                         left_parent.node.right_subtree = new_subtree
@@ -497,16 +497,15 @@ class GPlusTreeBase(AbstractSetDataStructure):
 
         # Descend to the leftmost leaf
         current = self
-        # while not current.is_empty() and current.node.rank > 1:
         while current.node.rank > 1:
             result = current.node.set.get_min()
-            if result.next_entry is not None:
-                current = result.next_entry.left_subtree
+            if result.found_entry is not None:
+                current = result.found_entry.left_subtree
             else:
                 current = current.node.right_subtree
 
         # At this point, current is the leftmost leaf-level GPlusTreeBase
-        while current is not None:
+        while current is not None and not current.is_empty():
             yield current.node
             current = current.node.next
     
