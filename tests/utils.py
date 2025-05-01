@@ -1,8 +1,8 @@
 """Utility functions for testing GPlusTree invariants."""
 
 import logging
-from gplus_trees.gplus_tree import (
-    GPlusTree,
+from gplus_trees.gplus_tree_base import (
+    GPlusTreeBase,
     Stats
 )
 
@@ -16,7 +16,7 @@ TREE_FLAGS = (
     "leaf_keys_in_order",
 )
 
-def assert_tree_invariants_tc(tc, t: GPlusTree, stats: Stats) -> None:
+def assert_tree_invariants_tc(tc, t: GPlusTreeBase, stats: Stats) -> None:
     """TestCase version: use inside unittest.TestCase methods."""
     for flag in TREE_FLAGS:
         tc.assertTrue(
@@ -58,7 +58,7 @@ class InvariantError(Exception):
     """Raised when a GPlusTree invariant is violated."""
     pass
 
-def assert_tree_invariants_raise(t: GPlusTree, stats: Stats) -> None:
+def assert_tree_invariants_raise(t: GPlusTreeBase, stats: Stats) -> None:
     """Check all invariants, raising on the first failure."""
     # flag‐based invariants
     for flag in TREE_FLAGS:

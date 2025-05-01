@@ -27,7 +27,7 @@ htmlcov
 __pycache__/
 .env
 
-
+src/gplus_trees/archive/*
 /tests/benchmarks.py
 
 **/*.log

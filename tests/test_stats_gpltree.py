@@ -1,21 +1,20 @@
 import unittest
 from unittest.mock import patch
 
-# Import the function we're testing using relative import
-
-from gplus_trees.gplus_tree import (
-    GPlusTree,
-    GPlusNode,
-    DUMMY_KEY,
-    DUMMY_ITEM,
-    gtree_stats_,
-)
+# Import from factory and base modules instead of archive
+from gplus_trees.factory import make_gplustree_classes, create_gplustree
 from gplus_trees.base import Item
-from gplus_trees.klist import KList
+from gplus_trees.gplus_tree_base import DUMMY_KEY, DUMMY_ITEM, gtree_stats_
+
+# Constants for test configuration
+K_VALUE = 4  # Capacity value for KList nodes
 
 class TestGTreeStatsInvalidProperties(unittest.TestCase):
     def setUp(self):
         """Set up test trees of various sizes and structures"""
+        # Get classes for the specified capacity K
+        self.GPlusTreeK, self.GPlusNodeK, self.KListK, self.KListNodeK = make_gplustree_classes(K_VALUE)
+        
         # Test items
         self.item1 = Item(1, "val_1")
         self.item2 = Item(2, "val_2")
@@ -29,37 +28,37 @@ class TestGTreeStatsInvalidProperties(unittest.TestCase):
         
         # Single-node tree
         single_set1 = (
-            KList()
-            .insert(DUMMY_ITEM, GPlusTree())
-            .insert(self.item1, GPlusTree())
+            self.KListK()
+            .insert(DUMMY_ITEM, self.GPlusTreeK())
+            .insert(self.item1, self.GPlusTreeK())
         )
-        self.single_node_tree = GPlusTree(
-            GPlusNode(1, single_set1, GPlusTree())
+        self.single_node_tree = self.GPlusTreeK(
+            self.GPlusNodeK(1, single_set1, self.GPlusTreeK())
         )
 
         # 3-node tree (1 root, 2 leaves)
         leaf_set2 = (
-            KList()
-            .insert(self.item3, GPlusTree())
-            .insert(self.item4, GPlusTree())
+            self.KListK()
+            .insert(self.item3, self.GPlusTreeK())
+            .insert(self.item4, self.GPlusTreeK())
         )
-        self.leaf_tree2 = GPlusTree(GPlusNode(1, leaf_set2, GPlusTree()))
+        self.leaf_tree2 = self.GPlusTreeK(self.GPlusNodeK(1, leaf_set2, self.GPlusTreeK()))
 
         leaf_set1 = (
-            KList()
-            .insert(DUMMY_ITEM, GPlusTree())
-            .insert(self.item1, GPlusTree())
-            .insert(self.item2, GPlusTree())
+            self.KListK()
+            .insert(DUMMY_ITEM, self.GPlusTreeK())
+            .insert(self.item1, self.GPlusTreeK())
+            .insert(self.item2, self.GPlusTreeK())
         )
-        self.leaf_tree1 = GPlusTree(GPlusNode(1, leaf_set1, GPlusTree()))
+        self.leaf_tree1 = self.GPlusTreeK(self.GPlusNodeK(1, leaf_set1, self.GPlusTreeK()))
         self.leaf_tree1.node.next = self.leaf_tree2
 
         root_set = (
-            KList()
-            .insert(DUMMY_ITEM, GPlusTree())
+            self.KListK()
+            .insert(DUMMY_ITEM, self.GPlusTreeK())
             .insert(self.replica3, self.leaf_tree1)
         )
-        self.tree_3_nodes = GPlusTree(GPlusNode(3, root_set, self.leaf_tree2))
+        self.tree_3_nodes = self.GPlusTreeK(self.GPlusNodeK(3, root_set, self.leaf_tree2))
 
     def test_single_node_tree_item_order(self):
         """Test stats computed for an empty tree"""
@@ -95,8 +94,11 @@ class TestGTreeStatsInvalidProperties(unittest.TestCase):
 class TestGTreeStatsInvalidLargeRandomTree(unittest.TestCase):
     def setUp(self):
         """Test stats computed for a large random tree"""
+        # Get classes for the specified capacity K
+        self.GPlusTreeK, self.GPlusNodeK, self.KListK, self.KListNodeK = make_gplustree_classes(K_VALUE)
+        
         # Create a large random tree
-        self.tree = GPlusTree()
+        self.tree = create_gplustree(K_VALUE)
         keys = [1, 2, 3, 4, 5]
         ranks = [2, 3, 2, 1, 4]
         self.item_map = { k: (Item(k, f"val_{k}")) for k in keys}
