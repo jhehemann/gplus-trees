@@ -611,7 +611,7 @@ class Stats:
     gnode_height: int
     gnode_count: int
     item_count: int
-    true_item_count: int
+    real_item_count: int
     item_slot_count: int
     leaf_count: int
     rank: int
@@ -643,7 +643,7 @@ def gtree_stats_(t: GPlusTreeBase,
         return Stats(gnode_height        = 0,
                      gnode_count         = 0,
                      item_count          = 0,
-                     true_item_count     = 0,
+                     real_item_count     = 0,
                      item_slot_count     = 0,
                      leaf_count          = 0,
                      rank                = -1,
@@ -673,7 +673,7 @@ def gtree_stats_(t: GPlusTreeBase,
         gnode_height=0,
         gnode_count=0,
         item_count=0,
-        true_item_count=0,
+        real_item_count=0,
         item_slot_count=0,
         leaf_count=0,
         rank=node_rank,
@@ -691,7 +691,7 @@ def gtree_stats_(t: GPlusTreeBase,
     # Precompute common values using right subtree stats
     stats.gnode_count     = 1 + right_stats.gnode_count
     stats.item_count      = node_item_count + right_stats.item_count
-    stats.true_item_count += right_stats.true_item_count
+    stats.real_item_count += right_stats.real_item_count
     stats.item_slot_count = node_set.item_slot_count() + right_stats.item_slot_count
     stats.leaf_count += right_stats.leaf_count
     # stats.gnode_height    = 1 + max(right_stats.gnode_height,
@@ -716,7 +716,7 @@ def gtree_stats_(t: GPlusTreeBase,
         stats.item_count += cs.item_count
         stats.item_slot_count += cs.item_slot_count
         stats.leaf_count += cs.leaf_count
-        stats.true_item_count += cs.true_item_count
+        stats.real_item_count += cs.real_item_count
 
         # Update boolean flags
         if stats.is_heap and not ((node_rank > cs.rank) and cs.is_heap):
@@ -785,7 +785,7 @@ def gtree_stats_(t: GPlusTreeBase,
                     all_values_present = False
 
         stats.all_leaf_values_present = all_values_present
-        stats.true_item_count = true_count
+        stats.real_item_count = true_count
         stats.leaf_count = 1
 
     # Root-level validation (only occurs once)
@@ -817,11 +817,11 @@ def gtree_stats_(t: GPlusTreeBase,
         # Set values from leaf traversal
         stats.leaf_keys_in_order = keys_in_order
 
-        # Check leaf_count and true_item_count consistency
-        if leaf_count != stats.leaf_count or item_count != stats.true_item_count:
+        # Check leaf_count and real_item_count consistency
+        if leaf_count != stats.leaf_count or item_count != stats.real_item_count:
             stats.linked_leaf_nodes = False
             stats.leaf_count = max(leaf_count, stats.leaf_count)
-            stats.true_item_count = max(item_count, stats.true_item_count)
+            stats.real_item_count = max(item_count, stats.real_item_count)
         elif last_leaf is not None:
             # Check if greatest item matches last leaf's greatest item
             last_count = last_leaf.set.item_count()

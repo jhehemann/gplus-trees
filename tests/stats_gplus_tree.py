@@ -49,6 +49,7 @@ def random_gtree_of_size(n: int, target_node_size: int) -> GPlusTreeBase:
     # group_size = calculate_group_size(target_node_size)
     make_item = Item
     p = 1.0 - (1.0 / (target_node_size))    # probability for geometric dist
+    # logging.info(f"p = {p:.4f} for K = {target_node_size}")
 
     # we need at least n unique values; 2^24 = 16 777 216 > 1 000 000
     space = 1 << 24
@@ -161,6 +162,8 @@ def repeated_experiment(
         t0 = time.perf_counter()
         stats = gtree_stats_(tree, {})
         times_stats.append(time.perf_counter() - t0)
+        # print("Tree stats:")
+        # pprint(asdict(stats))
 
         # Time physical height computation
         t0 = time.perf_counter()
@@ -179,6 +182,8 @@ def repeated_experiment(
     # Aggregate averages for stats
     avg_gnode_height    = mean(s.gnode_height for s, _ in results)
     avg_gnode_count     = mean(s.gnode_count for s, _ in results)
+    avg_leaf_count      = mean(s.leaf_count for s, _ in results)
+    avg_real_item_count = mean(s.real_item_count for s, _ in results)
     avg_item_count      = mean(s.item_count for s, _ in results)
     avg_item_slot_count = mean(s.item_slot_count for s, _ in results)
     avg_space_amp       = mean((s.item_slot_count / s.item_count) for s, _ in results)
@@ -195,6 +200,8 @@ def repeated_experiment(
     # Compute variances for stats
     var_gnode_height    = mean((s.gnode_height - avg_gnode_height)**2 for s, _ in results)
     var_gnode_count     = mean((s.gnode_count - avg_gnode_count)**2 for s, _ in results)
+    var_leaf_count      = mean((s.leaf_count - avg_leaf_count)**2 for s, _ in results)
+    var_real_item_count = mean((s.real_item_count - avg_real_item_count)**2 for s, _ in results)
     var_item_count      = mean((s.item_count - avg_item_count)**2 for s, _ in results)
     var_item_slot_count = mean((s.item_slot_count - avg_item_slot_count)**2 for s, _ in results)
     var_space_amp       = mean(((s.item_slot_count / s.item_count) - avg_space_amp)**2 for s, _ in results)
@@ -210,10 +217,12 @@ def repeated_experiment(
 
     # Prepare rows for stats and timings
     rows = [
+        ("Real item count",       avg_real_item_count,  var_real_item_count),
         ("Item count",            avg_item_count,       var_item_count),
         ("Item slot count",       avg_item_slot_count,  var_item_slot_count),
         ("Space amplification",    avg_space_amp,        var_space_amp),
         ("G-node count",          avg_gnode_count,      var_gnode_count),
+        ("Leaf count",            avg_leaf_count,       var_leaf_count),
         ("Avg G-node size",       avg_avg_gnode_size,   var_avg_gnode_size),
         ("Maximum rank",          avg_max_rank,         var_max_rank),
         ("G-node height",         avg_gnode_height,     var_gnode_height),
@@ -304,11 +313,11 @@ if __name__ == "__main__":
     # logging.info("Performance tracking enabled")
 
     # List of tree sizes to test.
-    sizes = [1000]
+    sizes = [10000]
     # sizes = [10, 100, 1000, 10_000, 100_000]
     # List of K values for which we want to run experiments.
     # Ks = [2, 4, 16, 64]
-    Ks = [2, 4, 16, 64]
+    Ks = [4]
     repetitions = 200
 
     for n in sizes:
