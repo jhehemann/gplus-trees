@@ -13,7 +13,7 @@ if not logger.handlers:
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     handler.setFormatter(formatter)
     logger.addHandler(handler)
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(logging.INFO)
 
 # Cache for previously created classes to avoid recreating them
 _class_cache: Dict[int, Tuple[Type, Type, Type, Type]] = {}

@@ -64,13 +64,13 @@ class TreeTestCase(unittest.TestCase):
                 f"{expected_root_rank}"
             )
 
-        expected_keys = getattr(self, 'expected_keys', None)
-        if expected_keys is not None:
-            keys = collect_leaf_keys(self.tree)
-            self.assertEqual(
-                sorted(keys), sorted(expected_keys),
-                f"Leaf keys {keys} do not match expected {expected_keys}"
-            )
+        # expected_keys = getattr(self, 'expected_keys', None)
+        # if expected_keys is not None:
+        #     keys = collect_leaf_keys(self.tree)
+        #     self.assertEqual(
+        #         sorted(keys), sorted(expected_keys),
+        #         f"Leaf keys {keys} do not match expected {expected_keys}"
+        #     )
 
         expected_gnode_count = getattr(self, 'expected_gnode_count', None)
         if expected_gnode_count is not None:

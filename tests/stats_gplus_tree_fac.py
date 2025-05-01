@@ -24,7 +24,7 @@ from gplus_trees.profiling import (
     track_performance,
 )
 
-from utils import (
+from tests.utils import (
     assert_tree_invariants_raise,
 )
 
@@ -98,6 +98,8 @@ def check_leaf_keys_and_values(
     keys = []
     all_have_values = True
     order_ok = True
+    logging.debug("Checking leaf keys and values...")
+    logging.debug(f"Expected keys: {expected_keys}")
     
     # Traverse leaf nodes and collect keys
     prev_key = None
@@ -122,6 +124,7 @@ def check_leaf_keys_and_values(
             prev_key = key
 
     # Check presence only if expected_keys is provided
+    logging.debug(f"Keys found: {keys}")
     presence_ok = True
     if expected_keys is not None:
         if len(keys) != len(expected_keys):
