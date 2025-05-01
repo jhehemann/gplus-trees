@@ -78,8 +78,8 @@ def random_klist_tree(n: int, K: int) -> GPlusTree:
 # @track_performance
 def check_leaf_keys_and_values(
     tree: GPlusTree,
-    expected_keys: Optional[List[str]] = None
-) -> Tuple[List[str], bool, bool, bool]:
+    expected_keys: Optional[List[int]] = None
+) -> Tuple[List[int], bool, bool, bool]:
     """
     Traverse all leaf nodes exactly once, gathering their real items (key, value),
     then compute three invariants:

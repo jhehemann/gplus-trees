@@ -28,7 +28,7 @@ if not logger.handlers:
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     handler.setFormatter(formatter)
     logger.addHandler(handler)
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(logging.INFO)
 
 t = Type["GPlusTreeBase"]
 
@@ -231,7 +231,7 @@ class GPlusTreeBase(AbstractSetDataStructure):
             logger.debug(f"Created leaf set of type: {type(leaf_set).__name__}")
             self.node = self.NodeClass(rank, leaf_set, type(self)())
             logger.debug(f"Created node: rank={rank}, set type={type(leaf_set).__name__}, node type={type(self.node).__name__}")
-            logger.debug(f"Tree after empty insert rank 1:\n{self.print_structure()}")
+            # logger.debug(f"Tree after empty insert rank 1:\n{self.print_structure()}")
             return self
 
         # Higher-level root with two linked leaf children
