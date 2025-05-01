@@ -78,8 +78,8 @@ class GPlusTreeBase(AbstractSetDataStructure):
     NodeClass: Type[GPlusNodeBase]
     SetClass: Type[AbstractSetDataStructure]
     
-    def __init__(self, dim: int = 1):
-        self.node: Optional[GPlusNodeBase] = None
+    def __init__(self, node: Optional[GPlusNodeBase] = None, dim: int = 1):
+        self.node: Optional[GPlusNodeBase] = node
         self.dim: int = dim
 
     @classmethod
@@ -499,8 +499,8 @@ class GPlusTreeBase(AbstractSetDataStructure):
         current = self
         while current.node.rank > 1:
             result = current.node.set.get_min()
-            if result.found_entry is not None:
-                current = result.found_entry.left_subtree
+            if result.next_entry is not None:
+                current = result.next_entry.left_subtree
             else:
                 current = current.node.right_subtree
 
@@ -794,7 +794,6 @@ def gtree_stats_(t: GPlusTreeBase,
         leaf_count, item_count = 0, 0
         last_leaf, prev_key = None, None
         keys_in_order = True
-
         for leaf in t.iter_leaf_nodes():
             last_leaf = leaf
             leaf_count += 1

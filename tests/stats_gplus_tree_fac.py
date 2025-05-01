@@ -14,8 +14,8 @@ from datetime import datetime
 import numpy as np
 
 from gplus_trees.base import Item
-from gplus_trees.gplus_tree import (
-    GPlusTree,
+from gplus_trees.gplus_tree_base import (
+    GPlusTreeBase,
     gtree_stats_,
     DUMMY_ITEM,
 )
@@ -24,7 +24,7 @@ from gplus_trees.profiling import (
     track_performance,
 )
 
-from tests.utils import (
+from utils import (
     assert_tree_invariants_raise,
 )
 
@@ -43,7 +43,7 @@ def create_gtree(items, K=16):
 
 # Create a random GPlusTree with n items and target node size (K) determining the rank distribution.
 # @track_performance
-def random_gtree_of_size(n: int, target_node_size: int) -> GPlusTree:
+def random_gtree_of_size(n: int, target_node_size: int) -> GPlusTreeBase:
     # cache globals
     # calc_rank = calculate_item_rank
     # group_size = calculate_group_size(target_node_size)
@@ -72,12 +72,12 @@ def random_gtree_of_size(n: int, target_node_size: int) -> GPlusTree:
     return create_gtree(items, K=target_node_size)
 
 # The function random_klist_tree just wraps random_gtree_of_size with a given K.
-def random_klist_tree(n: int, K: int) -> GPlusTree:
+def random_klist_tree(n: int, K: int) -> GPlusTreeBase:
     return random_gtree_of_size(n, K)
 
 # @track_performance
 def check_leaf_keys_and_values(
-    tree: GPlusTree,
+    tree: GPlusTreeBase,
     expected_keys: Optional[List[int]] = None
 ) -> Tuple[List[int], bool, bool, bool]:
     """
@@ -89,7 +89,7 @@ def check_leaf_keys_and_values(
       3. order_ok: are the keys in strictly sorted order?
     
     Parameters:
-        tree:           The GPlusTree to examine.
+        tree:           The GPlusTreeBase to examine.
         expected_keys:  Optional list of keys that must match exactly. If None, skip presence test.
     
     Returns:
@@ -98,8 +98,6 @@ def check_leaf_keys_and_values(
     keys = []
     all_have_values = True
     order_ok = True
-    logging.debug("Checking leaf keys and values...")
-    logging.debug(f"Expected keys: {expected_keys}")
     
     # Traverse leaf nodes and collect keys
     prev_key = None
@@ -124,7 +122,6 @@ def check_leaf_keys_and_values(
             prev_key = key
 
     # Check presence only if expected_keys is provided
-    logging.debug(f"Keys found: {keys}")
     presence_ok = True
     if expected_keys is not None:
         if len(keys) != len(expected_keys):
@@ -276,7 +273,7 @@ def repeated_experiment(
     # # Add method-level performance breakdown
     # logging.info("")
     # logging.info("Method-level performance breakdown:")
-    # report = GPlusTree.get_performance_report(sort_by='total_time')
+    # report = GPlusTreeBase.get_performance_report(sort_by='total_time')
     # for line in report.split('\n'):
     #     logging.info(line)
 
@@ -303,15 +300,15 @@ if __name__ == "__main__":
     )
     
     # # Enable performance tracking before experiments
-    # GPlusTree.enable_performance_tracking()
+    # GPlusTreeBase.enable_performance_tracking()
     # logging.info("Performance tracking enabled")
 
     # List of tree sizes to test.
-    sizes = [1000]
+    sizes = [10000]
     # sizes = [10, 100, 1000, 10_000, 100_000]
     # List of K values for which we want to run experiments.
     # Ks = [2, 4, 16, 64]
-    Ks = [16]
+    Ks = [2, 4, 16, 64]
     repetitions = 200
 
     for n in sizes:
@@ -324,11 +321,11 @@ if __name__ == "__main__":
             elapsed = time.perf_counter() - t0
 
             # Reset performance metrics for next experiment
-            GPlusTree.reset_performance_metrics()
+            GPlusTreeBase.reset_performance_metrics()
             logging.info(f"Total experiment time: {elapsed:.3f} seconds")
             # logging.info("Performance metrics reset for next experiment")
 
     # # Disable tracking when completely done
-    # GPlusTree.disable_performance_tracking()
+    # GPlusTreeBase.disable_performance_tracking()
     # logging.info("")
     # logging.info("Performance tracking disabled")
