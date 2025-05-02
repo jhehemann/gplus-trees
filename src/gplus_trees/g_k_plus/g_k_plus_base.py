@@ -40,24 +40,13 @@ class GKPlusNodeBase(GPlusNodeBase):
     Base class for GK+-tree nodes.
     Extends GPlusNodeBase with dimension support.
     """
-    __slots__ = ("rank", "set", "right_subtree", "next")
+    __slots__ = ()  # No additional slots needed, inherits from GPlusNodeBase
 
     # These will be injected by the factory
     SetClass: Type[AbstractSetDataStructure]
     TreeClass: Type[GKPlusTreeBase]
 
-    def __init__(
-        self,
-        rank: int,
-        set: AbstractSetDataStructure,
-        right: Optional[GKPlusTreeBase] = None
-    ) -> None:
-        if rank <= 0:
-            raise ValueError("rank must be > 0")
-        self.rank = rank
-        self.set = set
-        self.right_subtree = right if right is not None else self.TreeClass()
-        self.next = None  # leaf-chain pointer
+    # No need to override __init__ as it's inherited from GPlusNodeBase
 
 class GKPlusTreeBase(GPlusTreeBase):
     """
@@ -69,7 +58,7 @@ class GKPlusTreeBase(GPlusTreeBase):
         DIM (int): The dimension of the GK+-tree (class attribute).
         l_factor (float): The threshold factor for conversion between KList and GKPlusTree.
     """
-    __slots__ = ("node", "l_factor")
+    __slots__ = ("l_factor",)  # Only add new slots beyond what parent has
     
     # Default dimension value that will be overridden by factory-created subclasses
     DIM: int = 1  # Default dimension value, will usually be set by the factory
@@ -88,14 +77,15 @@ class GKPlusTreeBase(GPlusTreeBase):
             node: The root node of the tree (if not empty)
             l_factor: Threshold factor for KList-to-GKPlusTree conversion (default: 0.75)
         """
-        self.node = node
+        # Call parent's __init__ with node and dimension
+        super().__init__(node, self.__class__.DIM)
+        # Add our additional attribute
         self.l_factor = l_factor
     
     @classmethod
     def from_root(cls: Type[t], root_node: GKPlusNodeBase) -> t:
         """Create a new tree instance wrapping an existing node."""
-        tree = cls.__new__(cls)
-        tree.node = root_node
+        tree = super().from_root(root_node, cls.DIM)
         tree.l_factor = DEFAULT_L_FACTOR
         return tree
     
@@ -295,7 +285,7 @@ class GKPlusTreeBase(GPlusTreeBase):
             
         return tree
         
-    # Override methods as needed to integrate dimension handling
+    # Override insert method to use our functionality instead of duplicating code
     def _insert_empty(self, x_item: Item, rank: int) -> 'GKPlusTreeBase':
         """Build the initial tree structure depending on rank."""
         # Call the parent implementation and ensure it uses the same class
