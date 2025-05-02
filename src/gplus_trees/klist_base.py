@@ -1,7 +1,7 @@
 """K-list implementation"""
 
 from typing import TYPE_CHECKING, List, Optional, Tuple, Type
-import bisect
+from bisect import bisect_left, bisect_right
 
 from gplus_trees.base import (
     Item,
@@ -24,6 +24,8 @@ class KListNodeBase:
         (item, left_subtree)
     where `left_subtree` is a G-tree associated with this entry.
     """
+    __slots__ = ("entries", "next")
+    
     # Default capacity that will be overridden by factory-created subclasses
     CAPACITY: int  # Default value, will usually be overridden by factory
     
@@ -70,14 +72,14 @@ class KListNodeBase:
                         break
             else:
                 # Binary search for larger lists - more efficient with higher capacities
-                i = bisect.bisect_left([e.item.key for e in entries], key)
+                i = bisect_left([e.item.key for e in entries], key)
                 entries.insert(i, entry)
         
         # Handle overflow
         if len(entries) > self.__class__.CAPACITY:
             return entries.pop()
         return None
-    
+     
     # @track_performance
     def retrieve_entry(
         self, key: int
@@ -95,7 +97,7 @@ class KListNodeBase:
             return None, None, True
 
         keys = [e.item.key for e in entries]
-        i = bisect.bisect_left(keys, key)
+        i = bisect_left(keys, key)
 
         # Case A: found exact
         if i < len(entries) and keys[i] == key:
@@ -132,6 +134,8 @@ class KListBase(AbstractSetDataStructure):
     An entry is of the form (item, left_subtree), where left_subtree is a G+-tree (or None).
     The overall order is maintained lexicographically by key.
     """
+    __slots__ = ("head", "tail", "_nodes", "_prefix_counts", "_bounds")
+
     # Will be assigned by factory
     KListNodeClass: Type[KListNodeBase]
     
@@ -344,7 +348,7 @@ class KListBase(AbstractSetDataStructure):
         
         # Find node that might contain key using binary search on max keys
         # Use bisect_left instead of bisect_right to correctly handle exact matches
-        node_idx = bisect.bisect_left(self._bounds, key)
+        node_idx = bisect_left(self._bounds, key)
         
         # Case: key > max of any node
         if node_idx >= len(self._nodes):
@@ -386,7 +390,7 @@ class KListBase(AbstractSetDataStructure):
         else:
             # Binary search for larger lists
             keys = [e.item.key for e in entries]
-            i = bisect.bisect_left(keys, key)
+            i = bisect_left(keys, key)
         
         # Exact match?
         if i < len(entries) and entries[i].item.key == key:
@@ -436,7 +440,7 @@ class KListBase(AbstractSetDataStructure):
             return RetrievalResult(found_entry=None, next_entry=None)
 
         # 3) find the node in O(log l)
-        node_idx = bisect.bisect_right(self._prefix_counts, index)
+        node_idx = bisect_right(self._prefix_counts, index)
         node = self._nodes[node_idx]
 
         # 4) compute offset within that node
@@ -496,7 +500,7 @@ class KListBase(AbstractSetDataStructure):
             return left, None, right
 
         # --- locate split node ------------------------------------------------
-        node_idx = bisect.bisect_right(self._bounds, key)
+        node_idx = bisect_right(self._bounds, key)
         if node_idx >= len(self._nodes):             # ··· (2) key > max
             right = type(self)()
             return self, None, right
@@ -507,7 +511,7 @@ class KListBase(AbstractSetDataStructure):
 
         # --- bisect inside that node -----------------------------------------
         keys = [e.item.key for e in split_node.entries]
-        i    = bisect.bisect_left(keys, key)
+        i    = bisect_left(keys, key)
         exact = i < len(keys) and keys[i] == key
 
         left_entries   = split_node.entries[:i]
@@ -592,9 +596,6 @@ class KListBase(AbstractSetDataStructure):
             
             # Move to next node for the next iteration
             current = current.next
-            
-        # Rebuild indexes after rebalancing
-        klist._rebuild_index()
 
     # @track_performance
     def print_structure(self, indent: int = 0, depth: int = 0, max_depth: int = 2):
