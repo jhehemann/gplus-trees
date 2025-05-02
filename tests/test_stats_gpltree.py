@@ -73,7 +73,7 @@ class TestGTreeStatsInvalidProperties(unittest.TestCase):
         self.assertFalse(stats.leaf_keys_in_order,
                             "Expected unordered leaf keys")
         self.assertTrue(stats.linked_leaf_nodes)
-        self.assertEqual(stats.true_item_count, 2)
+        self.assertEqual(stats.real_item_count, 2)
         
     def test_single_node_tree_linked_leafs(self):
         """Test stats computed for an empty tree"""
@@ -88,7 +88,7 @@ class TestGTreeStatsInvalidProperties(unittest.TestCase):
                             "Expected greatest item key to be 1")
         
         self.assertFalse(stats.linked_leaf_nodes)
-        self.assertEqual(stats.true_item_count, 3)
+        self.assertEqual(stats.real_item_count, 3)
 
 
 class TestGTreeStatsInvalidLargeRandomTree(unittest.TestCase):

@@ -25,7 +25,7 @@ class KListNodeBase:
     where `left_subtree` is a G-tree associated with this entry.
     """
     # Default capacity that will be overridden by factory-created subclasses
-    CAPACITY: int = 4  # Default value, will usually be overridden by factory
+    CAPACITY: int  # Default value, will usually be overridden by factory
     
     def __init__(self):
         self.entries: list[Entry] = []
@@ -194,9 +194,12 @@ class KListBase(AbstractSetDataStructure):
         """
         height = 0
         node = self.head
+        # print(f"\nKList Item Count: {self.item_count()}")
         while node is not None:
+            # print(f"Node Item Count: {len(node.entries)}")
             height += 1
             node = node.next
+        # print(f"Klist Height: {height}")
         return height
     
     # @track_performance
@@ -253,6 +256,7 @@ class KListBase(AbstractSetDataStructure):
                 raise RuntimeError("KList insert overflowed too deeply – likely infinite loop.")
             
         self._rebuild_index()
+
         return self
 
     # @track_performance
@@ -297,21 +301,34 @@ class KListBase(AbstractSetDataStructure):
             self._rebuild_index()
             return self
 
-        # 4) Otherwise, rebalance by borrowing one entry from next node.
-        while node.next and len(node.entries) < self.KListNodeClass.CAPACITY:
-            next_node = node.next
-            shifted = next_node.entries.pop(0)
-            node.entries.append(shifted)
-            # if next_node now empty, splice it out and update tail
-            if not next_node.entries:
-                node.next = next_node.next
-                if node.next is None:
-                    self.tail = node
-            break
+        # 4) Start a rebalancing pass through the entire list
+        current = node
+        
+        # Rebalance all nodes starting from the node where deletion occurred
+        while current and current.next:
+            next_node = current.next
+            
+            # Continue moving items from next_node to current until current is at capacity
+            # or next_node is empty
+            while len(current.entries) < self.KListNodeClass.CAPACITY and next_node.entries:
+                # Move an item from next_node to current
+                shifted = next_node.entries.pop(0)
+                current.entries.append(shifted)
+                
+                # If next_node became empty, splice it out and update tail if needed
+                if not next_node.entries:
+                    current.next = next_node.next
+                    if current.next is None:
+                        self.tail = current
+                    # Exit inner loop as we've emptied next_node
+                    break
+            
+            # Move to next node for the next iteration
+            current = current.next
 
         self._rebuild_index()
+
         return self
-    
     
     # @track_performance
     def retrieve(self, key: int) -> RetrievalResult:
@@ -533,11 +550,51 @@ class KListBase(AbstractSetDataStructure):
             tail = tail.next
         right.tail = tail
 
+        # Rebalance right list for compaction
+        if right.head:
+            self._rebalance_for_compaction(right)
+        
         # ------------- rebuild indexes ---------------------------------------
         left._rebuild_index()
         right._rebuild_index()
 
         return left, left_subtree, right
+        
+    # @track_performance
+    def _rebalance_for_compaction(self, klist: 'KListBase') -> None:
+        """
+        Helper method to ensure the compaction invariant is maintained in a klist.
+        Redistributes entries to ensure all non-tail nodes are at full capacity.
+        
+        Parameters:
+            klist: The KList to rebalance
+        """
+        current = klist.head
+        
+        # Rebalance all nodes
+        while current and current.next:
+            next_node = current.next
+            
+            # Continue moving items from next_node to current until current is at capacity
+            # or next_node is empty
+            while len(current.entries) < current.__class__.CAPACITY and next_node.entries:
+                # Move an item from next_node to current
+                shifted = next_node.entries.pop(0)
+                current.entries.append(shifted)
+                
+                # If next_node became empty, splice it out and update tail if needed
+                if not next_node.entries:
+                    current.next = next_node.next
+                    if current.next is None:
+                        klist.tail = current
+                    # Exit inner loop as we've emptied next_node
+                    break
+            
+            # Move to next node for the next iteration
+            current = current.next
+            
+        # Rebuild indexes after rebalancing
+        klist._rebuild_index()
 
     # @track_performance
     def print_structure(self, indent: int = 0, depth: int = 0, max_depth: int = 2):
@@ -605,6 +662,7 @@ class KListBase(AbstractSetDataStructure):
           2) For each consecutive pair of nodes, 
              last_key(node_i) <= first_key(node_{i+1}).
           3) self.tail.next is always None (tail really is the last node).
+          4) All nodes except the last one must be at full capacity (have k items).
 
         Raises:
             AssertionError: if any of these conditions fails.
@@ -616,9 +674,16 @@ class KListBase(AbstractSetDataStructure):
 
         node = self.head
         previous_last_key = None
+        
+        # For counting nodes to check compaction invariant
+        nodes_seen = 0
+        is_last_node = False
 
         # 2) Walk through all nodes
         while node is not None:
+            nodes_seen += 1
+            is_last_node = (node.next is None)
+            
             # 2a) Entries within this node are sorted
             for i in range(1, len(node.entries)):
                 k0 = node.entries[i-1].item.key
@@ -634,6 +699,13 @@ class KListBase(AbstractSetDataStructure):
                 assert previous_last_key <= first_key, (
                     f"Inter-node invariant violated between nodes: "
                     f"{previous_last_key} > {first_key}"
+                )
+                
+            # 2c) All non-tail nodes must be at full capacity
+            if not is_last_node:  # Only check non-tail nodes
+                assert len(node.entries) == node.__class__.CAPACITY, (
+                    f"Non-tail node at position {nodes_seen} has {len(node.entries)} entries, "
+                    f"but should have {node.__class__.CAPACITY} (compaction invariant violated)"
                 )
 
             # Update for the next iteration

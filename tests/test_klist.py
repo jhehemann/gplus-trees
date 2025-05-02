@@ -53,11 +53,12 @@ class TestKListBase(unittest.TestCase):
     
     def setUp(self):
         # Use the factory to create classes with the test capacity
-        self.K = 4  # Default capacity for tests
+        self.K = 16  # Default capacity for tests
         _, _, self.KListClass, self.KListNodeClass = make_gplustree_classes(self.K)
         self.klist = self.KListClass()
         self.cap = self.K  # Use factory-defined capacity
-        logger.debug(f"Created KList test with K={self.K}, using class {self.KListClass.__name__}")
+        # logger.debug(f"Created KList test with K={self.K}, using class {self.KListClass.__name__}")
+        # logger.debug(f"Created KListNode test with K={self.K}, using class {self.KListNodeClass.__name__}")
     
     def tearDown(self):
         # Verify invariants after each test
@@ -626,7 +627,7 @@ class TestUpdateLeftSubtree(TestKListBase):
         # Trees to attach
         self.treeA = self.TreeClass()
         self.treeB = self.TreeClass()
-        logger.debug(f"Created trees of type {type(self.treeA).__name__}")
+        # logger.debug(f"Created trees of type {type(self.treeA).__name__}")
 
     def extract_left_subtrees(self):
         """Helper to collect left_subtree pointers for all entries."""
@@ -845,6 +846,182 @@ class TestSplitInplace(TestKListBase):
     def test_type_error_non_int_key(self):
         with self.assertRaises(TypeError):
             self.klist.split_inplace("not-int")
+
+
+
+class TestKListCompactionInvariant(TestKListBase):
+    """Tests specifically for the compaction invariant that only the last node should have fewer than K items"""
+    
+    def setUp(self):
+        # Use the factory to create classes with the test capacity
+        self.K = 16  # Default capacity for tests
+        _, _, self.KListClass, self.KListNodeClass = make_gplustree_classes(self.K)
+        self.klist = self.KListClass()
+        self.cap = self.K  # Use factory-defined capacity
+    
+    def _count_nodes(self, klist):
+        """Helper to count nodes in a klist"""
+        count = 0
+        node = klist.head
+        while node:
+            count += 1
+            node = node.next
+        return count
+    
+    def _verify_compaction_invariant(self, klist):
+        """Helper to manually verify the compaction invariant without using check_invariant"""
+        node_count = 0
+        node = klist.head
+        violations = []
+        
+        while node:
+            node_count += 1
+            if node.next is not None and len(node.entries) < node.__class__.CAPACITY:
+                violations.append(
+                    f"Non-tail node at position {node_count} has {len(node.entries)} entries, "
+                    f"but should have {node.__class__.CAPACITY}"
+                )
+            node = node.next
+            
+        return violations
+    
+    def test_compaction_after_single_deletion(self):
+        """Test compaction after deleting a single item"""
+        # Create a klist with multiple nodes
+        items = 2 * self.cap + 1  # Creates 3 nodes
+        for i in range(items):
+            self.klist.insert(Item(i, f"val_{i}"))
+            
+        # Verify initial structure is valid
+        self.assertFalse(self._verify_compaction_invariant(self.klist))
+        
+        # Delete an item from the first node
+        self.klist.delete(0)
+        
+        # Check for violations of compaction invariant
+        violations = self._verify_compaction_invariant(self.klist)
+        if violations:
+            self.fail(f"Compaction invariant violated after deletion: {violations}")
+    
+    def test_compaction_after_middle_deletion(self):
+        """Test compaction after deleting an item from the middle of the list"""
+        # Create a klist with 3 nodes (full capacity)
+        total_items = 3 * self.cap 
+        for i in range(total_items):
+            self.klist.insert(Item(i, f"val_{i}"))
+            
+        # Delete an item from the middle node
+        middle_key = self.cap + self.cap//2
+        self.klist.delete(middle_key)
+        
+        # Check for violations
+        violations = self._verify_compaction_invariant(self.klist)
+        if violations:
+            self.fail(f"Compaction invariant violated after middle deletion: {violations}")
+    
+    def test_compaction_after_multiple_deletions(self):
+        """Test compaction after multiple deletions from different nodes"""
+        # Create a klist with multiple nodes
+        total_items = 4 * self.cap
+        for i in range(total_items):
+            self.klist.insert(Item(i, f"val_{i}"))
+            
+        # Delete items from various positions
+        delete_keys = [
+            1,                      # First node
+            self.cap + 1,           # Second node
+            2 * self.cap + 1,       # Third node
+            3 * self.cap - 1        # Fourth node 
+        ]
+        
+        # Track violations after each deletion
+        for i, key in enumerate(delete_keys):
+            self.klist.delete(key)
+            violations = self._verify_compaction_invariant(self.klist)
+            if violations:
+                self.fail(f"Compaction invariant violated after deletion {i+1} (key={key}): {violations}")
+    
+    def test_compaction_after_sparse_deletions(self):
+        """Test compaction when many deletions create sparse nodes that need redistribution"""
+        # Create a klist with exactly 3 full nodes
+        total_items = 3 * self.cap
+        for i in range(total_items):
+            self.klist.insert(Item(i, f"val_{i}"))
+        
+        # Delete every other item in the first two nodes
+        for i in range(0, 2 * self.cap, 2):
+            self.klist.delete(i)
+        
+        # Check for violations
+        violations = self._verify_compaction_invariant(self.klist)
+        if violations:
+            self.fail(f"Compaction invariant violated after sparse deletions: {violations}")
+    
+    def test_mixed_operations(self):
+        """Test compaction invariant with mixed insert/delete operations"""
+        # Start with some initial data
+        for i in range(2 * self.cap):
+            self.klist.insert(Item(i, f"val_{i}"))
+            
+        operations = [
+            ("delete", 0),           # Delete first item
+            ("insert", 100),         # Insert new item
+            ("delete", self.cap),    # Delete from second node
+            ("delete", self.cap+1),  # Delete another from second node
+            ("insert", 101),         # Insert new item
+            ("delete", 2),           # Delete from first node again
+            ("delete", 3),           # Delete from first node again
+        ]
+        
+        # Execute operations and check invariant after each
+        for i, (op, key) in enumerate(operations):
+            if op == "delete":
+                self.klist.delete(key)
+            else:
+                self.klist.insert(Item(key, f"val_{key}"))
+                
+            violations = self._verify_compaction_invariant(self.klist)
+            if violations:
+                self.fail(f"Compaction invariant violated after operation {i+1} ({op} {key}): {violations}")
+    
+    def test_delete_entire_middle_node(self):
+        """Test compaction when an entire node's contents are deleted"""
+        # Create 3 nodes
+        for i in range(3 * self.cap):
+            self.klist.insert(Item(i, f"val_{i}"))
+            
+        # Delete all items from the middle node
+        for key in range(self.cap, 2 * self.cap):
+            self.klist.delete(key)
+            
+        # Check for violations
+        violations = self._verify_compaction_invariant(self.klist)
+        if violations:
+            self.fail(f"Compaction invariant violated after emptying middle node: {violations}")
+            
+    def test_split_inplace_maintains_compaction(self):
+        """Test that split_inplace operation maintains the compaction invariant"""
+        # Create a multi-node klist
+        for i in range(3 * self.cap):
+            self.klist.insert(Item(i, f"val_{i}"))
+            
+        # Split at different points and verify compaction
+        split_points = [self.cap//2, self.cap, self.cap + self.cap//2, 2*self.cap]
+        
+        for split_key in split_points:
+            # Create a fresh klist for each test
+            test_klist = self.KListClass()
+            for i in range(3 * self.cap):
+                test_klist.insert(Item(i, f"val_{i}"))
+                
+            # Perform split
+            left, subtree, right = test_klist.split_inplace(split_key)
+            
+            # Check both resulting klists
+            for name, klist in [("left", left), ("right", right)]:
+                violations = self._verify_compaction_invariant(klist)
+                if violations:
+                    self.fail(f"Compaction invariant violated in {name} klist after split at {split_key}: {violations}")
 
 
 if __name__ == "__main__":

@@ -316,8 +316,8 @@ if __name__ == "__main__":
     sizes = [10000]
     # sizes = [10, 100, 1000, 10_000, 100_000]
     # List of K values for which we want to run experiments.
-    # Ks = [2, 4, 16, 64]
-    Ks = [4]
+    Ks = [2, 4, 16, 64, 128]
+    # Ks = [32]
     repetitions = 200
 
     for n in sizes:
