@@ -7,6 +7,7 @@ allowing each node to store and update cryptographic hashes of its subtrees.
 import hashlib
 from typing import Dict, Optional, Tuple, Type, Any
 import logging
+import struct
 
 from gplus_trees.base import (
     Item, 
@@ -58,29 +59,50 @@ class MerkleGPlusNodeBase(GPlusNodeBase):
         # Initialize a hash object
         h = hashlib.sha256()
 
-        # Add the rank to the hash input
-        h.update(str(self.rank).encode())
+        has_children = any(
+            (entry.left_subtree is not None and not entry.left_subtree.is_empty())
+            for entry in self.set
+        ) or (
+            self.right_subtree is not None and not self.right_subtree.is_empty()
+        )
 
-        # Add all entries from the set
+        # 0x00 for leaf, 0x01 for internal
+        h.update(b'\x00' if not has_children else b'\x01')
+
+        # 1) Pack the rank and item count
+        h.update(struct.pack('>I', self.rank))
+        num_entries = self.set.item_count()
+        h.update(struct.pack('>I', num_entries))
+
         for entry in self.set:
-            # Add entry's item key and value to hash
-            h.update(str(entry.item.key).encode())
+            # Left-subtree hash (if any), prefixed with a small tag byte
+            left = entry.left_subtree
+            if left is not None and not left.is_empty():
+                lh = left.node.get_hash()
+                h.update(b'\x02')                     # left-child tag
+                h.update(struct.pack('>I', len(lh)))  # length of hash (always 32 here)
+                h.update(lh)
+
+            # Entry key
+            key_b = str(entry.item.key).encode()
+            h.update(struct.pack('>I', len(key_b)))
+            h.update(key_b)
+
+            # Entry value (if present)
             if entry.item.value is not None:
-                h.update(str(entry.item.value).encode())
-            
-            # Add left subtree hash if it exists and is not empty
-            if entry.left_subtree is not None and not entry.left_subtree.is_empty():
-                if isinstance(entry.left_subtree.node, MerkleGPlusNodeBase):
-                    left_hash = entry.left_subtree.node.get_hash()
-                    h.update(left_hash)
+                val_b = str(entry.item.value).encode()
+                h.update(struct.pack('>I', len(val_b)))
+                h.update(val_b)
 
-        # Add right subtree hash if it exists and is not empty
-        if self.right_subtree is not None and not self.right_subtree.is_empty():
-            if isinstance(self.right_subtree.node, MerkleGPlusNodeBase):
-                right_hash = self.right_subtree.node.get_hash()
-                h.update(right_hash)
+        # Right-subtree hash, tagged and length-prefixed
+        right = self.right_subtree
+        if right is not None and not right.is_empty():
+            rh = right.node.get_hash()
+            h.update(b'\x03')                     # right-child tag
+            h.update(struct.pack('>I', len(rh)))
+            h.update(rh)
 
-        # Store and return the hash
+        # 8) Finalize
         self.merkle_hash = h.digest()
         return self.merkle_hash
 
@@ -170,6 +192,31 @@ class MerkleGPlusTreeBase(GPlusTreeBase):
             if isinstance(self.node.right_subtree, MerkleGPlusTreeBase):
                 self.node.right_subtree._invalidate_all_hashes()
 
+    def _invalidate_path_hashes(self, key: int):
+        """
+        Invalidate the hashes along the path to a specific key.
+        
+        Parameters:
+            key (int): The key to invalidate the path for
+        """
+        if self.is_empty():
+            return
+        
+        cur = self.node
+        
+        while True:
+            cur.invalidate_hash()
+            if cur.rank == 1:
+                break
+
+            # Find child node to traverse
+            next = cur.set.retrieve(key).next_entry
+            if next is not None:
+                cur = next.left_subtree.node
+            else:
+                cur = cur.right_subtree.node
+            
+
     # Override insertion methods to update hashes
     def insert(self, x: Item, rank: int) -> 'MerkleGPlusTreeBase':
         """
@@ -186,7 +233,7 @@ class MerkleGPlusTreeBase(GPlusTreeBase):
         result = super().insert(x, rank)
         
         # Invalidate the hash so it will be recomputed when needed
-        self._invalidate_all_hashes()
+        self._invalidate_path_hashes(x.key)
             
         return result
     
