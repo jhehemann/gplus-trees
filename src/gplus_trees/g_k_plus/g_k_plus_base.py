@@ -36,7 +36,7 @@ DUMMY_KEY = int("0" * 64, 16)
 DUMMY_VALUE = None
 DUMMY_ITEM = Item(DUMMY_KEY, DUMMY_VALUE)
 DEFAULT_DIMENSION = 1  # Default dimension for GKPlusTree
-DEFAULT_L_FACTOR = 0.75  # Default threshold factor for KList to GKPlusTree conversion
+DEFAULT_L_FACTOR = 2  # Default threshold factor for KList to GKPlusTree conversion
 
 
 class GKPlusNodeBase(GPlusNodeBase):
@@ -62,7 +62,7 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
         DIM (int): The dimension of the GK+-tree (class attribute).
         l_factor (float): The threshold factor for conversion between KList and GKPlusTree.
     """
-    __slots__ = ("l_factor",)  # Only add new slots beyond what parent has
+    __slots__ = GPlusNodeBase.__slots__ + ("l_factor",)  # Only add new slots beyond what parent has
     
     # Default dimension value that will be overridden by factory-created subclasses
     DIM: int = 1  # Default dimension value, will be set by the factory
@@ -97,6 +97,22 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
         return "Empty GKPlusTree" if self.is_empty() else f"GKPlusTree(dim={self.__class__.DIM}, node={self.node})"
 
     __repr__ = __str__
+    
+    def get_min(self) -> RetrievalResult:
+        """
+        Get the minimum entry in the tree.
+        
+        Returns:
+            RetrievalResult: Contains the minimum entry and the next entry (if any).
+        """
+        if self.is_empty():
+            return RetrievalResult(None, None)
+        
+        first_leaf = next(self.iter_leaf_nodes(), None)
+        if first_leaf is None or not first_leaf.set:
+            return RetrievalResult(None, None)
+        
+        return first_leaf.set.get_min()
     
     @classmethod
     def with_dimension(cls: Type[t], dim: int) -> Type[t]:
@@ -288,9 +304,6 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
             return tree.to_klist()
             
         return tree
-    
-    def get_min(self):
-        raise NotImplementedError("get_min not implemented yet")
 
     def split_inplace(self):
         raise NotImplementedError("split_inplace not implemented yet")
