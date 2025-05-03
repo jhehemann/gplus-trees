@@ -309,7 +309,17 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
         raise NotImplementedError("split_inplace not implemented yet")
     
     def item_count(self) -> int:
-        raise NotImplementedError("item_count not implemented yet")
+        if self.is_empty():
+            return 0
+        return self.leaf_item_count()
+        
+    def leaf_item_count(self) -> int:
+        count = 0
+        for node in self.iter_leaf_nodes():
+            for entry in node.set:
+                if entry.item.key != DUMMY_KEY:
+                    count += 1
+        return count
     
     def item_slot_count(self):
         raise NotImplementedError("item_slot_count not implemented yet")
