@@ -35,7 +35,7 @@ def make_gplustree_classes(K: int) -> Tuple[
         (KListNodeBase,),
         {
             "CAPACITY": K,
-            "__slots__": KListNodeBase.__slots__ if hasattr(KListNodeBase, "__slots__") else ()
+            "__slots__": KListNodeBase.__slots__
         }
     )
 
@@ -45,7 +45,7 @@ def make_gplustree_classes(K: int) -> Tuple[
         (KListBase,),
         {
             "KListNodeClass": KListNodeK,
-            "__slots__": KListBase.__slots__ if hasattr(KListBase, "__slots__") else ()
+            "__slots__": KListBase.__slots__
         }
     )
 
@@ -55,7 +55,7 @@ def make_gplustree_classes(K: int) -> Tuple[
         (GPlusTreeBase,),
         {
             "SetClass": KListK,
-            "__slots__": GPlusTreeBase.__slots__ if hasattr(GPlusTreeBase, "__slots__") else ()
+            "__slots__": GPlusTreeBase.__slots__
         }
     )
     
@@ -66,7 +66,7 @@ def make_gplustree_classes(K: int) -> Tuple[
         {
             "SetClass": KListK,
             "TreeClass": GPlusTreeK,
-            "__slots__": GPlusNodeBase.__slots__ if hasattr(GPlusNodeBase, "__slots__") else ()
+            "__slots__": GPlusNodeBase.__slots__
         }
     )
     

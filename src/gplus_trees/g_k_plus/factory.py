@@ -45,7 +45,7 @@ def make_gkplustree_classes(K: int, dimension: int = 1) -> Tuple[
         (GKPlusNodeBase,),
         {
             "SetClass": KListK,  # Inherit KList class from base factory
-            "__slots__": GKPlusNodeBase.__slots__ if hasattr(GKPlusNodeBase, "__slots__") else ()
+            "__slots__": GKPlusNodeBase.__slots__
         }
     )
     
@@ -58,7 +58,7 @@ def make_gkplustree_classes(K: int, dimension: int = 1) -> Tuple[
             "SetClass": KListK,
             "KListClass": KListK,
             "DIM": dimension,
-            "__slots__": GKPlusTreeBase.__slots__ if hasattr(GKPlusTreeBase, "__slots__") else ()
+            "__slots__": GKPlusTreeBase.__slots__
         }
     )
     

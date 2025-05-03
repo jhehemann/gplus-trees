@@ -17,6 +17,8 @@ from gplus_trees.klist_base import KListBase
 from gplus_trees.gplus_tree_base import GPlusTreeBase, GPlusNodeBase
 from gplus_trees.profiling import track_performance
 
+from gplus_trees.g_k_plus.base import GKTreeSetDataStructure
+
 # Configure logging
 logger = logging.getLogger(__name__)
 if not logger.handlers:
@@ -48,7 +50,7 @@ class GKPlusNodeBase(GPlusNodeBase):
 
     # No need to override __init__ as it's inherited from GPlusNodeBase
 
-class GKPlusTreeBase(GPlusTreeBase):
+class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
     """
     A GK+-tree is an extension of G+-tree with dimension support.
     It can automatically transform between KList and GKPlusTree based on item count.
@@ -61,7 +63,7 @@ class GKPlusTreeBase(GPlusTreeBase):
     __slots__ = ("l_factor",)  # Only add new slots beyond what parent has
     
     # Default dimension value that will be overridden by factory-created subclasses
-    DIM: int = 1  # Default dimension value, will usually be set by the factory
+    DIM: int = 1  # Default dimension value, will be set by the factory
     
     # Will be set by the factory
     NodeClass: Type[GKPlusNodeBase]
@@ -182,7 +184,7 @@ class GKPlusTreeBase(GPlusTreeBase):
         return klist
     
     @classmethod
-    def from_tree(cls: Type[t], tree: GPlusTreeBase, dim: int = None) -> t:
+    def from_tree(cls: Type[t], tree: GKPlusTreeBase, dim: int = None) -> t:
         """
         Convert any GPlusTree-like object to a GKPlusTree.
         
@@ -284,6 +286,29 @@ class GKPlusTreeBase(GPlusTreeBase):
             return tree.to_klist()
             
         return tree
+    
+    def get_min(self):
+        raise NotImplementedError("get_min not implemented yet")
+
+    def split_inplace(self):
+        raise NotImplementedError("split_inplace not implemented yet")
+    
+    def item_count(self) -> int:
+        raise NotImplementedError("item_count not implemented yet")
+    
+    def item_slot_count(self):
+        raise NotImplementedError("item_slot_count not implemented yet")
+    
+    def get_entry(self, index):
+        raise NotImplementedError("get_entry not implemented yet")
+    
+    def __iter__(self):
+        """Yields each entry of the gplus-tree in order."""
+        if self.is_empty():
+            return
+        for node in self.iter_leaf_nodes():
+            for entry in node.set:
+                yield entry
         
     # Override insert method to use our functionality instead of duplicating code
     def _insert_empty(self, x_item: Item, rank: int) -> 'GKPlusTreeBase':

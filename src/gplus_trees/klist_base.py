@@ -130,7 +130,7 @@ class KListNodeBase:
 class KListBase(AbstractSetDataStructure):
     """
     A k-list implemented as a linked list of nodes.
-    Each node holds up to CAPACITY (4) sorted entries.
+    Each node holds up to CAPACITY sorted entries.
     An entry is of the form (item, left_subtree), where left_subtree is a G+-tree (or None).
     The overall order is maintained lexicographically by key.
     """
@@ -465,26 +465,6 @@ class KListBase(AbstractSetDataStructure):
     def get_min(self) -> RetrievalResult:
         """Retrieve the minimum entry from the sorted KList."""
         return self.get_entry(index=0)
-    
-    # @track_performance
-    def update_left_subtree(self, key: int, new_tree: 'GPlusTreeBase') -> 'KListBase':
-        """
-        Updates the left subtree of the item in the k-list.
-
-        Parameters:
-            key (int): The key of the item to update.
-            new_tree (GPlusTreeBase or None): The new left subtree to associate with the item.
-
-        Returns:
-            KListBase: The updated k-list.
-        """
-        if not isinstance(key, int):
-            raise TypeError(f"key must be int, got {type(key).__name__!r}")
-
-        result = self.retrieve(key)
-        if result.found_entry is not None:
-            result.found_entry.left_subtree = new_tree
-        return self
 
     # @track_performance
     def split_inplace(
@@ -607,7 +587,7 @@ class KListBase(AbstractSetDataStructure):
             depth (int): Current recursion depth.
             max_depth (int): Maximum allowed recursion depth.
         """
-        if self.is_empty():
+        if self.head is None:
             return f"{' ' * indent}Empty"
 
         if depth > max_depth:
@@ -632,7 +612,7 @@ class KListBase(AbstractSetDataStructure):
     # @track_performance
     def __iter__(self):
         """
-        Yields each entry of the k-list in lexicographic order.
+        Yields each entry of the k-list in order.
         Each entry is of the form (item, left_subtree).
         """
         node = self.head

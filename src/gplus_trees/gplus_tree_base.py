@@ -61,7 +61,6 @@ class GPlusNodeBase:
             raise ValueError("rank must be > 0")
         self.rank = rank
         self.set = set
-        # if you didn't pass a right‐subtree, create an empty one
         self.right_subtree = right if right is not None else self.TreeClass()
         self.next = None    # leaf‐chain pointer
     
@@ -170,12 +169,7 @@ class GPlusTreeBase(AbstractSetDataStructure):
     def delete(self, item):
         raise NotImplementedError("delete not implemented yet")
 
-    def get_min(self):
-        raise NotImplementedError("get_min not implemented yet")
-
-    def split_inplace(self):
-        raise NotImplementedError("split_inplace not implemented yet")
-    
+        
     # Private Methods
     def _make_leaf_klist(self, x_item: Item) -> AbstractSetDataStructure:
         """Builds a KList for a single leaf node containing the dummy and x_item."""
@@ -516,14 +510,14 @@ class GPlusTreeBase(AbstractSetDataStructure):
         –  the number of KListNode segments in this node’s k-list, plus
         –  the maximum physical_height() of any of its subtrees.
         """
-        if self.is_empty():
-            return 0
-
         node = self.node
-        # 1) base = how many KListNodes this node’s set chains through
         base = node.set.physical_height()
 
-        # 2) find the tallest child among all left_subtrees and the right_subtree
+        # If this is a leaf node, return the base height
+        if node.rank == 1:
+            return base
+
+        # Find the tallest child among all left_subtrees and the right_subtree
         max_child = 0
         for entry in node.set:
             left = entry.left_subtree

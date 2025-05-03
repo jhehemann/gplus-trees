@@ -619,111 +619,111 @@ class TestKListIndex(TestKListBase):
         )
 
 
-class TestUpdateLeftSubtree(TestKListBase):
-    def setUp(self):
-        super().setUp()
-        # Use factory to create tree instances
-        self.TreeClass, _, _, _ = make_gplustree_classes(self.K)
-        # Trees to attach
-        self.treeA = self.TreeClass()
-        self.treeB = self.TreeClass()
-        # logger.debug(f"Created trees of type {type(self.treeA).__name__}")
+# class TestUpdateLeftSubtree(TestKListBase):
+#     def setUp(self):
+#         super().setUp()
+#         # Use factory to create tree instances
+#         self.TreeClass, _, _, _ = make_gplustree_classes(self.K)
+#         # Trees to attach
+#         self.treeA = self.TreeClass()
+#         self.treeB = self.TreeClass()
+#         # logger.debug(f"Created trees of type {type(self.treeA).__name__}")
 
-    def extract_left_subtrees(self):
-        """Helper to collect left_subtree pointers for all entries."""
-        subs = []
-        node = self.klist.head
-        while node:
-            subs.extend(entry.left_subtree for entry in node.entries)
-            node = node.next
-        return subs
+#     def extract_left_subtrees(self):
+#         """Helper to collect left_subtree pointers for all entries."""
+#         subs = []
+#         node = self.klist.head
+#         while node:
+#             subs.extend(entry.left_subtree for entry in node.entries)
+#             node = node.next
+#         return subs
 
-    def test_update_on_empty_list(self):
-        # Updating an empty list should do nothing and return self
-        returned = self.klist.update_left_subtree(1, self.treeA)
-        self.assertIs(returned, self.klist)
-        # List still empty
-        self.assertIsNone(self.klist.head)
-        self.assertIsNone(self.klist.tail)
+#     def test_update_on_empty_list(self):
+#         # Updating an empty list should do nothing and return self
+#         returned = self.klist.update_left_subtree(1, self.treeA)
+#         self.assertIs(returned, self.klist)
+#         # List still empty
+#         self.assertIsNone(self.klist.head)
+#         self.assertIsNone(self.klist.tail)
 
-    def test_update_nonexistent_key(self):
-        # Insert some keys, then update a non-existent one
-        keys = [1, 2, 3]
-        for k in keys:
-            self.klist.insert(Item(k, f"val_{k}"))
-        before = self.extract_left_subtrees()
-        returned = self.klist.update_left_subtree(99, self.treeA)
-        self.assertIs(returned, self.klist)
-        after = self.extract_left_subtrees()
-        self.assertEqual(before, after)
+#     def test_update_nonexistent_key(self):
+#         # Insert some keys, then update a non-existent one
+#         keys = [1, 2, 3]
+#         for k in keys:
+#             self.klist.insert(Item(k, f"val_{k}"))
+#         before = self.extract_left_subtrees()
+#         returned = self.klist.update_left_subtree(99, self.treeA)
+#         self.assertIs(returned, self.klist)
+#         after = self.extract_left_subtrees()
+#         self.assertEqual(before, after)
 
-    def test_update_first_entry(self):
-        # Insert keys and update the first key
-        keys = [10, 20, 30]
-        for k in keys:
-            self.klist.insert(Item(k, f"val_{k}"))
-        returned = self.klist.update_left_subtree(10, self.treeA)
-        self.assertIs(returned, self.klist)
-        # First entry gets treeA, others remain None
-        subs = self.extract_left_subtrees()
-        self.assertEqual(subs[0], self.treeA)
-        self.assertTrue(all(s is None for s in subs[1:]))
+#     def test_update_first_entry(self):
+#         # Insert keys and update the first key
+#         keys = [10, 20, 30]
+#         for k in keys:
+#             self.klist.insert(Item(k, f"val_{k}"))
+#         returned = self.klist.update_left_subtree(10, self.treeA)
+#         self.assertIs(returned, self.klist)
+#         # First entry gets treeA, others remain None
+#         subs = self.extract_left_subtrees()
+#         self.assertEqual(subs[0], self.treeA)
+#         self.assertTrue(all(s is None for s in subs[1:]))
 
-    def test_update_last_entry(self):
-        # Insert keys and update the last key
-        keys = [5, 6, 7]
-        for k in keys:
-            self.klist.insert(Item(k, f"val_{k}"))
-        returned = self.klist.update_left_subtree(7, self.treeB)
-        self.assertIs(returned, self.klist)
-        subs = self.extract_left_subtrees()
-        # Last subtree updated
-        self.assertEqual(subs[-1], self.treeB)
-        self.assertTrue(all(s is None for s in subs[:-1]))
+#     def test_update_last_entry(self):
+#         # Insert keys and update the last key
+#         keys = [5, 6, 7]
+#         for k in keys:
+#             self.klist.insert(Item(k, f"val_{k}"))
+#         returned = self.klist.update_left_subtree(7, self.treeB)
+#         self.assertIs(returned, self.klist)
+#         subs = self.extract_left_subtrees()
+#         # Last subtree updated
+#         self.assertEqual(subs[-1], self.treeB)
+#         self.assertTrue(all(s is None for s in subs[:-1]))
 
-    def test_update_middle_entry(self):
-        # Insert multiple keys and update a middle one
-        keys = [1, 2, 3, 4, 5]
-        for k in keys:
-            self.klist.insert(Item(k, f"val_{k}"))
-        returned = self.klist.update_left_subtree(3, self.treeA)
-        self.assertIs(returned, self.klist)
-        subs = self.extract_left_subtrees()
-        # Only the third entry is updated
-        for i, s in enumerate(subs):
-            if keys[i] == 3:
-                self.assertIs(s, self.treeA)
-            else:
-                self.assertIsNone(s)
+#     def test_update_middle_entry(self):
+#         # Insert multiple keys and update a middle one
+#         keys = [1, 2, 3, 4, 5]
+#         for k in keys:
+#             self.klist.insert(Item(k, f"val_{k}"))
+#         returned = self.klist.update_left_subtree(3, self.treeA)
+#         self.assertIs(returned, self.klist)
+#         subs = self.extract_left_subtrees()
+#         # Only the third entry is updated
+#         for i, s in enumerate(subs):
+#             if keys[i] == 3:
+#                 self.assertIs(s, self.treeA)
+#             else:
+#                 self.assertIsNone(s)
 
-    def test_update_after_overflow(self):
-        # Force two nodes and update an entry in second node
-        total = self.cap + 2
-        for k in range(total):
-            self.klist.insert(Item(k, f"val_{k}"))
-        # Update key = cap (first entry in second node)
-        returned = self.klist.update_left_subtree(self.cap, self.treeB)
-        self.assertIs(returned, self.klist)
-        # Traverse to the second node:
-        node = self.klist.head.next
-        # First entry in that node should have left_subtree = treeB
-        self.assertIs(node.entries[0].left_subtree, self.treeB)
+#     def test_update_after_overflow(self):
+#         # Force two nodes and update an entry in second node
+#         total = self.cap + 2
+#         for k in range(total):
+#             self.klist.insert(Item(k, f"val_{k}"))
+#         # Update key = cap (first entry in second node)
+#         returned = self.klist.update_left_subtree(self.cap, self.treeB)
+#         self.assertIs(returned, self.klist)
+#         # Traverse to the second node:
+#         node = self.klist.head.next
+#         # First entry in that node should have left_subtree = treeB
+#         self.assertIs(node.entries[0].left_subtree, self.treeB)
 
-    def test_chained_updates(self):
-        # Multiple updates in sequence
-        keys = [1, 2, 3]
-        for k in keys:
-            self.klist.insert(Item(k, f"val_{k}"))
-        self.klist.update_left_subtree(1, self.treeA)
-        self.klist.update_left_subtree(2, self.treeB)
-        subs = self.extract_left_subtrees()
-        self.assertIs(subs[0], self.treeA)
-        self.assertIs(subs[1], self.treeB)
-        self.assertIsNone(subs[2])
+#     def test_chained_updates(self):
+#         # Multiple updates in sequence
+#         keys = [1, 2, 3]
+#         for k in keys:
+#             self.klist.insert(Item(k, f"val_{k}"))
+#         self.klist.update_left_subtree(1, self.treeA)
+#         self.klist.update_left_subtree(2, self.treeB)
+#         subs = self.extract_left_subtrees()
+#         self.assertIs(subs[0], self.treeA)
+#         self.assertIs(subs[1], self.treeB)
+#         self.assertIsNone(subs[2])
 
-    def test_type_error_on_non_int_key(self):
-        with self.assertRaises(TypeError):
-            self.klist.update_left_subtree("not-int", self.treeA)
+#     def test_type_error_on_non_int_key(self):
+#         with self.assertRaises(TypeError):
+#             self.klist.update_left_subtree("not-int", self.treeA)
 
 
 class TestSplitInplace(TestKListBase):
@@ -818,7 +818,9 @@ class TestSplitInplace(TestKListBase):
         # Create tree using the factory
         self.TreeClass, _, _, _ = make_gplustree_classes(self.K)
         subtree = self.TreeClass()
-        self.klist.update_left_subtree(2, subtree)
+        found = self.klist.retrieve(2).found_entry
+        self.assertIsNotNone(found)
+        found.left_subtree = subtree
         left, st, right = self.klist.split_inplace(2)
         # left contains [1], subtree returned
         self.assertEqual(self.extract_keys(left), [1])

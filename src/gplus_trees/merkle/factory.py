@@ -38,7 +38,7 @@ def make_merkle_gplustree_classes(K: int) -> Tuple[
         (MerkleGPlusNodeBase,),
         {
             "SetClass": KListK,
-            "__slots__": MerkleGPlusNodeBase.__slots__ if hasattr(MerkleGPlusNodeBase, "__slots__") else ()
+            "__slots__": MerkleGPlusNodeBase.__slots__
         }
     )
     
@@ -49,7 +49,7 @@ def make_merkle_gplustree_classes(K: int) -> Tuple[
         {
             "SetClass": KListK,
             "NodeClass": MerkleGPlusNodeK,
-            "__slots__": MerkleGPlusTreeBase.__slots__ if hasattr(MerkleGPlusTreeBase, "__slots__") else ()
+            "__slots__": MerkleGPlusTreeBase.__slots__
         }
     )
     
