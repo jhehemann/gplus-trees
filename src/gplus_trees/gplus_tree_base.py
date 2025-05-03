@@ -69,26 +69,23 @@ class GPlusTreeBase(AbstractSetDataStructure):
     A G+-tree is a recursively defined structure that is either empty or contains a single G+-node.
     Attributes:
         node (Optional[GPlusNode]): The G+-node that the tree contains. If None, the tree is empty.
-        dim (int): The dimension of the G+-tree.
     """
-    __slots__ = ("node", "dim")
+    __slots__ = ("node",)
     
     # Will be set by the factory
     NodeClass: Type[GPlusNodeBase]
     SetClass: Type[AbstractSetDataStructure]
     
-    def __init__(self, node: Optional[GPlusNodeBase] = None, dim: int = 1):
+    def __init__(self, node: Optional[GPlusNodeBase] = None):
         self.node: Optional[GPlusNodeBase] = node
-        self.dim: int = dim
 
     @classmethod
-    def from_root(cls: Type[t], root_node: GPlusNodeBase, dim: int = 1) -> t:
+    def from_root(cls: Type[t], root_node: GPlusNodeBase) -> t:
         """
         Create a new tree instance wrapping an existing node.
         """
         tree = cls.__new__(cls)
         tree.node = root_node
-        tree.dim = dim
         return tree
 
     # @track_performance
@@ -96,7 +93,7 @@ class GPlusTreeBase(AbstractSetDataStructure):
         return self.node is None
     
     def __str__(self):
-        return "Empty GPlusTree" if self.is_empty() else f"GPlusTree(dim={self.dim}, node={self.node})"
+        return "Empty GPlusTree" if self.is_empty() else f"GPlusTree(node={self.node})"
 
     __repr__ = __str__
     
@@ -199,13 +196,13 @@ class GPlusTreeBase(AbstractSetDataStructure):
         right_set = SetK()
         right_set = right_set.insert(x_item, TreeK())
         right_node = NodeK(1, right_set, TreeK())
-        right_leaf = TreeK.from_root(right_node, self.dim)
+        right_leaf = TreeK.from_root(right_node)
 
         # Build left leaf with dummy entry
         left_set = SetK()
         left_set = left_set.insert(DUMMY_ITEM, TreeK())
         left_node = NodeK(1, left_set, TreeK())
-        left_leaf = TreeK.from_root(left_node, self.dim)
+        left_leaf = TreeK.from_root(left_node)
 
         # Link leaves
         left_leaf.node.next = right_leaf

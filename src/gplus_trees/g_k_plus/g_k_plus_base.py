@@ -82,14 +82,14 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
             l_factor: Threshold factor for KList-to-GKPlusTree conversion (default: 0.75)
         """
         # Call parent's __init__ with node and dimension
-        super().__init__(node, self.__class__.DIM)
+        super().__init__(node)
         # Add our additional attribute
         self.l_factor = l_factor
     
     @classmethod
     def from_root(cls: Type[t], root_node: GKPlusNodeBase) -> t:
         """Create a new tree instance wrapping an existing node."""
-        tree = super().from_root(root_node, cls.DIM)
+        tree = super().from_root(root_node)
         tree.l_factor = DEFAULT_L_FACTOR
         return tree
     
