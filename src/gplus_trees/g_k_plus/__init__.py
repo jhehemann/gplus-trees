@@ -13,14 +13,14 @@ from gplus_trees.g_k_plus.g_k_plus_base import (
 )
 from gplus_trees.g_k_plus.factory import (
     create_gkplus_tree,
-    create_klist_aware_gkplus_tree
+    make_gkplustree_classes
 )
 
 __all__ = [
     'GKPlusTreeBase',
     'GKPlusNodeBase',
     'create_gkplus_tree',
-    'create_klist_aware_gkplus_tree',
+    'make_gkplustree_classes',
     'DEFAULT_DIMENSION',
     'DEFAULT_L_FACTOR'
 ]

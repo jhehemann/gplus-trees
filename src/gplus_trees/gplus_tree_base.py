@@ -169,7 +169,6 @@ class GPlusTreeBase(AbstractSetDataStructure):
     def delete(self, item):
         raise NotImplementedError("delete not implemented yet")
 
-        
     # Private Methods
     def _make_leaf_klist(self, x_item: Item) -> AbstractSetDataStructure:
         """Builds a KList for a single leaf node containing the dummy and x_item."""

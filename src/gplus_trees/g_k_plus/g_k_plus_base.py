@@ -35,7 +35,9 @@ t = TypeVar('t', bound='GKPlusTreeBase')
 DUMMY_KEY = int("0" * 64, 16)
 DUMMY_VALUE = None
 DUMMY_ITEM = Item(DUMMY_KEY, DUMMY_VALUE)
+DEFAULT_DIMENSION = 1  # Default dimension for GKPlusTree
 DEFAULT_L_FACTOR = 0.75  # Default threshold factor for KList to GKPlusTree conversion
+
 
 class GKPlusNodeBase(GPlusNodeBase):
     """

@@ -6,12 +6,16 @@ import logging
 import math
 import random
 import time
+import sys
 from statistics import mean
 from typing import List, Optional, Tuple
 from pprint import pprint
 from dataclasses import asdict
 from datetime import datetime
 import numpy as np
+
+# Add the project root to the Python path so we can import from tests
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from gplus_trees.base import Item
 from gplus_trees.gplus_tree_base import (
@@ -24,7 +28,7 @@ from gplus_trees.profiling import (
     track_performance,
 )
 
-from utils import (
+from tests.utils import (
     assert_tree_invariants_raise,
 )
 
@@ -291,7 +295,7 @@ def repeated_experiment(
     logging.info("Execution time: %.3f seconds", t_all_1)
 
 if __name__ == "__main__":
-    log_dir = os.path.join(os.getcwd(), "tests/logs")
+    log_dir = os.path.join(os.getcwd(), "stats/logs")
     os.makedirs(log_dir, exist_ok=True)
 
     # 2) Create a timestamped logfile name

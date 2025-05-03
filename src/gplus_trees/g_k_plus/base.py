@@ -11,6 +11,8 @@ from gplus_trees.base import (
     RetrievalResult
 )
 
+T = TypeVar("T", bound="GKTreeSetDataStructure")
+
 class GKTreeSetDataStructure(AbstractSetDataStructure):
     """
     Abstract base class for G+ trees and k-lists.

@@ -19,7 +19,7 @@ from gplus_trees.base import (
     AbstractSetDataStructure,
     _create_replica
 )
-from tests.stats_gplus_tree import check_leaf_keys_and_values
+from stats.stats_gplus_tree import check_leaf_keys_and_values
 from tests.utils import assert_tree_invariants_tc
 
 # Configure logging for test
