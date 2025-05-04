@@ -22,13 +22,17 @@ from gplus_trees.profiling import (
 
 # Configure logging
 logger = logging.getLogger(__name__)
-if not logger.handlers:
-    # Avoid duplicated handlers when module is imported multiple times
-    handler = logging.StreamHandler()
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
-    logger.setLevel(logging.INFO)
+# Clear all handlers to ensure we don't add duplicates
+if logger.hasHandlers():
+    logger.handlers.clear()
+# Add a single handler with formatting
+handler = logging.StreamHandler()
+formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+logger.setLevel(logging.INFO)
+# Prevent propagation to the root logger to avoid duplicate logs
+logger.propagate = False
 
 t = Type["GPlusTreeBase"]
 
@@ -79,14 +83,14 @@ class GPlusTreeBase(AbstractSetDataStructure):
     def __init__(self, node: Optional[GPlusNodeBase] = None):
         self.node: Optional[GPlusNodeBase] = node
 
-    @classmethod
-    def from_root(cls: Type[t], root_node: GPlusNodeBase) -> t:
-        """
-        Create a new tree instance wrapping an existing node.
-        """
-        tree = cls.__new__(cls)
-        tree.node = root_node
-        return tree
+    # @classmethod
+    # def from_root(cls: Type[t], root_node: GPlusNodeBase) -> t:
+    #     """
+    #     Create a new tree instance wrapping an existing node.
+    #     """
+    #     tree = cls.__new__(cls)
+    #     tree.node = root_node
+    #     return tree
 
     # @track_performance
     def is_empty(self) -> bool:
@@ -98,7 +102,6 @@ class GPlusTreeBase(AbstractSetDataStructure):
     __repr__ = __str__
     
     # Public API
-    # @track_performance
     def insert(self, x: Item, rank: int) -> GPlusTreeBase:
         """
         Public method (average-case O(log n)): Insert an item into the G+-tree. 
@@ -197,13 +200,13 @@ class GPlusTreeBase(AbstractSetDataStructure):
         right_set = SetK()
         right_set = right_set.insert(x_item, TreeK())
         right_node = NodeK(1, right_set, TreeK())
-        right_leaf = TreeK.from_root(right_node)
+        right_leaf = TreeK(right_node)
 
         # Build left leaf with dummy entry
         left_set = SetK()
         left_set = left_set.insert(DUMMY_ITEM, TreeK())
         left_node = NodeK(1, left_set, TreeK())
-        left_leaf = TreeK.from_root(left_node)
+        left_leaf = TreeK(left_node)
 
         # Link leaves
         left_leaf.node.next = right_leaf
@@ -212,32 +215,25 @@ class GPlusTreeBase(AbstractSetDataStructure):
     def _insert_empty(self, x_item: Item, rank: int) -> GPlusTreeBase:
         """Build the initial tree structure depending on rank."""
         logger.debug(f"_insert_empty called with item: {x_item}, rank: {rank}")
-        logger.debug(f"Using tree class: {type(self).__name__}")
-        logger.debug(f"NodeClass: {self.NodeClass.__name__}")
-        logger.debug(f"SetClass: {self.SetClass.__name__}")
-        
+        inserted = True
         # Single-level leaf
         if rank == 1:
             leaf_set = self._make_leaf_klist(x_item)
-            logger.debug(f"Created leaf set of type: {type(leaf_set).__name__}")
             self.node = self.NodeClass(rank, leaf_set, type(self)())
-            logger.debug(f"Created node: rank={rank}, set type={type(leaf_set).__name__}, node type={type(self.node).__name__}")
-            # logger.debug(f"Tree after empty insert rank 1:\n{self.print_structure()}")
-            return self
+            logger.info(f"Tree after empty insert rank == 1:\n{self.print_structure()}")
+            return self, inserted
 
         # Higher-level root with two linked leaf children
         l_leaf_t, r_leaf_t = self._make_leaf_trees(x_item)
-        logger.debug(f"Created leaf trees: left={type(l_leaf_t).__name__}, right={type(r_leaf_t).__name__}")
         root_set = self.SetClass().insert(DUMMY_ITEM, type(self)())
         root_set = root_set.insert(_create_replica(x_item.key), l_leaf_t)
         self.node = self.NodeClass(rank, root_set, r_leaf_t)
-        logger.debug(f"Created root node: rank={rank}, set type={type(root_set).__name__}, node type={type(self.node).__name__}")
-        logger.debug(f"Tree after empty insert rank > 1:\n{self.print_structure()}")
-        return self
-
-    # @track_performance
+        logger.info(f"Tree after empty insert rank > 1:\n{self.print_structure()}")
+        return self, inserted
+    
     def _insert_non_empty(self, x_item: Item, rank: int) -> GPlusTreeBase:
         """Optimized version for inserting into a non-empty tree."""
+        inserted = True
         cur = self
         parent = None
         p_next_entry = None
@@ -254,10 +250,11 @@ class GPlusTreeBase(AbstractSetDataStructure):
                 
                 # Fast path: update existing item
                 if res.found_entry:
+                    inserted = False
                     # Direct update for leaf nodes (common case)
                     if rank == 1:
                         res.found_entry.item.value = x_item.value
-                        return self
+                        return self, inserted
                     return self._update_existing_item(cur, x_item)
                 
                 # Insert new item
@@ -324,11 +321,11 @@ class GPlusTreeBase(AbstractSetDataStructure):
 
         return new_tree
 
-    # @track_performance
     def _update_existing_item(
         self, cur: GPlusTreeBase, new_item: Item
     ) -> GPlusTreeBase:
         """Traverse to leaf (rank==1) and update the entry in-place."""
+        inserted = False
         key = new_item.key
         while True:
             node = cur.node
@@ -336,7 +333,7 @@ class GPlusTreeBase(AbstractSetDataStructure):
                 entry = node.set.retrieve(key).found_entry
                 if entry:
                     entry.item.value = new_item.value
-                return self
+                return self, inserted
             next = node.set.retrieve(key).next_entry
             cur = next.left_subtree if next else node.right_subtree
         
@@ -359,6 +356,7 @@ class GPlusTreeBase(AbstractSetDataStructure):
         Returns:
             The updated G+-tree
         """
+        inserted = True
         x_key = x_item.key
         replica = _create_replica(x_key)
         TreeClass = type(self)
@@ -388,7 +386,7 @@ class GPlusTreeBase(AbstractSetDataStructure):
 
                 # Early return if we're already at a leaf node
                 if is_leaf:
-                    return self
+                    return self, inserted
                 
                 # Assign parent tracking for next iteration
                 right_parent = left_parent = cur
@@ -470,7 +468,7 @@ class GPlusTreeBase(AbstractSetDataStructure):
                 if is_leaf:
                     new_tree.node.next = cur.node.next
                     cur.node.next = new_tree
-                    return self  # Early return when leaf is processed
+                    return self, inserted  # Early return when leaf is processed
                     
                 # Continue to next iteration with updated current node
                 cur = next_cur
@@ -526,25 +524,37 @@ class GPlusTreeBase(AbstractSetDataStructure):
         # total physical height = this node’s chain length + deepest child
         return base + max_child
 
-    # @track_performance
     def print_structure(self, indent: int = 0, depth: int = 0, max_depth: int = 2):
         prefix = ' ' * indent
         if self.is_empty() or self is None:
-            return f"{prefix}Empty GPlusTree"
+            return f"{prefix}Empty {self.__class__.__name__}"
         
         if depth > max_depth:
             return f"{prefix}... (max depth reached)"
             
         result = []
         node = self.node
-        result.append(f"{prefix}GPlusNode(rank={node.rank}, set={type(node.set).__name__})")
+
+        kwargs_print = []
+        if hasattr(node, 'size'):
+            kwargs_print.append(f", size={node.size}")
+        joined_kwargs = ", ".join(kwargs_print)
+
+        result.append(f"{prefix}{node.__class__.__name__}(rank={node.rank}, set={type(node.set).__name__}{joined_kwargs})")
         
         result.append(node.set.print_structure(indent + 4))
 
         # Print right subtree
         if node.right_subtree and not node.right_subtree.is_empty():
             right_node = node.right_subtree.node
-            result.append(f"{prefix}    Right: GPlusNode(rank={right_node.rank}, set={type(right_node.set).__name__})")
+
+            kwargs_print = []
+            if hasattr(right_node, 'size'):
+                kwargs_print.append(f", size={right_node.size}")
+            joined_kwargs = ", ".join(kwargs_print)
+
+            result.append(f"{prefix}    Right: {right_node.__class__.__name__}(rank={right_node.rank}, set={type(right_node.set).__name__}{joined_kwargs})")
+
             # result.append(f"{prefix}    GPlusNode(rank={right_node.rank}, set={type(right_node.set).__name__})")
             # result.append(f"{prefix}      Entries:")
             # print_klist_entries(right_node.set, indent + 8)
@@ -557,7 +567,15 @@ class GPlusTreeBase(AbstractSetDataStructure):
             if not node.next.is_empty():
                 
                 next_node = node.next.node
-                result.append(f"{prefix}    Next: GPlusNode(rank={next_node.rank}, set={(type(next_node.set).__name__)})")
+                
+                kwargs_print = []
+                if hasattr(next_node, 'size'):
+                    kwargs_print.append(f", size={next_node.size}")
+                joined_kwargs = ", ".join(kwargs_print)
+
+                result.append(f"{prefix}    Next: {next_node.__class__.__name__}(rank={next_node.rank}, set={(type(next_node.set).__name__)}{joined_kwargs})")
+                # if next node has an attribute 'size', print it
+               
                 # result.append(f"{prefix}    GPlusNode(rank={next_node.rank}, set={(type(next_node.set).__name__)})")
                 #result.append(f"{prefix}      Entries:")
                 # print_klist_entries(next_node.set, indent + 8)
