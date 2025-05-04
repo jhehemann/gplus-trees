@@ -142,26 +142,27 @@ class GPlusTreeBase(AbstractSetDataStructure):
                     The next item in sorted order and its associated subtree, or (None, None).
         """
         current_tree = self
-        found_item: Optional[Item] = None
-        next_pair: Tuple[Optional[Item], Optional[GPlusTreeBase]] = (None, None)
+        found_entry: Optional[Entry] = None
+        next_entry: Optional[Entry] = None
 
         while not current_tree.is_empty():
             node = current_tree.node
             # Attempt to retrieve in this node's k-list
-            found, next_pair = node.set.retrieve(key)
-            found_item = found or found_item
+            res = node.set.retrieve(key)
+            found_entry = res.found_entry
+            next_entry = res.next_entry
 
-            # Descend based on presence of next_pair
-            if next_pair is not None:
-                _, subtree = next_pair
+            # Descend based on presence of next_entry
+            if next_entry is not None:
+                subtree = next_entry.left_subtree
                 current_tree = subtree
             else:
-                # If leaf has a linked next node, update next_pair
+                # If leaf has a linked next node, update next_entry
                 if node.next is not None:
-                    next_pair = node.next.set.get_min()
+                    next_entry = node.next.node.set.get_min().found_entry
                 current_tree = node.right_subtree
 
-        return RetrievalResult(found_item, next_pair)
+        return RetrievalResult(found_entry, next_entry)
     
     def delete(self, item):
         raise NotImplementedError("delete not implemented yet")
