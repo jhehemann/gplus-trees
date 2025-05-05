@@ -192,6 +192,14 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
         new_class = type(f"{cls.__name__}Dim{dim}", (cls,), {"DIM": dim})
         return new_class
     
+    # def insert(self, x: Item, rank: int) -> GKPlusTreeBase:
+    #     """Insert an item into the GK+-tree and update tree size."""
+    #     tree, inserted = super().insert(x, rank)
+    #     self.node.get_size()
+        
+    #     return tree, inserted
+    
+    
     def _insert_non_empty(self, x_item: Item, rank: int) -> GKPlusTreeBase:
         """Optimized version for inserting into a non-empty tree."""
         cur = self
@@ -351,8 +359,6 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
 
                 # Split node at x_key
                 left_split, _, right_split = node.set.split_inplace(x_key)
-                # logger.info(f"Left split item count: {left_split.item_count()}")
-                # logger.info(f"Right split item count: {right_split.item_count()}")
 
                 # --- Handle right side of the split ---
                 # Determine if we need a new tree for the right split
@@ -627,9 +633,7 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
         raise NotImplementedError("split_inplace not implemented yet")
     
     def item_count(self) -> int:
-        if self.is_empty():
-            return 0
-        return self.leaf_item_count()
+        return self.node.get_size()
         
     def leaf_item_count(self) -> int:
         count = 0

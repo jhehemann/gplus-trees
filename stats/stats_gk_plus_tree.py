@@ -42,10 +42,10 @@ def create_gtree(items, K=16):
     for (item, rank) in items:
         last = (item, rank)
         tree_insert(item, rank)
-    tree_insert(*last)  # Insert the last item again to ensure it is in the tree
 
     # print(f"\n\nSubtree sizes after {len(items)} insertions:")
     # tree.print_subtree_sizes()
+
     return tree
 
 # Create a random GPlusTree with n items and target node size (K) determining the rank distribution.
@@ -153,10 +153,11 @@ def repeated_experiment(
     t_all_0 = time.perf_counter()
 
     # Storage for stats and timings
-    results = []  # List of tuples: (stats, phy_height)
+    results = []  # List of tuples: (stats, phy_height, tree_size)
     times_build = []
     times_stats = []
     times_phy = []
+    times_size = []
 
     # Generate results from repeated experiments.
     for _ in range(repetitions):
@@ -169,15 +170,18 @@ def repeated_experiment(
         t0 = time.perf_counter()
         stats = gtree_stats_(tree, {})
         times_stats.append(time.perf_counter() - t0)
-        # print("Tree stats:")
-        # pprint(asdict(stats))
 
         # Time physical height computation
         t0 = time.perf_counter()
         phy_height = tree.physical_height()
         times_phy.append(time.perf_counter() - t0)
 
-        results.append((stats, phy_height))
+        # Time tree size computation
+        t0 = time.perf_counter()
+        tree_size = tree.item_count()
+        times_size.append(time.perf_counter() - t0)
+
+        results.append((stats, phy_height, tree_size))
 
         assert_tree_invariants_raise(tree, stats)
         # print("Tree stats:")
@@ -187,44 +191,48 @@ def repeated_experiment(
     perfect_height = math.ceil(math.log(size, K)) if size > 0 else 0
 
     # Aggregate averages for stats
-    avg_gnode_height    = mean(s.gnode_height for s, _ in results)
-    avg_gnode_count     = mean(s.gnode_count for s, _ in results)
-    avg_leaf_count      = mean(s.leaf_count for s, _ in results)
-    avg_real_item_count = mean(s.real_item_count for s, _ in results)
-    avg_item_count      = mean(s.item_count for s, _ in results)
-    avg_item_slot_count = mean(s.item_slot_count for s, _ in results)
-    avg_space_amp       = mean((s.item_slot_count / s.item_count) for s, _ in results)
-    avg_physical_height = mean(h for _, h in results)
-    avg_height_amp      = mean((h / perfect_height) for _, h in results) if perfect_height else 0
-    avg_avg_gnode_size  = mean((s.item_count / s.gnode_count) for s, _ in results)
-    avg_max_rank        = mean(s.rank for s, _ in results)
+    avg_gnode_height    = mean(s.gnode_height for s, _, _ in results)
+    avg_gnode_count     = mean(s.gnode_count for s, _, _ in results)
+    avg_leaf_count      = mean(s.leaf_count for s, _, _ in results)
+    # avg_real_item_count = mean(s.real_item_count for s, _, _ in results)
+    avg_tree_size       = mean(sz for _, _, sz in results)
+    avg_item_count      = mean(s.item_count for s, _, _ in results)
+    avg_item_slot_count = mean(s.item_slot_count for s, _, _ in results)
+    avg_space_amp       = mean((s.item_slot_count / s.item_count) for s, _, _ in results)
+    avg_physical_height = mean(h for _, h, _ in results)
+    avg_height_amp      = mean((h / perfect_height) for _, h, _ in results) if perfect_height else 0
+    avg_avg_gnode_size  = mean((s.item_count / s.gnode_count) for s, _, _ in results)
+    avg_max_rank        = mean(s.rank for s, _, _ in results)
 
     # Aggregate averages for timings
     avg_build_time      = mean(times_build)
     avg_stats_time      = mean(times_stats)
     avg_phy_time        = mean(times_phy)
+    avg_size_time       = mean(times_size)
 
     # Compute variances for stats
-    var_gnode_height    = mean((s.gnode_height - avg_gnode_height)**2 for s, _ in results)
-    var_gnode_count     = mean((s.gnode_count - avg_gnode_count)**2 for s, _ in results)
-    var_leaf_count      = mean((s.leaf_count - avg_leaf_count)**2 for s, _ in results)
-    var_real_item_count = mean((s.real_item_count - avg_real_item_count)**2 for s, _ in results)
-    var_item_count      = mean((s.item_count - avg_item_count)**2 for s, _ in results)
-    var_item_slot_count = mean((s.item_slot_count - avg_item_slot_count)**2 for s, _ in results)
-    var_space_amp       = mean(((s.item_slot_count / s.item_count) - avg_space_amp)**2 for s, _ in results)
-    var_physical_height = mean((h - avg_physical_height)**2 for _, h in results)
-    var_height_amp      = mean(((h / perfect_height) - avg_height_amp)**2 for _, h in results) if perfect_height else 0
-    var_avg_gnode_size  = mean(((s.item_count / s.gnode_count) - avg_avg_gnode_size)**2 for s, _ in results)
-    var_max_rank        = mean((s.rank - avg_max_rank)**2 for s, _ in results)
+    var_gnode_height    = mean((s.gnode_height - avg_gnode_height)**2 for s, _, _ in results)
+    var_gnode_count     = mean((s.gnode_count - avg_gnode_count)**2 for s, _, _ in results)
+    var_leaf_count      = mean((s.leaf_count - avg_leaf_count)**2 for s, _, _ in results)
+    # var_real_item_count = mean((s.real_item_count - avg_real_item_count)**2 for s, _, _ in results)
+    var_item_count      = mean((s.item_count - avg_item_count)**2 for s, _, _ in results)
+    var_tree_size       = mean((sz - avg_tree_size)**2 for _, _, sz in results)
+    var_item_slot_count = mean((s.item_slot_count - avg_item_slot_count)**2 for s, _, _ in results)
+    var_space_amp       = mean(((s.item_slot_count / s.item_count) - avg_space_amp)**2 for s, _, _ in results)
+    var_physical_height = mean((h - avg_physical_height)**2 for _, h, _ in results)
+    var_height_amp      = mean(((h / perfect_height) - avg_height_amp)**2 for _, h, _ in results) if perfect_height else 0
+    var_avg_gnode_size  = mean(((s.item_count / s.gnode_count) - avg_avg_gnode_size)**2 for s, _, _ in results)
+    var_max_rank        = mean((s.rank - avg_max_rank)**2 for s, _, _ in results)
 
     # Compute variances for timings
     var_build_time      = mean((t - avg_build_time)**2 for t in times_build)
     var_stats_time      = mean((t - avg_stats_time)**2 for t in times_stats)
     var_phy_time        = mean((t - avg_phy_time)**2 for t in times_phy)
+    var_size_time       = mean((t - avg_size_time)**2 for t in times_size)
 
     # Prepare rows for stats and timings
     rows = [
-        ("Real item count",       avg_real_item_count,  var_real_item_count),
+        ("Tree size",             avg_tree_size,        var_tree_size),
         ("Item count",            avg_item_count,       var_item_count),
         ("Item slot count",       avg_item_slot_count,  var_item_slot_count),
         ("Space amplification",    avg_space_amp,        var_space_amp),
@@ -257,16 +265,20 @@ def repeated_experiment(
     sum_build = sum(times_build)
     sum_stats = sum(times_stats)
     sum_phy   = sum(times_phy)
-    total_sum = sum_build + sum_stats + sum_phy
+    sum_size  = sum(times_size)
+
+    total_sum = sum_build + sum_stats + sum_phy + sum_size
 
     pct_build = (sum_build / total_sum * 100) if total_sum else 0
     pct_stats = (sum_stats / total_sum * 100) if total_sum else 0
     pct_phy   = (sum_phy   / total_sum * 100) if total_sum else 0
+    pct_size  = (sum_size  / total_sum * 100) if total_sum else 0
 
     perf_rows = [
         ("Build time (s)", avg_build_time, var_build_time, sum_build, pct_build),
         ("Stats time (s)", avg_stats_time, var_stats_time, sum_stats, pct_stats),
         ("Phy height time (s)", avg_phy_time, var_phy_time, sum_phy, pct_phy),
+        ("Size time (s)", avg_size_time, var_size_time, sum_size, pct_size),
     ]
     
     # 2) Log a separate performance table
@@ -298,7 +310,7 @@ def repeated_experiment(
     logging.info("Execution time: %.3f seconds", t_all_1)
 
 if __name__ == "__main__":
-    log_dir = os.path.join(os.getcwd(), "tests/logs")
+    log_dir = os.path.join(os.getcwd(), "stats/logs/gk_plus_tree_logs")
     os.makedirs(log_dir, exist_ok=True)
 
     # 2) Create a timestamped logfile name
@@ -320,12 +332,12 @@ if __name__ == "__main__":
     # logging.info("Performance tracking enabled")
 
     # List of tree sizes to test.
-    sizes = [100]
+    sizes = [1000]
     # sizes = [10, 100, 1000, 10_000, 100_000]
     # List of K values for which we want to run experiments.
     # Ks = [2, 4, 16, 64]
     Ks = [4]
-    repetitions = 10
+    repetitions = 200
 
     for n in sizes:
         for K in Ks:

@@ -295,7 +295,7 @@ def repeated_experiment(
     logging.info("Execution time: %.3f seconds", t_all_1)
 
 if __name__ == "__main__":
-    log_dir = os.path.join(os.getcwd(), "stats/logs")
+    log_dir = os.path.join(os.getcwd(), "stats/logs/gplus_tree_logs")
     os.makedirs(log_dir, exist_ok=True)
 
     # 2) Create a timestamped logfile name
@@ -317,12 +317,12 @@ if __name__ == "__main__":
     # logging.info("Performance tracking enabled")
 
     # List of tree sizes to test.
-    sizes = [100]
+    sizes = [1000]
     # sizes = [10, 100, 1000, 10_000, 100_000]
     # List of K values for which we want to run experiments.
     # Ks = [2, 4, 16, 64]
     Ks = [4]
-    repetitions = 10
+    repetitions = 200
 
     for n in sizes:
         for K in Ks:
