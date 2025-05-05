@@ -464,7 +464,31 @@ class KListBase(AbstractSetDataStructure):
     # @track_performance
     def get_min(self) -> RetrievalResult:
         """Retrieve the minimum entry from the sorted KList."""
-        return self.get_entry(index=0)
+        if not self._prefix_counts:
+            return RetrievalResult(found_entry=None, next_entry=None)
+        node = self.head
+        entry, in_node_succ, needs_next = node.get_by_offset(0)
+        if needs_next:
+            if node.next and node.next.entries:
+                next_entry = node.next.entries[0]
+            else:
+                next_entry = None
+        else:
+            next_entry = in_node_succ
+
+        return RetrievalResult(found_entry=entry, next_entry=next_entry)
+    
+
+    def get_max(self) -> RetrievalResult:
+        """Retrieve the maximum entry from the sorted KList."""
+        if not self._prefix_counts:
+            return RetrievalResult(found_entry=None, next_entry=None)
+        node = self.tail
+        entries = node.entries
+        entry, in_node_succ, _ = node.get_by_offset(len(entries) - 1)
+
+        return RetrievalResult(found_entry=entry, next_entry=in_node_succ)
+
 
     # @track_performance
     def split_inplace(

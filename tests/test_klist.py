@@ -71,6 +71,13 @@ class TestKListBase(unittest.TestCase):
             count += 1
             node = node.next
         return count
+    
+    def insert_sequence(self, keys):
+        """Helper to insert integer keys with dummy values."""
+        for k in keys:
+            self.klist.insert(Item(k, f"val_{k}"))
+        # ensure invariants
+        self.klist.check_invariant()
 
 class TestKList(TestKListBase):
     """Basic insertion tests for factory-created klists"""
@@ -323,13 +330,6 @@ class TestKListDelete(TestKListBase):
 
 
 class TestKListRetrieve(TestKListBase):
-    def insert_sequence(self, keys):
-        """Helper to insert integer keys with dummy values."""
-        for k in keys:
-            self.klist.insert(Item(k, f"val_{k}"))
-        # ensure invariants
-        self.klist.check_invariant()
-
     def assertRetrieval(self, key, found_key, next_key):
         """
         Helper: call retrieve(key) and assert that
@@ -445,6 +445,65 @@ class TestKListRetrieve(TestKListBase):
 
             # now x is an int, so retrieve(x) works
             self.assertRetrieval(x, None, nxt)
+
+
+class TestKlistGetMinMax(TestKListBase):   
+    def test_empty(self):
+        # empty list should return N
+        with self.subTest("max"): 
+            res = self.klist.get_max()
+            self.assertIsNone(res.found_entry)
+            self.assertIsNone(res.next_entry)
+
+        with self.subTest("min"):
+            res = self.klist.get_min()
+            self.assertIsNone(res.found_entry)
+            self.assertIsNone(res.next_entry)
+
+    def test_single_node_single_entry(self):
+        # fill one node with a single entry
+        keys = [10]
+        self.insert_sequence(keys)
+        
+        with self.subTest("max"):    
+            res = self.klist.get_max()
+            self.assertEqual(res.found_entry.item.key, 10)
+            self.assertIsNone(res.next_entry)
+        
+        with self.subTest("min"):
+            res = self.klist.get_min()
+            self.assertEqual(res.found_entry.item.key, 10)
+            self.assertIsNone(res.next_entry)
+
+    def test_single_node_cap(self):
+        # fill one node up to capacity
+        keys = list(range(self.cap))
+        self.insert_sequence(keys)
+        
+        with self.subTest("max"):    
+            res = self.klist.get_max()
+            self.assertEqual(res.found_entry.item.key, self.cap - 1)
+            self.assertIsNone(res.next_entry)
+        
+        with self.subTest("min"):
+            res = self.klist.get_min()
+            self.assertEqual(res.found_entry.item.key, 0)
+            self.assertEqual(res.next_entry.item.key, 1)
+
+    def test_multi_nodes(self):
+        # fill first node, overflow into second
+        keys = list(range(self.cap * 3 + 1))
+        self.insert_sequence(keys)
+
+        with self.subTest("max"):
+            res = self.klist.get_max()
+            self.assertEqual(res.found_entry.item.key, self.cap * 3)
+            self.assertIsNone(res.next_entry)
+
+        with self.subTest("min"):
+            res = self.klist.get_min()
+            self.assertEqual(res.found_entry.item.key, 0)
+            self.assertEqual(res.next_entry.item.key, 1)
 
 
 class TestKListGetEntry(TestKListBase):

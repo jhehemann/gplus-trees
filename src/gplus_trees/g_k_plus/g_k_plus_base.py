@@ -634,14 +634,6 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
     
     def item_count(self) -> int:
         return self.node.get_size()
-        
-    def leaf_item_count(self) -> int:
-        count = 0
-        for node in self.iter_leaf_nodes():
-            for entry in node.set:
-                if entry.item.key != DUMMY_KEY:
-                    count += 1
-        return count
     
     def item_slot_count(self):
         raise NotImplementedError("item_slot_count not implemented yet")
