@@ -28,21 +28,6 @@ class GKTreeSetDataStructure(AbstractSetDataStructure):
         pass
 
     @abstractmethod
-    def get_entry(self, index: int) -> 'RetrievalResult':
-        """
-        Returns the entry at the given overall index in the sorted set data structure along with the next entry.
-
-        Parameters:
-            index (int): Zero-based index to retrieve.
-
-        Returns:
-            RetrievalResult: A structured result containing:
-                - found_entry: The requested Entry if present, otherwise None.
-                - next_entry: The subsequent Entry, or None if no next entry exists.
-        """
-        pass
-
-    @abstractmethod
     def item_count(self) -> int:
         """
         Get the count of items in the set data structure.

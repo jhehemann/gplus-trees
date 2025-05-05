@@ -63,30 +63,6 @@ class GKPlusNodeBase(GPlusNodeBase):
         """
         self.size = None
 
-    # def _invalidate_path_sizes(self, key: int):
-    #     """
-    #     Invalidate the sizes along the path to a specific key.
-        
-    #     Parameters:
-    #         key (int): The key to invalidate the path for
-    #     """
-    #     if self.is_empty():
-    #         return
-        
-    #     cur = self.node
-        
-    #     while True:
-    #         cur.node._invalidate_tree_size()
-    #         if cur.rank == 1:
-    #             break
-
-    #         # Find child node to traverse
-    #         next = cur.set.retrieve(key).next_entry
-    #         if next is not None:
-    #             cur = next.left_subtree.node
-    #         else:
-    #             cur = cur.right_subtree.node
-
     def get_size(self) -> bytes:
         """
         Get the hash value, computing it if necessary.
@@ -162,12 +138,32 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
 
     __repr__ = __str__
     
+    def item_count(self) -> int:
+        return self.node.get_size()
+    
+    def item_slot_count(self):
+        """Count the number of item slots in the tree."""
+        if self.is_empty():
+            return 0
+        
+        node = self.node
+        if node.rank == 1:
+            return node.set.item_slot_count()
+        
+        count = 0
+        for entry in node.set:
+            count += entry.left_subtree.item_slot_count()
+        
+        count += node.right_subtree.item_slot_count()
+        count += node.set.item_slot_count()
+        
+        return count
+
     def get_min(self) -> RetrievalResult:
         """
         Get the minimum entry in the tree.
-        
         Returns:
-            RetrievalResult: Contains the minimum entry and the next entry (if any).
+            RetrievalResult: The minimum entry and the next entry (if any).
         """
         if self.is_empty():
             return RetrievalResult(None, None)
@@ -177,6 +173,21 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
             return RetrievalResult(None, None)
         
         return first_leaf.set.get_min()
+    
+    def get_max(self) -> RetrievalResult:
+        """
+        Get the maximum entry in the tree.
+        Returns:
+            RetrievalResult: The maximum entry and the next entry (if any).
+        """
+        if self.is_empty():
+            return RetrievalResult(None, None)
+        
+        cur = self.node
+        while cur.node.rank > 1:
+            cur = cur.right_subtree.node
+        
+        return cur.node.set.get_max()
     
     @classmethod
     def with_dimension(cls: Type[t], dim: int) -> Type[t]:
@@ -631,12 +642,6 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
 
     def split_inplace(self):
         raise NotImplementedError("split_inplace not implemented yet")
-    
-    def item_count(self) -> int:
-        return self.node.get_size()
-    
-    def item_slot_count(self):
-        raise NotImplementedError("item_slot_count not implemented yet")
     
     def __iter__(self):
         """Yields each entry of the gk-plus-tree in order."""
