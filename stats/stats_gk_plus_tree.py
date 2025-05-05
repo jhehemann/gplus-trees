@@ -20,11 +20,10 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from gplus_trees.base import Item
 from gplus_trees.gplus_tree_base import (
     gtree_stats_,
-    DUMMY_ITEM,
 )
 
 from gplus_trees.g_k_plus.factory import create_gkplus_tree
-from gplus_trees.g_k_plus.g_k_plus_base import GKPlusTreeBase
+from gplus_trees.g_k_plus.g_k_plus_base import GKPlusTreeBase, get_dummy
 
 from tests.utils import (
     assert_tree_invariants_raise,
@@ -103,6 +102,7 @@ def check_leaf_keys_and_values(
     Returns:
         (keys, presence_ok, all_have_values, order_ok)
     """
+    dummy = get_dummy(dim=tree.__class__.DIM)
     keys = []
     all_have_values = True
     order_ok = True
@@ -115,7 +115,8 @@ def check_leaf_keys_and_values(
             item = entry.item
             key = item.key
             if prev_key is None:
-                if not item is DUMMY_ITEM:
+
+                if not item is dummy:
                     order_ok = False
             else:
                 keys.append(key)

@@ -37,7 +37,8 @@ logger.propagate = False
 t = Type["GPlusTreeBase"]
 
 # Constants
-DUMMY_KEY = int("0" * 64, 16)
+DUMMY_KEY = int("-1", 16)
+print(f"DUMMY_KEY: {DUMMY_KEY}")
 DUMMY_VALUE = None
 DUMMY_ITEM = Item(DUMMY_KEY, DUMMY_VALUE)
 

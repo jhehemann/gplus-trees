@@ -9,7 +9,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from gplus_trees.base import Item
 from gplus_trees.g_k_plus.factory import create_gkplus_tree
-from gplus_trees.g_k_plus.g_k_plus_base import GKPlusTreeBase, DUMMY_ITEM, DUMMY_KEY
+from gplus_trees.g_k_plus.g_k_plus_base import get_dummy
 
 class TestGKPlusSizeTracking(unittest.TestCase):
     
@@ -197,8 +197,9 @@ class TestGKPlusSizeTracking(unittest.TestCase):
         node = tree.node
         
         # For leaf nodes, size should be the count of non-dummy items
+        dummy_key = get_dummy(tree.__class__.DIM).key
         if node.rank == 1:
-            calculated_size = sum(1 for entry in node.set if entry.item.key != DUMMY_KEY)
+            calculated_size = sum(1 for entry in node.set if entry.item.key != dummy_key)
             if calculated_size != node.size:
                 print(f"Leaf node has size {node.size} but contains {calculated_size} items")
                 return False

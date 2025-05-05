@@ -34,12 +34,36 @@ logger.propagate = False
 
 t = TypeVar('t', bound='GKPlusTreeBase')
 
-# Constants
-DUMMY_KEY = int("0" * 64, 16)
-DUMMY_VALUE = None
-DUMMY_ITEM = Item(DUMMY_KEY, DUMMY_VALUE)
 DEFAULT_DIMENSION = 1  # Default dimension for GKPlusTree
 DEFAULT_L_FACTOR = 2  # Default threshold factor for KList to GKPlusTree conversion
+
+# Cache for dimension-specific dummy items
+_DUMMY_ITEM_CACHE: Dict[int, Item] = {}
+
+def get_dummy(dim: int) -> Item:
+    """
+    Get a dummy item for the specified dimension.
+    This function caches created dummy items to avoid creating new instances
+    for the same dimension repeatedly.
+    
+    Args:
+        dim (int): The dimension for which to get a dummy item.
+        
+    Returns:
+        Item: A dummy item with key=-(dim) and value=None
+    """
+    # Check if we already have a dummy item for this dimension in cache
+    if dim in _DUMMY_ITEM_CACHE:
+        return _DUMMY_ITEM_CACHE[dim]
+    
+    # Create a new dummy item for this dimension
+    dummy_key = -(dim)  # Negative dimension as key 
+    dummy_item = Item(dummy_key, None)
+    
+    # Cache it for future use
+    _DUMMY_ITEM_CACHE[dim] = dummy_item
+    
+    return dummy_item
 
 
 class GKPlusNodeBase(GPlusNodeBase):
@@ -81,10 +105,11 @@ class GKPlusNodeBase(GPlusNodeBase):
         Returns:
             int: The total size of the tree.
         """
+        dummy_key = get_dummy(dim=self.TreeClass.DIM).key
         if self.rank == 1:
             size = 0
             for entry in self.set:
-                if entry.item.key == DUMMY_KEY:
+                if entry.item.key == dummy_key:
                     continue
 
                 size += 1
@@ -288,7 +313,8 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
         if parent is None:
             # create a new root node
             old_node = self.node
-            root_set = self.SetClass().insert(DUMMY_ITEM, TreeClass())
+            dummy = get_dummy(dim=TreeClass.DIM)
+            root_set = self.SetClass().insert(dummy, TreeClass())
             self.node = self.NodeClass(rank, root_set, TreeClass(old_node))
             return self
 
@@ -523,12 +549,12 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
             return self.KListClass()
         
         klist = self.KListClass()
-        
+        dummy_key = get_dummy(dim=self.DIM).key
         # Process leaf nodes to build the KList
         for leaf_node in self.iter_leaf_nodes():
             for entry in leaf_node.set:
                 # Skip dummy items
-                if entry.item.key == DUMMY_KEY:
+                if entry.item.key == dummy_key:
                     continue
                 
                 # Insert each item into the KList
@@ -565,10 +591,11 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
         new_tree = target_class()
         
         # Process leaf nodes to build the new tree
+        dummy_key = get_dummy(dim=target_class.DIM).key
         for leaf_node in tree.iter_leaf_nodes():
             for entry in leaf_node.set:
                 # Skip dummy items
-                if entry.item.key == DUMMY_KEY:
+                if entry.item.key == dummy_key:
                     continue
                 
                 # Insert the item
@@ -628,10 +655,11 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
         threshold = int(capacity * self.l_factor)
         
         # Count the actual items (excluding dummy items)
+        dummy_key = get_dummy(dim=self.__class__.DIM).key
         item_count = 0
         for leaf_node in tree.iter_leaf_nodes():
             for entry in leaf_node.set:
-                if entry.item.key != DUMMY_KEY:
+                if entry.item.key != dummy_key:
                     item_count += 1
         
         if item_count <= threshold:
@@ -639,9 +667,153 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
             return tree.to_klist()
             
         return tree
+    
 
-    def split_inplace(self):
-        raise NotImplementedError("split_inplace not implemented yet")
+    def split_inplace(self, key: int) -> Tuple['GKPlusTreeBase', Optional['GKPlusTreeBase'], 'GKPlusTreeBase']:
+        """
+        Split the tree into two parts around the given key.
+        
+        Args:
+            key: The key value to split at
+            
+        Returns:
+            A tuple of (left_tree, middle_subtree, right_tree) where:
+            - left_tree: A tree containing all entries with keys < key
+            - middle_subtree: If key exists in the tree, its associated left subtree; otherwise, None
+            - right_tree: A tree containing all entries with keys ≥ key (except the entry with key itself)
+        """
+        if not isinstance(key, int):
+            raise TypeError(f"key must be int, got {type(key).__name__!r}")
+
+        TreeClass = type(self)
+        NodeClass = TreeClass.NodeClass
+
+        # Case 1: Empty tree - return two empty trees and None for middle
+        
+        left_tree = TreeClass()
+        right_tree = TreeClass()
+        if self.is_empty():
+            return left_tree, None, right_tree
+
+        cur = self
+
+        # Parent tracking variables
+        right_parent = None    # Parent node for right-side updates
+        right_entry = None     # Entry in right parent points to current subtree
+        left_parent = None     # Parent node for left-side updates
+        left_x_entry = None    # x_item stored in left parent
+        
+        while True:
+            node = cur.node
+            rank = node.rank 
+            is_leaf = node.rank == 1
+
+            # Determine subtree for potential next iteration
+            subtree = (
+                next_entry.left_subtree
+                if next_entry else node.right_subtree
+            )
+
+            left_split, _, right_split = node.set.split_inplace(key)
+
+            
+            if right_split.item_count() > 1 or is_leaf:
+                if right_parent is None:
+                    # Create a new root node
+                    root_set = self.SetClass().insert(DUMMY_ITEM())
+                    root_node = NodeClass(rank, root_set, TreeClass())
+                    right_tree.node = NodeClass(rank, right_split, node.right_subtree)
+                
+                right_tree.node = NodeClass(rank, right_split, node.right_subtree)
+            
+                # Early return if we're already at a leaf node
+                if is_leaf:
+                    return self
+                
+                # Assign parent tracking for next iteration
+                right_parent = left_parent = cur
+                right_entry = next_entry if next_entry else None
+                left_x_entry = node.set.retrieve(x_key).found_entry
+                cur = subtree
+            else:
+                # Node splitting required - get updated next_entry
+                res = node.set.retrieve(x_key)
+                next_entry = res.next_entry
+
+                # Split node at x_key
+                left_split, _, right_split = node.set.split_inplace(x_key)
+
+                # --- Handle right side of the split ---
+                # Determine if we need a new tree for the right split
+                if right_split.item_count() > 0 or is_leaf:
+                    # Insert item into right split and create new tree
+                    right_split = right_split.insert(insert_obj, TreeClass())
+                    new_tree = TreeClass()
+                    new_tree.node = self.NodeClass(node.rank, right_split, node.right_subtree)
+
+                    # Update parent reference to the new tree
+                    if right_entry is not None:
+                        right_entry.left_subtree = new_tree
+                    else:
+                        right_parent.node.right_subtree = new_tree
+
+                    # Update right parent tracking
+                    next_right_parent = new_tree
+                    next_right_entry = next_entry if next_entry else None
+                else:
+                    # Keep existing parent references
+                    next_right_parent = right_parent
+                    next_right_entry = right_entry
+
+                # Update right parent variables for next iteration
+                right_parent = next_right_parent
+                right_entry = next_right_entry
+                
+                # --- Handle left side of the split ---
+                # Determine if we need to create/update using left split
+                if left_split.item_count() > 1 or is_leaf:
+                    # Update current node to use left split
+                    cur.node.set = left_split
+                    if next_entry:
+                        cur.node.right_subtree = next_entry.left_subtree
+
+                    # Update parent reference if needed
+                    if left_x_entry is not None:
+                        left_x_entry.left_subtree = cur
+                    
+                    # Make current node the new left parent
+                    next_left_parent = cur
+                    next_left_x_entry = None  # Left split never contains x_item
+                    next_cur = cur.node.right_subtree
+                else:
+                    # Collapse single-item nodes for non-leaves
+                    new_subtree = (
+                        next_entry.left_subtree if next_entry else TreeClass()
+                    )
+                    
+                    # Update parent reference
+                    if left_x_entry is not None:
+                        left_x_entry.left_subtree = new_subtree
+                    else:
+                        left_parent.node.right_subtree = new_subtree
+
+                    # Prepare for next iteration
+                    next_left_parent = left_parent
+                    next_left_x_entry = left_x_entry
+                    next_cur = new_subtree
+                
+                # Update left parent variables for next iteration
+                left_parent = next_left_parent
+                left_x_entry = next_left_x_entry
+
+                # Update leaf node 'next' pointers if at leaf level
+                if is_leaf:
+                    new_tree.node.next = cur.node.next
+                    cur.node.next = new_tree
+                    return self, inserted  # Early return when leaf is processed
+                    
+                # Continue to next iteration with updated current node
+                cur = next_cur
     
     def __iter__(self):
         """Yields each entry of the gk-plus-tree in order."""
@@ -650,5 +822,4 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
         for node in self.iter_leaf_nodes():
             for entry in node.set:
                 yield entry
-        
-    
+
