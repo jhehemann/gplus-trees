@@ -638,9 +638,6 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
     def item_slot_count(self):
         raise NotImplementedError("item_slot_count not implemented yet")
     
-    def get_entry(self, index):
-        raise NotImplementedError("get_entry not implemented yet")
-    
     def __iter__(self):
         """Yields each entry of the gk-plus-tree in order."""
         if self.is_empty():

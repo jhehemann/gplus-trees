@@ -778,7 +778,7 @@ def gtree_stats_(t: GPlusTreeBase,
     if right_stats.greatest_item is not None:
         stats.greatest_item = right_stats.greatest_item
     else:
-        stats.greatest_item = node_set.get_entry(node_item_count - 1).found_entry.item
+        stats.greatest_item = node_set.get_max().found_entry.item
 
     # ---------- leaf walk ONCE at the root -----------------------------
     if node_rank == 1:          # leaf node: base values
@@ -834,7 +834,7 @@ def gtree_stats_(t: GPlusTreeBase,
         elif last_leaf is not None:
             # Check if greatest item matches last leaf's greatest item
             last_count = last_leaf.set.item_count()
-            last_item = last_leaf.set.get_entry(last_count - 1).found_entry.item
+            last_item = last_leaf.set.get_max().found_entry.item
             if stats.greatest_item is not last_item:
                 stats.linked_leaf_nodes = False
 

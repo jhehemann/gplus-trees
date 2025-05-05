@@ -412,53 +412,6 @@ class KListBase(AbstractSetDataStructure):
         
         # No successor found
         return RetrievalResult(found_entry=None, next_entry=None)
-    
-    # @track_performance
-    def get_entry(self, index: int) -> RetrievalResult:
-        """
-        Returns the entry at the given overall index in the sorted KList along with the next entry. O(log l) node-lookup plus O(1) in-node offset.
-
-        Parameters:
-            index (int): Zero-based index to retrieve.
-
-        Returns:
-            RetrievalResult: A structured result containing:
-                - found_entry: The requested Entry if present, otherwise None.
-                - next_entry: The subsequent Entry, or None if no next entry exists.
-        """
-        # 0) validate
-        if not isinstance(index, int):
-            raise TypeError(f"index must be int, got {type(index).__name__!r}")
-
-        # 1) empty list?
-        if not self._prefix_counts:
-            return RetrievalResult(found_entry=None, next_entry=None)
-
-        total_items = self._prefix_counts[-1]
-        # 2) out‐of‐bounds?
-        if index < 0 or index >= total_items:
-            return RetrievalResult(found_entry=None, next_entry=None)
-
-        # 3) find the node in O(log l)
-        node_idx = bisect_right(self._prefix_counts, index)
-        node = self._nodes[node_idx]
-
-        # 4) compute offset within that node
-        prev_count = self._prefix_counts[node_idx - 1] if node_idx else 0
-        offset = index - prev_count
-
-        # 5) delegate to node
-        entry, in_node_succ, needs_next = node.get_by_offset(offset)
-
-        # 6) if we hit the end of this node, pull the true successor
-        if needs_next:
-            if node.next and node.next.entries:
-                next_entry = node.next.entries[0]
-            else:
-                next_entry = None
-        else:
-            next_entry = in_node_succ
-
         return RetrievalResult(found_entry=entry, next_entry=next_entry)
     
     # @track_performance
@@ -718,3 +671,48 @@ class KListBase(AbstractSetDataStructure):
                 previous_last_key = node.entries[-1].item.key
 
             node = node.next
+
+    # def get_entry(self, index: int) -> RetrievalResult:
+    #         """
+    #         Returns the entry at the given overall index in the sorted KList along with the next entry. O(log l) node-lookup plus O(1) in-node offset.
+
+    #         Parameters:
+    #             index (int): Zero-based index to retrieve.
+
+    #         Returns:
+    #             RetrievalResult: A structured result containing:
+    #                 - found_entry: The requested Entry if present, otherwise None.
+    #                 - next_entry: The subsequent Entry, or None if no next entry exists.
+    #         """
+    #         # 0) validate
+    #         if not isinstance(index, int):
+    #             raise TypeError(f"index must be int, got {type(index).__name__!r}")
+
+    #         # 1) empty list?
+    #         if not self._prefix_counts:
+    #             return RetrievalResult(found_entry=None, next_entry=None)
+
+    #         total_items = self._prefix_counts[-1]
+    #         # 2) out‐of‐bounds?
+    #         if index < 0 or index >= total_items:
+    #             return RetrievalResult(found_entry=None, next_entry=None)
+
+    #         # 3) find the node in O(log l)
+    #         node_idx = bisect_right(self._prefix_counts, index)
+    #         node = self._nodes[node_idx]
+
+    #         # 4) compute offset within that node
+    #         prev_count = self._prefix_counts[node_idx - 1] if node_idx else 0
+    #         offset = index - prev_count
+
+    #         # 5) delegate to node
+    #         entry, in_node_succ, needs_next = node.get_by_offset(offset)
+
+    #         # 6) if we hit the end of this node, pull the true successor
+    #         if needs_next:
+    #             if node.next and node.next.entries:
+    #                 next_entry = node.next.entries[0]
+    #             else:
+    #                 next_entry = None
+    #         else:
+    #             next_entry = in_node_succ
