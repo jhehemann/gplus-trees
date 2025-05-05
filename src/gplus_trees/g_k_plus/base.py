@@ -1,12 +1,10 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
-from typing import NamedTuple, Optional, Tuple, TypeVar, Generic, Iterator
-import hashlib
+from typing import Optional, Tuple, TypeVar, Iterator
 
 from gplus_trees.base import (
     AbstractSetDataStructure,
-    Item,
     Entry,
     RetrievalResult
 )

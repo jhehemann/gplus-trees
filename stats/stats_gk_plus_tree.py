@@ -43,9 +43,9 @@ def create_gtree(items, K=16):
         last = (item, rank)
         tree_insert(item, rank)
     tree_insert(*last)  # Insert the last item again to ensure it is in the tree
-    tree.check_subtree_sizes()
-    print(f"Tree after {len(items)} insertions:")
-    print(tree.print_structure())
+
+    # print(f"\n\nSubtree sizes after {len(items)} insertions:")
+    # tree.print_subtree_sizes()
     return tree
 
 # Create a random GPlusTree with n items and target node size (K) determining the rank distribution.
@@ -320,12 +320,12 @@ if __name__ == "__main__":
     # logging.info("Performance tracking enabled")
 
     # List of tree sizes to test.
-    sizes = [10]
+    sizes = [100]
     # sizes = [10, 100, 1000, 10_000, 100_000]
     # List of K values for which we want to run experiments.
     # Ks = [2, 4, 16, 64]
-    Ks = [2]
-    repetitions = 1
+    Ks = [4]
+    repetitions = 10
 
     for n in sizes:
         for K in Ks:

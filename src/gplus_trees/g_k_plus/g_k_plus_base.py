@@ -15,7 +15,6 @@ from gplus_trees.base import (
 )
 from gplus_trees.klist_base import KListBase
 from gplus_trees.gplus_tree_base import GPlusTreeBase, GPlusNodeBase
-from gplus_trees.profiling import track_performance
 
 from gplus_trees.g_k_plus.base import GKTreeSetDataStructure
 
@@ -46,15 +45,13 @@ DEFAULT_L_FACTOR = 2  # Default threshold factor for KList to GKPlusTree convers
 class GKPlusNodeBase(GPlusNodeBase):
     """
     Base class for GK+-tree nodes.
-    Extends GPlusNodeBase with dimension support.
+    Extends GPlusNodeBase with size support.
     """
     __slots__ = GPlusNodeBase.__slots__ + ("size",)  # Only add new slots beyond what parent has
 
     # These will be injected by the factory
     SetClass: Type[AbstractSetDataStructure]
     TreeClass: Type[GKPlusTreeBase]
-
-    # No need to override __init__ as it's inherited from GPlusNodeBase
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -195,46 +192,8 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
         new_class = type(f"{cls.__name__}Dim{dim}", (cls,), {"DIM": dim})
         return new_class
     
-    def insert(self, x_item: Item, rank: int) -> GKPlusTreeBase:
-        """
-        Public method (average-case O(log n)): Insert an item into the G+-tree. 
-        If the item already exists, updates its value at the leaf node.
-        
-        Args:
-            x_item: The item (key, value) to be inserted.
-            rank (int): The rank of the item. Must be a natural number > 0.
-        Returns:
-            GPlusTreeBase: The updated G+-tree.
-
-        Raises:
-            TypeError: If x_item is not an Item or rank is not a positive int.
-        """        
-        tree, inserted = super().insert(x_item, rank)
-
-        logger.info(f"inserted: {inserted}")
-        # logger.info(f"tree: {tree}")
-        
-        # if inserted:
-        #     # If the item was inserted, we need to update the tree size along the path for each node starting from the root
-        #     # TODO: Add parent pointer to Tree class to update starting from the leaf
-        #     cur_node = tree.node
-        #     while True:
-        #         cur_node.size += 1
-        #         if cur_node.rank == 1:
-        #             break
-        #         next = cur_node.set.retrieve(x_item.key).next_entry
-        #         if next is None:
-        #             cur_node = cur_node.right_subtree.node
-        #         else:
-        #             cur_node = next.left_subtree.node
-        logger.info(f"Tree size after insertion: {tree.node.get_size()}")
-        # logger.info(f"Tree after insertion: {tree.print_structure()}")
-
-        return tree, inserted
-    
     def _insert_non_empty(self, x_item: Item, rank: int) -> GKPlusTreeBase:
         """Optimized version for inserting into a non-empty tree."""
-        inserted = True
         cur = self
         parent = None
         p_next_entry = None
@@ -255,17 +214,17 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
                 
                 # Fast path: update existing item
                 if res.found_entry:
-                    inserted = False
+                    item = res.found_entry.item
                     # Direct update for leaf nodes (common case)
                     if rank == 1:
-                        res.found_entry.item.value = x_item.value
-                        return self, inserted
+                        item.value = x_item.value
+                        return self, False
                     return self._update_existing_item(cur, x_item)
                 
-                # Insert new item
+                # Item will be inserted, add 1 to each node's size so far
                 for node in path_cache:
-                    # Update the size of the node
-                    node._invalidate_tree_size()
+                    if node.size is not None:
+                        node.size += 1
                 return self._insert_new_item(cur, x_item, res.next_entry)
 
             # Case 2: Current rank too small - handle rank mismatch
@@ -392,8 +351,8 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
 
                 # Split node at x_key
                 left_split, _, right_split = node.set.split_inplace(x_key)
-                logger.info(f"Left split item count: {left_split.item_count()}")
-                logger.info(f"Right split item count: {right_split.item_count()}")
+                # logger.info(f"Left split item count: {left_split.item_count()}")
+                # logger.info(f"Right split item count: {right_split.item_count()}")
 
                 # --- Handle right side of the split ---
                 # Determine if we need a new tree for the right split
@@ -467,7 +426,7 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
                 # Continue to next iteration with updated current node
                 cur = next_cur
     
-    def check_subtree_sizes(self):
+    def print_subtree_sizes(self):
         """
         Check the subtree sizes in the tree.
         
@@ -477,14 +436,14 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
         # Check if the node counts are consistent
         
         if self.is_empty():
-            print("0")
+            # print("0")
             return True
         print(f"Subtree at rank {self.node.rank} "
               f"has {self.node.set.item_count()} entries, "
                f"size: {self.node.get_size()}")
         for entry in self.node.set:
-            entry.left_subtree.check_subtree_sizes()
-        self.node.right_subtree.check_subtree_sizes()
+            entry.left_subtree.print_subtree_sizes()
+        self.node.right_subtree.print_subtree_sizes()
         return True
     
     # def _insert_non# Main conversion methods
@@ -563,7 +522,7 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
     @classmethod
     def from_tree(cls: Type[t], tree: GKPlusTreeBase, dim: int = None) -> t:
         """
-        Convert any GPlusTree-like object to a GKPlusTree.
+        Convert any GKPlusTree-like object to a GKPlusTree.
         
         Args:
             tree: The tree to convert
@@ -687,7 +646,7 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
         raise NotImplementedError("get_entry not implemented yet")
     
     def __iter__(self):
-        """Yields each entry of the gplus-tree in order."""
+        """Yields each entry of the gk-plus-tree in order."""
         if self.is_empty():
             return
         for node in self.iter_leaf_nodes():

@@ -7,9 +7,9 @@ from typing import List, Tuple
 # Add the src directory to the Python path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from src.gplus_trees.base import Item
-from src.gplus_trees.g_k_plus.factory import create_gkplus_tree
-from src.gplus_trees.g_k_plus.g_k_plus_base import GKPlusTreeBase, DUMMY_ITEM, DUMMY_KEY
+from gplus_trees.base import Item
+from gplus_trees.g_k_plus.factory import create_gkplus_tree
+from gplus_trees.g_k_plus.g_k_plus_base import GKPlusTreeBase, DUMMY_ITEM, DUMMY_KEY
 
 class TestGKPlusSizeTracking(unittest.TestCase):
     
@@ -34,8 +34,9 @@ class TestGKPlusSizeTracking(unittest.TestCase):
         item = Item(1000, "val")
         tree, inserted = self.tree_k2.insert(item, rank=1)
         self.assertTrue(inserted)
-        self.assertIsNotNone(tree.node.size)
-        self.assertEqual(1, tree.node.size, "Tree size should be 1 after single insertion")
+        actual_size = tree.node.get_size()
+        self.assertIsNotNone(actual_size)
+        self.assertEqual(1, actual_size, "Tree size should be 1 after single insertion")
     
     def test_multiple_insertions_size(self):
         """Test size increases properly with multiple insertions"""
@@ -47,8 +48,9 @@ class TestGKPlusSizeTracking(unittest.TestCase):
             item = Item(i * 1000, "val") 
             tree, inserted = tree.insert(item, rank=1)
             expected_size += 1
-            self.assertEqual(expected_size, tree.node.size, 
-                             f"Tree size should be {expected_size} after {i} insertions")
+            actual_size = tree.node.get_size()
+            self.assertEqual(expected_size, actual_size, 
+                             f"Tree size should be {expected_size} after {i} insertions, got {actual_size}")
     
     def test_duplicate_insertion_size(self):
         """Test size doesn't change when inserting duplicates"""
@@ -58,13 +60,13 @@ class TestGKPlusSizeTracking(unittest.TestCase):
         item = Item(5000, "val")
         tree, inserted = tree.insert(item, rank=1)
         self.assertTrue(inserted)
-        self.assertEqual(1, tree.node.size)
+        self.assertEqual(1, tree.node.get_size())
         
         # Duplicate insertion
         item_duplicate = Item(5000, "new_val")
         tree, inserted = tree.insert(item_duplicate, rank=1)
         self.assertFalse(inserted)
-        self.assertEqual(1, tree.node.size, "Size should not change after duplicate insertion")
+        self.assertEqual(1, tree.node.get_size(), "Size should not change after duplicate insertion")
     
     def test_size_with_node_splitting(self):
         """Test size is correctly maintained when nodes are split"""
@@ -75,10 +77,12 @@ class TestGKPlusSizeTracking(unittest.TestCase):
         for i, key in enumerate(keys, 1):
             item = Item(key, "val")
             tree, _ = tree.insert(item, rank=1)
-            self.assertEqual(i, tree.node.size, f"Tree should have size {i} after inserting {key}")
+            self.assertEqual(i, tree.node.get_size(), f"Tree should have size {i} after inserting {key}")
+        
+        tree, _ = tree.insert(Item(450, "val"), rank=2)
         
         # Verify size after all insertions
-        self.assertEqual(len(keys), tree.node.size)
+        self.assertEqual(len(keys) + 1, tree.node.get_size())
         
         # Also verify that node sizes are consistent throughout the tree
         self.assertTrue(self.verify_subtree_sizes(tree))
@@ -98,7 +102,7 @@ class TestGKPlusSizeTracking(unittest.TestCase):
         
         for i, (item, rank) in enumerate(items_and_ranks, 1):
             tree, _ = tree.insert(item, rank)
-            self.assertEqual(i, tree.node.size, f"Tree should have size {i} after inserting item with rank {rank}")
+            self.assertEqual(i, tree.node.get_size(), f"Tree should have size {i} after inserting item with rank {rank}")
         
         # Verify size after all insertions
         self.assertEqual(len(items_and_ranks), tree.node.size)
@@ -110,12 +114,13 @@ class TestGKPlusSizeTracking(unittest.TestCase):
         """Test size is correctly maintained in a larger tree with random insertions"""
         tree = self.tree_k8
         keys = random.sample(range(1, 10000), 100)  # 100 unique random keys
+        ranks = random.choices(range(1, 6), k=100)  # Random ranks between 1 and 5
         
         # Insert all items
-        for i, key in enumerate(keys, 1):
+        for i, (key, rank) in enumerate(zip(keys, ranks), 1):
             item = Item(key, "val")
-            tree, _ = tree.insert(item, rank=1)
-            self.assertEqual(i, tree.node.size, f"Tree should have size {i} after inserting {key}")
+            tree, _ = tree.insert(item, rank=rank)
+            self.assertEqual(i, tree.node.get_size(), f"Tree should have size {i} after inserting {key}")
         
         # Verify size after all insertions
         self.assertEqual(len(keys), tree.node.size)
@@ -137,11 +142,12 @@ class TestGKPlusSizeTracking(unittest.TestCase):
         # Insert all items
         for i, (item, rank) in enumerate(items, 1):
             tree, _ = tree.insert(item, rank)
-            self.assertEqual(i, tree.node.size, 
+            actual_size = tree.node.get_size()
+            self.assertEqual(i, actual_size, 
                             f"Tree should have size {i} after inserting item {item.key} with rank {rank}")
         
         # Verify size after all insertions
-        self.assertEqual(len(items), tree.node.size)
+        self.assertEqual(len(items), actual_size)
         
         # Verify subtree sizes
         self.assertTrue(self.verify_subtree_sizes(tree))
@@ -151,12 +157,12 @@ class TestGKPlusSizeTracking(unittest.TestCase):
         # Case 1: Leaf node (rank 1)
         tree, inserted = self.tree_k4._insert_empty(Item(1000, "val"), rank=1)
         self.assertTrue(inserted)
-        self.assertEqual(1, tree.node.size)
+        self.assertEqual(1, tree.node.get_size())
         
         # Case 2: Internal node (rank > 1)
         tree, inserted = self.tree_k4._insert_empty(Item(2000, "val"), rank=3)
         self.assertTrue(inserted)
-        self.assertEqual(1, tree.node.size)
+        self.assertEqual(1, tree.node.get_size())
     
     def test_size_consistency_with_calculate_size(self):
         """Test that node.size matches the result of calculate_size()"""
@@ -166,8 +172,16 @@ class TestGKPlusSizeTracking(unittest.TestCase):
         for i in range(1, 21):
             tree, _ = tree.insert(Item(i * 500, "val"), rank=1)
         
+        node_size = tree.node.size
+        self.assertIsNone(node_size, "Expected node size to be invalidated (none) after insert calculation")
+        calculated_size = tree.node.calculate_tree_size()
+        
+        # Check if the calculated size has been set
+        node_size = tree.node.size
+        self.assertEqual(node_size, calculated_size, f"Expected tree size to be set to {calculated_size} after calculate_tree_size(); got {node_size}")
+        
         # Check size consistency for the root node
-        self.assertEqual(tree.node.size, tree.calculate_size())
+        self.assertEqual(node_size, calculated_size, f"Expected size {node_size} to match calculated size {calculated_size}")
         
         # Verify size consistency throughout the tree
         self.verify_calculated_sizes_match(tree)
@@ -196,14 +210,22 @@ class TestGKPlusSizeTracking(unittest.TestCase):
         # Add sizes from left subtrees
         for entry in node.set:
             if not entry.left_subtree.is_empty():
-                calculated_size += entry.left_subtree.node.size
+                if entry.left_subtree.node.size is None:
+                    size = entry.left_subtree.node.get_size()
+                else:
+                    size = entry.left_subtree.node.size
+                calculated_size += size
                 # Recursively verify this subtree
                 if not self.verify_subtree_sizes(entry.left_subtree):
                     return False
         
         # Add size from right subtree
         if not node.right_subtree.is_empty():
-            calculated_size += node.right_subtree.node.size
+            if node.right_subtree.node.size is None:
+                size = node.right_subtree.node.get_size()
+            else:
+                size = node.right_subtree.node.size
+            calculated_size += size
             # Recursively verify right subtree
             if not self.verify_subtree_sizes(node.right_subtree):
                 return False
@@ -224,11 +246,12 @@ class TestGKPlusSizeTracking(unittest.TestCase):
             return True
             
         node = tree.node
+        node_size = node.size
         
         # Check if node.size matches calculated size
         calculated = node.calculate_tree_size()
-        if calculated != node.size:
-            print(f"Node size {node.size} doesn't match calculated size {calculated}")
+        if calculated != node_size:
+            print(f"Node size {node_size} doesn't match calculated size {calculated}")
             return False
             
         # Recursively check all subtrees
@@ -249,11 +272,11 @@ class TestGKPlusSizeTracking(unittest.TestCase):
         
         # Insert an item with rank 1
         tree, _ = tree.insert(Item(1000, "val"), rank=1)
-        self.assertEqual(1, tree.node.size)
+        self.assertEqual(1, tree.node.get_size())
         
         # Insert an item with higher rank, triggering rank mismatch logic
         tree, _ = tree.insert(Item(2000, "val"), rank=3)
-        self.assertEqual(2, tree.node.size)
+        self.assertEqual(2, tree.node.get_size())
         
         # Verify subtree sizes are consistent
         self.assertTrue(self.verify_subtree_sizes(tree))
@@ -268,7 +291,7 @@ class TestGKPlusSizeTracking(unittest.TestCase):
         
         for i, (key, rank) in enumerate(zip(keys, ranks), 1):
             tree, _ = tree.insert(Item(key, "val"), rank)
-            self.assertEqual(i, tree.node.size)
+            self.assertEqual(i, tree.node.get_size())
         
         # Verify subtree sizes
         self.assertTrue(self.verify_subtree_sizes(tree))

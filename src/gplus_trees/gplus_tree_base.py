@@ -220,7 +220,7 @@ class GPlusTreeBase(AbstractSetDataStructure):
         if rank == 1:
             leaf_set = self._make_leaf_klist(x_item)
             self.node = self.NodeClass(rank, leaf_set, type(self)())
-            logger.info(f"Tree after empty insert rank == 1:\n{self.print_structure()}")
+            # logger.info(f"Tree after empty insert rank == 1:\n{self.print_structure()}")
             return self, inserted
 
         # Higher-level root with two linked leaf children
@@ -228,7 +228,7 @@ class GPlusTreeBase(AbstractSetDataStructure):
         root_set = self.SetClass().insert(DUMMY_ITEM, type(self)())
         root_set = root_set.insert(_create_replica(x_item.key), l_leaf_t)
         self.node = self.NodeClass(rank, root_set, r_leaf_t)
-        logger.info(f"Tree after empty insert rank > 1:\n{self.print_structure()}")
+        # logger.info(f"Tree after empty insert rank > 1:\n{self.print_structure()}")
         return self, inserted
     
     def _insert_non_empty(self, x_item: Item, rank: int) -> GPlusTreeBase:
