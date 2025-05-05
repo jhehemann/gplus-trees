@@ -32,4 +32,6 @@ src/gplus_trees/archive/*
 
 **/*.log
 
+/stats/run_stats.py
+
 .vscode/

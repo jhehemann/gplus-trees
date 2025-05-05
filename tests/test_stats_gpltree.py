@@ -29,33 +29,33 @@ class TestGTreeStatsInvalidProperties(unittest.TestCase):
         # Single-node tree
         single_set1 = (
             self.KListK()
-            .insert(DUMMY_ITEM, self.GPlusTreeK())
-            .insert(self.item1, self.GPlusTreeK())
+            .insert(DUMMY_ITEM, None)
+            .insert(self.item1, None)
         )
         self.single_node_tree = self.GPlusTreeK(
-            self.GPlusNodeK(1, single_set1, self.GPlusTreeK())
+            self.GPlusNodeK(1, single_set1, None)
         )
 
         # 3-node tree (1 root, 2 leaves)
         leaf_set2 = (
             self.KListK()
-            .insert(self.item3, self.GPlusTreeK())
-            .insert(self.item4, self.GPlusTreeK())
+            .insert(self.item3, None)
+            .insert(self.item4, None)
         )
         self.leaf_tree2 = self.GPlusTreeK(self.GPlusNodeK(1, leaf_set2, self.GPlusTreeK()))
 
         leaf_set1 = (
             self.KListK()
-            .insert(DUMMY_ITEM, self.GPlusTreeK())
-            .insert(self.item1, self.GPlusTreeK())
-            .insert(self.item2, self.GPlusTreeK())
+            .insert(DUMMY_ITEM, None)
+            .insert(self.item1, None)
+            .insert(self.item2, None)
         )
         self.leaf_tree1 = self.GPlusTreeK(self.GPlusNodeK(1, leaf_set1, self.GPlusTreeK()))
         self.leaf_tree1.node.next = self.leaf_tree2
 
         root_set = (
             self.KListK()
-            .insert(DUMMY_ITEM, self.GPlusTreeK())
+            .insert(DUMMY_ITEM, None)
             .insert(self.replica3, self.leaf_tree1)
         )
         self.tree_3_nodes = self.GPlusTreeK(self.GPlusNodeK(3, root_set, self.leaf_tree2))

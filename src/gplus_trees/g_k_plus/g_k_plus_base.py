@@ -118,9 +118,9 @@ class GKPlusNodeBase(GPlusNodeBase):
         else:
             count = 0
             for entry in self.set:
-                count += entry.left_subtree.node.get_size() if not entry.left_subtree.is_empty() else 0
+                count += entry.left_subtree.node.get_size() if entry.left_subtree is not None else 0
 
-            count += self.right_subtree.node.get_size() if not self.right_subtree.is_empty() else 0
+            count += self.right_subtree.node.get_size() if self.right_subtree is not None else 0
             self.size = count
             return self.size
 
@@ -167,19 +167,21 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
         return self.node.get_size()
     
     def item_slot_count(self):
-        """Count the number of item slots in the tree."""
+        """Count the number of item slots in the tree."""        
         if self.is_empty():
             return 0
-        
+
         node = self.node
         if node.rank == 1:
             return node.set.item_slot_count()
         
         count = 0
         for entry in node.set:
-            count += entry.left_subtree.item_slot_count()
+            if entry.left_subtree is not None:
+                count += entry.left_subtree.item_slot_count()
         
-        count += node.right_subtree.item_slot_count()
+        if node.right_subtree is not None:
+            count += node.right_subtree.item_slot_count()
         count += node.set.item_slot_count()
         
         return count
@@ -189,10 +191,7 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
         Get the minimum entry in the tree.
         Returns:
             RetrievalResult: The minimum entry and the next entry (if any).
-        """
-        if self.is_empty():
-            return RetrievalResult(None, None)
-        
+        """        
         first_leaf = next(self.iter_leaf_nodes(), None)
         if first_leaf is None or not first_leaf.set:
             return RetrievalResult(None, None)
@@ -204,10 +203,7 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
         Get the maximum entry in the tree.
         Returns:
             RetrievalResult: The maximum entry and the next entry (if any).
-        """
-        if self.is_empty():
-            return RetrievalResult(None, None)
-        
+        """        
         cur = self.node
         while cur.node.rank > 1:
             cur = cur.right_subtree.node
@@ -309,12 +305,12 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
             GKPlusTreeBase: The updated G+-tree.
         """
         TreeClass = type(self)
-        
+
         if parent is None:
             # create a new root node
             old_node = self.node
             dummy = get_dummy(dim=TreeClass.DIM)
-            root_set = self.SetClass().insert(dummy, TreeClass())
+            root_set = self.SetClass().insert(dummy, None)
             self.node = self.NodeClass(rank, root_set, TreeClass(old_node))
             return self
 
@@ -322,7 +318,7 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
         # Set replica of the current node's min as first entry.
         min_entry = cur.node.set.get_min().found_entry
         min_replica = _create_replica(min_entry.item.key)
-        new_set = self.SetClass().insert(min_replica, TreeClass())
+        new_set = self.SetClass().insert(min_replica, None)
         new_tree = TreeClass()
         new_tree.node = self.NodeClass(rank, new_set, cur)
        
@@ -401,7 +397,7 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
                 # Determine if we need a new tree for the right split
                 if right_split.item_count() > 0 or is_leaf:
                     # Insert item into right split and create new tree
-                    right_split = right_split.insert(insert_obj, TreeClass())
+                    right_split = right_split.insert(insert_obj, None)
                     new_tree = TreeClass()
                     new_tree.node = self.NodeClass(node.rank, right_split, node.right_subtree)
 
@@ -442,7 +438,7 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
                 else:
                     # Collapse single-item nodes for non-leaves
                     new_subtree = (
-                        next_entry.left_subtree if next_entry else TreeClass()
+                        next_entry.left_subtree if next_entry else None
                     )
                     
                     # Update parent reference
@@ -476,17 +472,17 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
         Returns:
             bool: True if the node counts are consistent, False otherwise.
         """
-        # Check if the node counts are consistent
-        
-        if self.is_empty():
-            # print("0")
-            return True
+        # Check if the node counts are consistent        
         print(f"Subtree at rank {self.node.rank} "
               f"has {self.node.set.item_count()} entries, "
                f"size: {self.node.get_size()}")
+        
         for entry in self.node.set:
-            entry.left_subtree.print_subtree_sizes()
-        self.node.right_subtree.print_subtree_sizes()
+            if entry.left_subtree is not None:
+                entry.left_subtree.print_subtree_sizes()
+        
+        if self.node.right_subtree is not None:
+            self.node.right_subtree.print_subtree_sizes()
         return True
     
     # def _insert_non# Main conversion methods
@@ -520,7 +516,7 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
             new_tree = new_tree.insert(entry.item, 1)
             
             # If the entry has a left subtree, integrate it
-            if entry.left_subtree is not None and not entry.left_subtree.is_empty():
+            if entry.left_subtree is not None:
                 # Get the updated entry after insertion
                 result = new_tree.retrieve(entry.item.key)
                 if result.found_entry is not None:
@@ -602,7 +598,7 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
                 new_tree = new_tree.insert(entry.item, 1)
                 
                 # If there's a left subtree, recursively convert it
-                if entry.left_subtree is not None and not entry.left_subtree.is_empty():
+                if entry.left_subtree is not None:
                     left_subtree = cls.from_tree(entry.left_subtree)
                     # Update the reference in the new entry
                     result = new_tree.retrieve(entry.item.key)
@@ -817,8 +813,8 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
     
     def __iter__(self):
         """Yields each entry of the gk-plus-tree in order."""
-        if self.is_empty():
-            return
+        # if self.is_empty():
+        #     return
         for node in self.iter_leaf_nodes():
             for entry in node.set:
                 yield entry

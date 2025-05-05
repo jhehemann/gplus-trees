@@ -38,7 +38,6 @@ t = Type["GPlusTreeBase"]
 
 # Constants
 DUMMY_KEY = int("-1", 16)
-print(f"DUMMY_KEY: {DUMMY_KEY}")
 DUMMY_VALUE = None
 DUMMY_ITEM = Item(DUMMY_KEY, DUMMY_VALUE)
 
@@ -66,7 +65,8 @@ class GPlusNodeBase:
             raise ValueError("rank must be > 0")
         self.rank = rank
         self.set = set
-        self.right_subtree = right if right is not None else self.TreeClass()
+        # self.right_subtree = right if right is not None else self.TreeClass()
+        self.right_subtree = right
         self.next = None    # leaf‐chain pointer
     
 class GPlusTreeBase(AbstractSetDataStructure):
@@ -181,10 +181,10 @@ class GPlusTreeBase(AbstractSetDataStructure):
         leaf_set = SetClass()
         
         # insert the dummy entry, pointing at an empty subtree
-        leaf_set = leaf_set.insert(DUMMY_ITEM, TreeClass())
+        leaf_set = leaf_set.insert(DUMMY_ITEM, None)
         
         # now insert the real item, also pointing at an empty subtree
-        leaf_set = leaf_set.insert(x_item, TreeClass())
+        leaf_set = leaf_set.insert(x_item, None)
         
         return leaf_set
     
@@ -199,14 +199,14 @@ class GPlusTreeBase(AbstractSetDataStructure):
 
         # Build right leaf
         right_set = SetK()
-        right_set = right_set.insert(x_item, TreeK())
-        right_node = NodeK(1, right_set, TreeK())
+        right_set = right_set.insert(x_item, None)
+        right_node = NodeK(1, right_set, None)
         right_leaf = TreeK(right_node)
 
         # Build left leaf with dummy entry
         left_set = SetK()
-        left_set = left_set.insert(DUMMY_ITEM, TreeK())
-        left_node = NodeK(1, left_set, TreeK())
+        left_set = left_set.insert(DUMMY_ITEM, None)
+        left_node = NodeK(1, left_set, None)
         left_leaf = TreeK(left_node)
 
         # Link leaves
@@ -220,13 +220,13 @@ class GPlusTreeBase(AbstractSetDataStructure):
         # Single-level leaf
         if rank == 1:
             leaf_set = self._make_leaf_klist(x_item)
-            self.node = self.NodeClass(rank, leaf_set, type(self)())
+            self.node = self.NodeClass(rank, leaf_set, None)
             # logger.info(f"Tree after empty insert rank == 1:\n{self.print_structure()}")
             return self, inserted
 
         # Higher-level root with two linked leaf children
         l_leaf_t, r_leaf_t = self._make_leaf_trees(x_item)
-        root_set = self.SetClass().insert(DUMMY_ITEM, type(self)())
+        root_set = self.SetClass().insert(DUMMY_ITEM, None)
         root_set = root_set.insert(_create_replica(x_item.key), l_leaf_t)
         self.node = self.NodeClass(rank, root_set, r_leaf_t)
         # logger.info(f"Tree after empty insert rank > 1:\n{self.print_structure()}")
@@ -303,7 +303,7 @@ class GPlusTreeBase(AbstractSetDataStructure):
         if parent is None:
             # create a new root node
             old_node = self.node
-            root_set = self.SetClass().insert(DUMMY_ITEM, TreeClass())
+            root_set = self.SetClass().insert(DUMMY_ITEM, None)
             self.node = self.NodeClass(rank, root_set, TreeClass(old_node))
             return self
 
@@ -311,7 +311,7 @@ class GPlusTreeBase(AbstractSetDataStructure):
         # Set replica of the current node's min as first entry.
         min_entry = cur.node.set.get_min().found_entry
         min_replica = _create_replica(min_entry.item.key)
-        new_set = self.SetClass().insert(min_replica, TreeClass())
+        new_set = self.SetClass().insert(min_replica, None)
         new_tree = TreeClass()
         new_tree.node = self.NodeClass(rank, new_set, cur)
         
@@ -406,7 +406,7 @@ class GPlusTreeBase(AbstractSetDataStructure):
                 # Determine if we need a new tree for the right split
                 if right_split.item_count() > 0 or is_leaf:
                     # Insert item into right split and create new tree
-                    right_split = right_split.insert(insert_obj, TreeClass())
+                    right_split = right_split.insert(insert_obj, None)
                     new_tree = TreeClass()
                     new_tree.node = self.NodeClass(node.rank, right_split, node.right_subtree)
 
@@ -447,7 +447,7 @@ class GPlusTreeBase(AbstractSetDataStructure):
                 else:
                     # Collapse single-item nodes for non-leaves
                     new_subtree = (
-                        next_entry.left_subtree if next_entry else TreeClass()
+                        next_entry.left_subtree if next_entry else None
                     )
                     
                     # Update parent reference
@@ -482,9 +482,6 @@ class GPlusTreeBase(AbstractSetDataStructure):
         Yields:
             GPlusNode: Each leaf-level node in left-to-right order.
         """
-        if self.is_empty():
-            return 
-
         # Descend to the leftmost leaf
         current = self
         while current.node.rank > 1:
@@ -495,7 +492,7 @@ class GPlusTreeBase(AbstractSetDataStructure):
                 current = current.node.right_subtree
 
         # At this point, current is the leftmost leaf-level GPlusTreeBase
-        while current is not None and not current.is_empty():
+        while current is not None:
             yield current.node
             current = current.node.next
     
@@ -517,9 +514,9 @@ class GPlusTreeBase(AbstractSetDataStructure):
         max_child = 0
         for entry in node.set:
             left = entry.left_subtree
-            if left is not None and not left.is_empty():
+            if left is not None:
                 max_child = max(max_child, left.physical_height())
-        if node.right_subtree is not None and not node.right_subtree.is_empty():
+        if node.right_subtree is not None:
             max_child = max(max_child, node.right_subtree.physical_height())
 
         # total physical height = this node’s chain length + deepest child
@@ -546,7 +543,7 @@ class GPlusTreeBase(AbstractSetDataStructure):
         result.append(node.set.print_structure(indent + 4))
 
         # Print right subtree
-        if node.right_subtree and not node.right_subtree.is_empty():
+        if node.right_subtree is not None:
             right_node = node.right_subtree.node
 
             kwargs_print = []
@@ -649,7 +646,7 @@ def gtree_stats_(t: GPlusTreeBase,
         rank_hist = collections.Counter()
 
     # ---------- empty tree return ---------------------------------
-    if t is None or t.is_empty():
+    if t is None:
         return Stats(gnode_height        = 0,
                      gnode_count         = 0,
                      item_count          = 0,

@@ -132,17 +132,18 @@ class TreeTestCase(unittest.TestCase):
                 f"Entry #{i} value for key {entry.item.key} should be None"
             )
             if i == 0:
-                self.assertIsNotNone(entry.left_subtree,
-                                     "Use empty trees; never None.")
-                self.assertTrue(
-                    entry.left_subtree.is_empty(),
-                    "The first (min) entry's left subtree should be empty"
+                self.assertIsNone(
+                    entry.left_subtree,
+                    "Expected first (min) entry's left subtree to be None"
                 )
             else:
+                self.assertIsNotNone(
+                    entry.left_subtree,
+                    f"Expected Entry #{i}'s ({expected_item.key}) left subtree NOT to be None"
+                )
                 self.assertFalse(
                     entry.left_subtree.is_empty(),
-                    f"Entry #{i} ({expected_item.key}) should have non-empty "
-                    f"left_subtree"
+                    f"Expected Entry #{i}'s ({expected_item.key}) left subtree NOT to be empty"
                 )
 
         # collect and return the first two entries
@@ -176,13 +177,10 @@ class TreeTestCase(unittest.TestCase):
         )
 
         # no children at a leaf
-        self.assertIsNotNone(node.right_subtree, "Use empty trees; never None.")
-        self.assertTrue(
-            node.right_subtree.is_empty(),
-            "Leaf node's right_subtree should be empty"
-        )
+        self.assertIsNone(node.right_subtree, 
+                          "Expected leaf node's right_subtree to be None")
 
-        # verify each entry's key/value and empty left subtree
+        # verify each entry's key/value and left subtree == None
         for i, (entry, expected) in enumerate(zip(node.set, items)):
             self.assertEqual(
                 entry.item.key, expected.key,
@@ -194,12 +192,9 @@ class TreeTestCase(unittest.TestCase):
                 f"{expected.value!r}, "
                 f"got {entry.item.value!r}"
             )
-            self.assertIsNotNone(entry.left_subtree,
-                                 "Use empty trees; never None.")
-
-            self.assertTrue(
-                entry.left_subtree.is_empty(),
-                f"Entry #{i} ({expected.key}) should have empty left_subtree"
+            self.assertIsNone(
+                entry.left_subtree,
+                f"Expected Entry #{i}'s ({expected.key}) left subtree NOT to be empty"
             )
 
         # collect and return the first two entries

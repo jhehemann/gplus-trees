@@ -191,8 +191,11 @@ class TestGKPlusSizeTracking(unittest.TestCase):
         Recursive helper to verify that the size of each node equals the sum of its children's sizes
         plus the number of real items in the node itself.
         """
-        if tree.is_empty():
+        if tree is None:
             return True
+        
+        if tree.is_empty():
+            print("Empty tree: Use None instead of empty tree")
             
         node = tree.node
         
@@ -210,7 +213,7 @@ class TestGKPlusSizeTracking(unittest.TestCase):
         
         # Add sizes from left subtrees
         for entry in node.set:
-            if not entry.left_subtree.is_empty():
+            if entry.left_subtree is not None:
                 if entry.left_subtree.node.size is None:
                     size = entry.left_subtree.node.get_size()
                 else:
@@ -221,7 +224,7 @@ class TestGKPlusSizeTracking(unittest.TestCase):
                     return False
         
         # Add size from right subtree
-        if not node.right_subtree.is_empty():
+        if node.right_subtree is not None:
             if node.right_subtree.node.size is None:
                 size = node.right_subtree.node.get_size()
             else:
@@ -243,8 +246,11 @@ class TestGKPlusSizeTracking(unittest.TestCase):
         Recursive helper to verify that node.size matches what calculate_tree_size() returns
         for each node in the tree.
         """
-        if tree.is_empty():
+        if tree is None:
             return True
+        
+        if tree.is_empty():
+            print("Empty tree: Use None instead of empty tree")
             
         node = tree.node
         node_size = node.size
@@ -257,11 +263,11 @@ class TestGKPlusSizeTracking(unittest.TestCase):
             
         # Recursively check all subtrees
         for entry in node.set:
-            if not entry.left_subtree.is_empty():
+            if entry.left_subtree is not None:
                 if not self.verify_calculated_sizes_match(entry.left_subtree):
                     return False
         
-        if not node.right_subtree.is_empty():
+        if node.right_subtree is not None:
             if not self.verify_calculated_sizes_match(node.right_subtree):
                 return False
                 
@@ -448,7 +454,7 @@ class TestGKPlusItemSlotCount(unittest.TestCase):
         
     def _count_slots_manually(self, tree):
         """Helper method to count slots by traversing the tree structure."""
-        if tree.is_empty():
+        if tree is None:
             return 0
             
         total_slots = 0
@@ -464,11 +470,11 @@ class TestGKPlusItemSlotCount(unittest.TestCase):
             if current_node.rank > 1:
                 # Add left subtrees
                 for entry in current_node.set:
-                    if not entry.left_subtree.is_empty():
+                    if entry.left_subtree is not None:
                         node_queue.append(entry.left_subtree.node)
                 
                 # Add right subtree
-                if not current_node.right_subtree.is_empty():
+                if current_node.right_subtree is not None:
                     node_queue.append(current_node.right_subtree.node)
                     
         return total_slots
