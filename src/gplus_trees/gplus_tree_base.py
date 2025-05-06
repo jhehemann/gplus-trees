@@ -447,7 +447,7 @@ class GPlusTreeBase(AbstractSetDataStructure):
                 else:
                     # Collapse single-item nodes for non-leaves
                     new_subtree = (
-                        next_entry.left_subtree if next_entry else None
+                        next_entry.left_subtree if next_entry else cur.node.right_subtree
                     )
                     
                     # Update parent reference
@@ -646,7 +646,7 @@ def gtree_stats_(t: GPlusTreeBase,
         rank_hist = collections.Counter()
 
     # ---------- empty tree return ---------------------------------
-    if t is None:
+    if t is None or t.is_empty():
         return Stats(gnode_height        = 0,
                      gnode_count         = 0,
                      item_count          = 0,
@@ -826,8 +826,12 @@ def gtree_stats_(t: GPlusTreeBase,
 
         # Check leaf_count and real_item_count consistency
         if leaf_count != stats.leaf_count or item_count != stats.real_item_count:
+            print(f"Leaf count mismatch: iter {leaf_count} != stats {stats.leaf_count}")
+            print(f"Or Item count mismatch: iter {item_count} != stats {stats.real_item_count}")
+            print(f"Or real_item_count mismatch: iter {item_count} != stats {stats.real_item_count}")
             stats.linked_leaf_nodes = False
             stats.leaf_count = max(leaf_count, stats.leaf_count)
+            
             stats.real_item_count = max(item_count, stats.real_item_count)
         elif last_leaf is not None:
             # Check if greatest item matches last leaf's greatest item

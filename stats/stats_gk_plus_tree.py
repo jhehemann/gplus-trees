@@ -69,6 +69,11 @@ def random_gtree_of_size(n: int, target_node_size: int) -> GKPlusTreeBase:
 
     ranks = np.random.geometric(p, size=n)
 
+    # all ranks are 1
+    # ranks = np.ones(n, dtype=int)
+
+    # logging.info(f"Ranks: {ranks}")
+
     # Process all items in a single pass
     for i, idx in enumerate(indices):
         # Use the index directly as the key
@@ -337,7 +342,7 @@ if __name__ == "__main__":
     # sizes = [10, 100, 1000, 10_000, 100_000]
     # List of K values for which we want to run experiments.
     # Ks = [2, 4, 16, 64]
-    Ks = [64]
+    Ks = [2]
     repetitions = 200
 
     for n in sizes:
