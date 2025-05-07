@@ -559,51 +559,75 @@ class TestGKPlusSplitInplace(unittest.TestCase):
         self.validate_tree(right, [])
     
     def test_split_single_node_tree(self):
-        """Test splitting a tree with a single node."""
-        tree = self.tree_k4
-        
+        """Test splitting a tree with a single node."""        
         # Insert a single item
         item = Item(500, "val")
-        tree, _ = tree.insert(item, rank=1)
+        
+        
+        with self.subTest("split point > only key"):
+            tree = create_gkplus_tree(K=4)
+            tree, _ = tree.insert(item, rank=1)
+            
+            # Split at a key greater than the only key
+            left, middle, right = tree.split_inplace(1000)
+            
+            # Validate left tree with the item
+            self.assertIs(tree, left)
+            self.validate_tree(left, [500])
+            self.assertIsNone(middle)
+            self.assertTrue(right.is_empty())
 
-        print("\nInitial Tree")
-        print(tree.print_structure())
         
-        # Split at a key greater than the only key
-        left, middle, right = tree.split_inplace(1000)
+        
+        with self.subTest("split point < only key"):
+            # Split at a key less than the only key
+            tree = create_gkplus_tree(K=4)
 
-        print("\nSplit Tree")
-        print(tree.print_structure())
+            tree, _ = self.tree_k4.insert(item, rank=1)
 
-        print("\nLeft Tree")
-        print(left.print_structure())
-        print("\nRight Tree")
-        print(right.print_structure())
-        print("\nMiddle Tree")
-        print(middle.print_structure()) if middle else print("Middle is None")
+            # print("\nSelf tree (tree) before split")
+            # print(tree.print_structure())
+            
+            # print("\nSelf Tree (k4) before split")
+            # print(self.tree_k4.print_structure())
+            
+            left, middle, right = tree.split_inplace(100)
+
+          
+            
+            # Validate right tree with the item
+            self.assertTrue(left.is_empty())
+            self.assertIsNone(middle)
+            self.validate_tree(right, [500])
         
-        # Validate left tree with the item
-        self.validate_tree(left, [500])
-        self.assertIsNone(middle)
-        self.assertTrue(right.is_empty())
-        
-        # Split at a key less than the only key
-        tree, _ = self.tree_k4.insert(item, rank=1)
-        left, middle, right = tree.split_inplace(100)
-        
-        # Validate right tree with the item
-        self.assertTrue(left.is_empty())
-        self.assertIsNone(middle)
-        self.validate_tree(right, [500])
-        
-        # Split at the key itself
-        tree, _ = self.tree_k4.insert(item, rank=1)
-        left, middle, right = tree.split_inplace(500)
-        
-        # Validate structure
-        self.assertTrue(left.is_empty())
-        self.assertIsNone(middle)  # The item has no left subtree
-        self.validate_tree(right, [500])
+        with self.subTest("split point == only key"):
+            tree = create_gkplus_tree(K=4)
+            
+            # Split at the key itself
+            print("\nSelf Tree (k4) before insert")
+            print(self.tree_k4.print_structure())
+            
+            
+            tree, _ = self.tree_k4.insert(item, rank=1)
+            left, middle, right = tree.split_inplace(500)
+
+            print("\nSelf tree (tree) after split")
+            print(tree.print_structure())
+
+            print("\nSelf Tree (k4) after split")
+            print(self.tree_k4.print_structure())
+
+            print("\nLeft Tree")
+            print(left.print_structure())
+            print("\nRight Tree")
+            print(right.print_structure())
+            print("\nMiddle Tree")
+            print(middle.print_structure()) if middle else print("Middle is None")
+            
+            # Validate structure
+            self.assertTrue(left.is_empty())
+            self.assertIsNone(middle)  # The item has no left subtree
+            self.validate_tree(right, [500])
     
     # def test_split_leaf_node_with_multiple_items(self):
     #     """Test splitting a leaf node with multiple items."""

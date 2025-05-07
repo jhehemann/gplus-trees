@@ -204,11 +204,20 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
         Returns:
             RetrievalResult: The maximum entry and the next entry (if any).
         """        
+        max_leaf = self.get_max_leaf()
+        return max_leaf.set.get_max()
+    
+    def get_max_leaf(self) -> GKPlusNodeBase:
+        """
+        Get the maximum node in the tree.
+        Returns:
+            GKPlusNodeBase: The maximum node in the tree.
+        """
         cur = self.node
         while cur.node.rank > 1:
             cur = cur.right_subtree.node
         
-        return cur.node.set.get_max()
+        return cur.node
     
     @classmethod
     def with_dimension(cls: Type[t], dim: int) -> Type[t]:
@@ -673,11 +682,13 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
             key: The key value to split at
             
         Returns:
-            A tuple of (left_tree, middle_subtree, right_tree) where:
-            - left_tree: A tree containing all entries with keys < key
-            - middle_subtree: If key exists in the tree, its associated left subtree; otherwise, None
-            - right_tree: A tree containing all entries with keys ≥ key (except the entry with key itself)
+            A tuple of (left_return, key_subtree, right_return) where:
+            - left_return: A tree containing all entries with keys < key
+            - key_subtree: If key exists in the tree, its associated left subtree; otherwise, None
+            - right_return: A tree containing all entries with keys ≥ key (except the entry with key itself)
         """
+        logger.debug(f"\n\nSplitting tree at key {key}.")
+        
         if not isinstance(key, int):
             raise TypeError(f"key must be int, got {type(key).__name__!r}")
         
@@ -690,50 +701,20 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
             return self, None, TreeClass()
         
         # Initialize left and right return trees
-        left_tree = self
-        right_tree = TreeClass()
+        left_return = self
+        right_return = TreeClass()
 
         # Parent tracking variables
         right_parent = None    # Parent node for right-side updates
         right_entry = None     # Entry in right parent points to current subtree
         left_parent = None     # Parent node for left-side updates
         
-        cur = left_tree
+        cur = left_return
+        key_node_found = False
 
         while True:
             node = cur.node
             is_leaf = node.rank == 1
-
-
-
-            # # Determine subtree for potential next iteration
-            # subtree = (
-            #     next_entry.left_subtree
-            #     if next_entry else node.right_subtree
-            # )
-
-            # left_split, _, right_split = node.set.split_inplace(key)
-
-            
-            # if right_split.item_count() > 1 or is_leaf:
-            #     if right_parent is None:
-            #         # Create a new root node
-            #         root_set = self.SetClass().insert(DUMMY_ITEM())
-            #         root_node = NodeClass(rank, root_set, TreeClass())
-            #         right_tree.node = NodeClass(rank, right_split, node.right_subtree)
-                
-            #     right_tree.node = NodeClass(rank, right_split, node.right_subtree)
-            
-            #     # Early return if we're already at a leaf node
-            #     if is_leaf:
-            #         return self
-                
-            #     # Assign parent tracking for next iteration
-            #     right_parent = left_parent = cur
-            #     right_entry = next_entry if next_entry else None
-            #     left_x_entry = node.set.retrieve(x_key).found_entry
-            #     cur = subtree
-            # else:
 
             # Node splitting required - get updated next_entry
             res = node.set.retrieve(key)
@@ -742,6 +723,10 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
 
             # Split node at key
             left_split, key_subtree, right_split = node.set.split_inplace(key)
+
+            logger.debug(f"Left split: {left_split}")
+            logger.debug(f"Key subtree: {key_subtree}")
+            logger.debug(f"Right split: {right_split}")
 
             l_count = left_split.item_count()
             r_count = right_split.item_count()
@@ -752,7 +737,7 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
 
             # --- Handle right side of the split ---
             # Determine if we need a new tree for the right split
-            if r_count > 0:
+            if r_count > 0:     # incl. dummy items
                 logger.debug(f"Right split item count is >0: {r_count}")
                 right_split = right_split.insert(dummy, None)
                 right_node = NodeClass(
@@ -760,38 +745,64 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
                 )
                 
                 if right_parent is None:
-                    # Create a new root node
+                    # Create a root node for right return tree
                     logger.debug("Right parent is None, creating new root node.")
-                    right_tree.node = right_node
-                    new_tree = right_tree
-                    next_right_parent = new_tree
+                    right_return.node = right_node
+                    new_tree = right_return
                 else:
                     logger.debug("Right parent is not None, creating new tree.")
                     new_tree = TreeClass()
                     new_tree.node = right_node
-                    next_right_parent = new_tree
-
+                    
                     # Update parent reference
                     if right_entry is not None:
                         right_entry.left_subtree = new_tree
                     else:
                         right_parent.node.right_subtree = new_tree
 
+                if is_leaf:
+                    # Prepare for updating 'next' pointers
+                    new_tree.node.next = cur.node.next
+
+                # Prepare references for next iteration
+                
                 next_right_entry = next_entry
+                next_cur = (
+                    next_entry.left_subtree 
+                    if next_entry else new_tree.node.right_subtree
+                )
+                next_right_parent = new_tree
 
             else:
                 logger.debug(f"Right split item count is zero: {r_count}")
                 if is_leaf and right_parent:
-                    logger.debug("We are at a leaf node and the right parent is not None --> create a new tree.")
+                    logger.debug("We are at a leaf node and have a right parent --> create a new right tree node.")
                     # Create a leaf with a single dummy item
                     right_split = right_split.insert(dummy, None)
                     right_node = NodeClass(1, right_split, None)
                     new_tree = TreeClass()
                     new_tree.node = right_node
+                    
+                    # Prepare for updating 'next' pointers
+                    # r_first_leaf = new_tree
+
+                    # Link leaf nodes
+                    new_tree.node.next = cur.node.next
+
                     next_right_parent = new_tree
+
                 else:
                     logger.debug("No node creation, keeping existing parent references.")
                     next_right_parent = right_parent
+                    next_cur = (
+                        next_entry.left_subtree 
+                        if next_entry else cur.node.right_subtree
+                    )
+
+                    # if is_leaf:
+                    # No right parent at this point
+                    # Prepare for updating 'next' pointers
+                        # r_first_leaf = None
                 
                 next_right_entry = right_entry
 
@@ -799,18 +810,18 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
             right_parent = next_right_parent
             right_entry = next_right_entry
 
-            # TODO: Handle cur and next subtree traversal. 
-            # TODO: provide get_max_node() for gkplus tree to unlink leaf nodes
-            
             # --- Handle left side of the split ---
             # Determine if we need to create/update using left split
-            if l_count > 1:
+            if l_count > 1:     # incl. dummy items
                 # Update current node to use left split
-                logger.debug(f"Left split item count: {l_count}")
-                logger.debug(f"Next entry later check: {next_entry}")
+                logger.debug(f"Left split item count: {l_count} (incl. dummy items)")
                 cur.node.set = left_split
+
                 if key_subtree:
-                    print(f"Key subtree is not None: {key_subtree}")
+                    print(f"Highest node containing split key found. Updating current node's right subtree with key subtree.")
+                    # Highest node containing split key found
+                    # All entries in its left subtree are less than key and
+                    # are part of the left return tree
                     cur.node.right_subtree = key_subtree
                 elif next_entry:
                     cur.node.right_subtree = next_entry.left_subtree
@@ -818,100 +829,100 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
                 if left_parent is None:
                     logger.debug("Left parent is None, set the left tree to cur and update self reference to this node.")
                     # Reuse left split as the root node for the left return tree
-                    left_tree = self = cur
+                    left_return = self = cur
 
-                next_left_parent = cur  # Make current node the new left parent
-                next_cur = cur.node.right_subtree
-            
+                if is_leaf:
+                    logger.debug(f"Is leaf: {is_leaf} --> Set l_last_leaf to cur.")
+                    l_last_leaf = cur
+
+                # Check if we need to update the left parent reference
+                if key_node_found:
+                    next_left_parent = left_parent
+                else:
+                    # Make current node the new left parent
+                    next_left_parent = cur  
+                
             else:
-                logger.debug(f"Left split item count: {l_count}")
-                logger.debug("No left split item count greater than 1, handling accordingly.")
+                logger.debug(f"Left split item count: {l_count} (incl. dummy items)")
+                logger.debug("Left split item count is <= 1, handling accordingly.")
 
-                if is_leaf and left_parent is None:
-                    logger.debug("Left parent is None at leaf, no updates needed. Only dummy item in left tree --> return empty left.")
-                    left_tree = self = TreeClass()
-                elif is_leaf:
-                    logger.debug("Left parent is not None at leaf, updating leaf pointers.")
-                    logger.debug(f"Find the previous leaf node by traversing the left parent to unlink leaf nodes.")
-                    max_entry, _ = left_parent.node.set.get_max()
-                    max_entry.left_subtree.node.next = None               
-                
-                
-                # Collapse single-item nodes for non-leaves
-                new_subtree = (
-                    next_entry.left_subtree if next_entry else cur.node.right_subtree
-                )
-                logger.debug(f"Collapse: Left split item count: {left_split.item_count()}")
-                logger.debug(f"Collapse: Next entry: {next_entry}")
-                logger.debug(f"Collapse: New subtree: {new_subtree}")
-                
-                # # Update left parent reference
-                left_parent.node.right_subtree = new_subtree
-
-                # Prepare for next iteration
-                next_left_parent = left_parent
-                next_cur = new_subtree
-                
-
-
-                left_parent.node.right_subtree = new_subtree
-
-
-            
-            # --- Handle left side of the split ---
-            # Determine if we need to create/update using left split
-            if left_split.item_count() > 1 or is_leaf:
-                # Update current node to use left split
-                logger.debug(f"Left split item count: {left_split.item_count()}")
-                logger.debug(f"Next entry later check: {next_entry}")
-
-                if is_leaf and left_split.item_count() == 0:
-                    if left_parent is not None:
-                        logger.debug("Left parent is not None at leaf, updating left parent references.")
+                if is_leaf:
+                    logger.debug(f"Is leaf: {is_leaf}")
+                    if left_parent:
+                        logger.debug("Left parent exists, so leaf is not collapsed. Update leaf next pointers.")
                         logger.debug(f"Find the previous leaf node by traversing the left parent to unlink leaf nodes.")
-                        max_entry, _ = left_parent.node.set.get_max()
-                        max_entry.left_subtree.node.next = None                      
+                        # find the previous leaf node by traversing the left parent
+                        l_last_leaf = left_parent.get_max_leaf()
+                    else:
+                        logger.debug("Left parent is None at leaf. Only dummy item in left tree --> return empty left.")
+                        # No non-dummy entry in left tree - return empty left tree
+
+                        # # Link leaf nodes
+                        # if r_first_leaf:
+                        #     logger.debug("Linking leaf nodes.")
+                        #     r_first_leaf.node.next = cur.node.next
 
 
-                cur.node.set = left_split
-                if next_entry:
-                    cur.node.right_subtree = next_entry.left_subtree
-                
-                if left_parent is None:
-                    logger.debug("Left parent is None, set the left tree to cur and update self reference to this node.")
-                    # Reuse left split as the root node for the left return tree
-                    left_tree = self = cur
+                        left_return = self = TreeClass()
+                        # logger.debug(f"Left split: {left_split}")
+                        # logger.debug(f"self tree: {self.print_structure()}")
+                        # logger.debug(f"cur tree: {cur.print_structure()}")
+                        l_last_leaf = None
 
-                next_left_parent = cur  # Make current node the new left parent
-                next_cur = cur.node.right_subtree
-            else:
-                # Collapse single-item nodes for non-leaves
-                new_subtree = (
-                    next_entry.left_subtree if next_entry else cur.node.right_subtree
-                )
-                logger.debug(f"Collapse: Left split item count: {left_split.item_count()}")
-                logger.debug(f"Collapse: Next entry: {next_entry}")
-                logger.debug(f"Collapse: New subtree: {new_subtree}")
-                
-                # # Update left parent reference
-                left_parent.node.right_subtree = new_subtree
+                    next_left_parent = left_parent
 
-                # Prepare for next iteration
-                next_left_parent = left_parent
-                next_cur = new_subtree
-            
-            # Update left parent variables for next iteration
+                else:
+                    logger.debug("We are at an internal node --> Collapsing single-item nodes (Note: Dummy items are counted)")                    
+                    if key_subtree:
+                        print(f"Highest node containing split key found. Using split key's left subtree as new subtree.")
+                        # Highest node containing split key found
+                        # All entries in its left subtree are less than key and
+                        # are part of the left return tree
+                        new_subtree = key_subtree
+                    elif next_entry:
+                        logger.debug("Next entry exists, using its left subtree as new subtree.")
+                        new_subtree = next_entry.left_subtree
+                    else:
+                        logger.debug("SHOULD NOT HAPPEN: No next entry in current node --> using current node's right subtree to proceed with left tree.")
+                        new_subtree = cur.node.right_subtree # Should not happen
+
+                    if left_parent:
+                        logger.debug("Left parent exists. Update only if it is not fixed yet.")
+                        if not key_node_found:
+                            logger.debug("Not fixed: Update left parent with new subtree.")
+                            left_parent.node.right_subtree = new_subtree
+                            next_left_parent = new_subtree
+                        else:
+                            logger.debug("Fixed: Keep left parent reference.")
+                            next_left_parent = left_parent
+                    else:
+                        logger.debug("Left parent is None. Keep left parent reference.")
+                        next_left_parent = left_parent
+
             left_parent = next_left_parent
+
+            # logger.debug(f"Left split: {left_split}")
+            # logger.debug(f"Left return: {left_return.print_structure()}")
+            # logger.debug(f"self tree: {self.print_structure()}")
+            # logger.debug(f"cur tree: {cur.print_structure()}")
 
             # Update leaf node 'next' pointers if at leaf level
             if is_leaf:
-                new_tree.node.next = cur.node.next
-                cur.node.next = None
-                left_subtree = res.found_entry.left_subtree if res.found_entry else None
-                logger.debug("Updating next pointers for leaf nodes.")
+                # Unlink leaf nodes
+                if l_last_leaf:
+                    # logger.debug("Left leaf node exists.")
+                    # logger.debug("Setting its next pointer to None.")
+                    l_last_leaf.node.next = None
 
-                return left_tree, left_subtree, right_tree  # Early return when leaf is processed
-                
+                # prepare key entry subtree for return
+                return_subtree = res.found_entry.left_subtree if res.found_entry else None
+
+                return self, return_subtree, right_return
+
+            if key_subtree:
+                # Do not update left parent reference from this point on
+                key_node_found = True
+
             # Continue to next iteration with updated current node
             cur = next_cur
     

@@ -807,7 +807,7 @@ def gtree_stats_(t: GPlusTreeBase,
             
             for entry in leaf.set:
                 item = entry.item
-                if item == DUMMY_ITEM:
+                if item.key < 0:
                     continue
 
                 item_count += 1
@@ -827,7 +827,7 @@ def gtree_stats_(t: GPlusTreeBase,
         # Check leaf_count and real_item_count consistency
         if leaf_count != stats.leaf_count or item_count != stats.real_item_count:
             print(f"Leaf count mismatch: iter {leaf_count} != stats {stats.leaf_count}")
-            print(f"Or Item count mismatch: iter {item_count} != stats {stats.real_item_count}")
+            print(f"Or Item count mismatch: iter {item_count} != stats {stats.item_count}")
             print(f"Or real_item_count mismatch: iter {item_count} != stats {stats.real_item_count}")
             stats.linked_leaf_nodes = False
             stats.leaf_count = max(leaf_count, stats.leaf_count)
