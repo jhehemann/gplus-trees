@@ -816,6 +816,7 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
                 # Update current node to use left split
                 logger.debug(f"Left split item count: {l_count} (incl. dummy items)")
                 cur.node.set = left_split
+                cur.node._invalidate_tree_size()
 
                 if key_subtree:
                     print(f"Highest node containing split key found. Updating current node's right subtree with key subtree.")
