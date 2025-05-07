@@ -53,7 +53,7 @@ class TestKListBase(unittest.TestCase):
     
     def setUp(self):
         # Use the factory to create classes with the test capacity
-        self.K = 16  # Default capacity for tests
+        self.K = 4  # Default capacity for tests
         _, _, self.KListClass, self.KListNodeClass = make_gplustree_classes(self.K)
         self.klist = self.KListClass()
         self.cap = self.K  # Use factory-defined capacity
@@ -762,6 +762,21 @@ class TestSplitInplace(TestKListBase):
         left.check_invariant()
         right.check_invariant()
 
+    def test_split_at_node_boundary_max(self):
+        # make at least two nodes
+        total = self.cap + 1
+        for k in range(total):
+            self.klist.insert(Item(k, f"v{k}"))
+        # first node has keys 0..cap-1, second has [cap+1]
+        # split exactly at cap (first of second node)
+        left, subtree, right = self.klist.split_inplace(self.cap)
+
+        self.assertEqual(self.extract_keys(left), list(range(self.cap)))
+        self.assertIsNone(subtree)
+        self.assertEqual(self.extract_keys(right), [])
+        left.check_invariant()
+        right.check_invariant()
+
     def test_split_at_node_boundary(self):
         # make at least two nodes
         total = self.cap + 2
@@ -770,9 +785,10 @@ class TestSplitInplace(TestKListBase):
         # first node has keys 0..cap-1, second has [cap+1]
         # split exactly at cap (first of second node)
         left, subtree, right = self.klist.split_inplace(self.cap)
+
         self.assertEqual(self.extract_keys(left), list(range(self.cap)))
         self.assertIsNone(subtree)
-        self.assertEqual(self.extract_keys(right), [self.cap+1])
+        self.assertEqual(self.extract_keys(right), [self.cap + 1])
         left.check_invariant()
         right.check_invariant()
 

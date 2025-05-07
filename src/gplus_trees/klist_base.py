@@ -443,7 +443,6 @@ class KListBase(AbstractSetDataStructure):
         return RetrievalResult(found_entry=entry, next_entry=in_node_succ)
 
 
-    # @track_performance
     def split_inplace(
         self, key: int
     ) -> Tuple["KListBase", Optional["GPlusTreeBase"], "KListBase"]:
@@ -457,23 +456,26 @@ class KListBase(AbstractSetDataStructure):
             return left, None, right
 
         # --- locate split node ------------------------------------------------
-        node_idx = bisect_right(self._bounds, key)
+        # Using bisect_left to find the first node that contains a key >= split key
+        node_idx = bisect_left(self._bounds, key)
+        
+        # If key is greater than any key in the list
         if node_idx >= len(self._nodes):             # ··· (2) key > max
             right = type(self)()
             return self, None, right
 
-        split_node   = self._nodes[node_idx]
-        prev_node    = self._nodes[node_idx - 1] if node_idx else None
+        split_node = self._nodes[node_idx]
+        prev_node = self._nodes[node_idx - 1] if node_idx else None
         original_next = split_node.next
 
         # --- bisect inside that node -----------------------------------------
         keys = [e.item.key for e in split_node.entries]
-        i    = bisect_left(keys, key)
+        i = bisect_left(keys, key)
         exact = i < len(keys) and keys[i] == key
 
-        left_entries   = split_node.entries[:i]
-        right_entries  = split_node.entries[i + 1 if exact else i :]
-        left_subtree   = split_node.entries[i].left_subtree if exact else None
+        left_entries = split_node.entries[:i]
+        right_entries = split_node.entries[i + 1 if exact else i :]
+        left_subtree = split_node.entries[i].left_subtree if exact else None
 
         # ------------- build LEFT --------------------------------------------
         left = type(self)()
