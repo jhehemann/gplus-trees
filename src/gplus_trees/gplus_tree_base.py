@@ -125,7 +125,6 @@ class GPlusTreeBase(AbstractSetDataStructure):
             return self._insert_empty(x, rank)
         return self._insert_non_empty(x, rank)
     
-    # @track_performance
     def retrieve(
         self, key: int
     ) -> RetrievalResult:
@@ -145,28 +144,39 @@ class GPlusTreeBase(AbstractSetDataStructure):
                 next_pair (Tuple[Optional[Item], Optional[GPlusTreeBase]]):
                     The next item in sorted order and its associated subtree, or (None, None).
         """
-        current_tree = self
+        # logger.debug(f"retrieve() called with key: {key} on tree:\n{self.print_structure()}")
+
+        if not isinstance(key, int) or key < 0:
+            raise TypeError(f"retrieve(): key must be a non-negative int, got {key!r}")
+        
+        if self.is_empty():
+            return RetrievalResult(None, None)
+
+        cur = self
         found_entry: Optional[Entry] = None
         next_entry: Optional[Entry] = None
-
-        while not current_tree.is_empty():
-            node = current_tree.node
-            # Attempt to retrieve in this node's k-list
+        
+        while True:
+            node = cur.node
+            # Attempt to retrieve from this node's set
             res = node.set.retrieve(key)
+            logger.debug(f"result: {res}")
+            
             found_entry = res.found_entry
             next_entry = res.next_entry
 
-            # Descend based on presence of next_entry
-            if next_entry is not None:
-                subtree = next_entry.left_subtree
-                current_tree = subtree
-            else:
-                # If leaf has a linked next node, update next_entry
-                if node.next is not None:
-                    next_entry = node.next.node.set.get_min().found_entry
-                current_tree = node.right_subtree
 
-        return RetrievalResult(found_entry, next_entry)
+            if node.rank == 1:
+                if next_entry is None and node.next is not None:
+                    # If leaf has a linked next node, update next_entry
+                    next_entry = node.next.node.set.get_min().found_entry
+                    return RetrievalResult(found_entry, next_entry)
+                else:
+                    # Leaf node: return found_entry and next_entry
+                    return RetrievalResult(found_entry, next_entry)
+            
+            # Descend based on presence of next_entry
+            cur = next_entry.left_subtree if next_entry else node.right_subtree
     
     def delete(self, item):
         raise NotImplementedError("delete not implemented yet")
@@ -215,7 +225,6 @@ class GPlusTreeBase(AbstractSetDataStructure):
     
     def _insert_empty(self, x_item: Item, rank: int) -> GPlusTreeBase:
         """Build the initial tree structure depending on rank."""
-        logger.debug(f"_insert_empty called with item: {x_item}, rank: {rank}")
         inserted = True
         # Single-level leaf
         if rank == 1:

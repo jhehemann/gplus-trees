@@ -53,6 +53,12 @@ def assert_tree_invariants_tc(tc, t: GPlusTreeBase, stats: Stats) -> None:
             stats.greatest_item,
             "Invariant failed: greatest_item is None for non-empty tree"
         )
+        # if t has a method get_size, the result must be equal to stats.real_item_count
+        if hasattr(t, 'get_size'):
+            if not t.is_empty():
+                size = t.get_size()
+                tc.assertEqual(size, stats.real_item_count,
+                            f"Invariant failed: get_size()={size} ≠ real_item_count={stats.real_item_count}")
 
 class InvariantError(Exception):
     """Raised when a GPlusTree invariant is violated."""

@@ -412,7 +412,6 @@ class KListBase(AbstractSetDataStructure):
         
         # No successor found
         return RetrievalResult(found_entry=None, next_entry=None)
-        return RetrievalResult(found_entry=entry, next_entry=next_entry)
     
     # @track_performance
     def get_min(self) -> RetrievalResult:
