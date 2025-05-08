@@ -646,14 +646,20 @@ def gtree_stats_(t: GPlusTreeBase,
 
     node       = t.node
     node_set   = node.set
+    node_right_subtree = node.right_subtree
     node_rank = node.rank
     node_item_count = node_set.item_count()
     rank_hist[node_rank] = rank_hist.get(node_rank, 0) + node_set.item_count()
 
-    # ---------- recurse on children ------------------------------------
-    child_stats = [gtree_stats_(e.left_subtree, rank_hist, False) for e in node_set]
-    right_stats = gtree_stats_(node.right_subtree,   rank_hist, False)
-
+    # ---------- recurse on children only if rank > 1 ------------------------------------
+    right_stats = gtree_stats_(node_right_subtree, rank_hist, False)
+    
+    # Only recurse on child nodes if we are at a non-leaf node indicated by the
+    # presence of a right subtree
+    if node_right_subtree is not None:  
+        child_stats = [gtree_stats_(e.left_subtree, rank_hist, False) for e in node_set]
+    else:
+        child_stats = []
     # ---------- aggregate ----------------------------------
     # Initialize with default values for the current node
     stats = Stats(
@@ -686,43 +692,51 @@ def gtree_stats_(t: GPlusTreeBase,
 
     max_child_height = 0
 
-    # Single pass over children to fold in all counts and booleans
+    # Check search tree property for the node itself by comparing keys in order
+    # regardless of child_stats
     prev_key = None
-    for entry, cs in zip(node_set, child_stats):
+    for i, entry in enumerate(node_set):
         current_key = entry.item.key
         
-        max_child_height = max(max_child_height, cs.gnode_height)
-
-        if node_rank >= 2 and entry.item.value is not None:
-            stats.internal_has_replicas = False
-            # print(f"Internal node item is not a replica (rank {node.rank}): {current_key} -> {entry.item.value}")
-            # print(f"Node: {node.set!r}")
-        
-        # Accumulate counts for common values
-        stats.gnode_count += cs.gnode_count
-        stats.item_count += cs.item_count
-        stats.item_slot_count += cs.item_slot_count
-        stats.leaf_count += cs.leaf_count
-        stats.real_item_count += cs.real_item_count
-
-        # Update boolean flags
-        if stats.is_heap and not ((node_rank > cs.rank) and cs.is_heap):
-            stats.is_heap = False
+        # Check search tree property within the node
+        if prev_key is not None and prev_key >= current_key:
+            stats.is_search_tree = False
             
-        stats.internal_has_replicas &= cs.internal_has_replicas
-        stats.internal_packed &= cs.internal_packed
-        stats.linked_leaf_nodes &= cs.linked_leaf_nodes
         
-        # Check search tree property
-        if stats.is_search_tree:
-            if not cs.is_search_tree:
-                stats.is_search_tree = False
-            elif prev_key is not None:
-                if prev_key >= current_key or (cs.least_item and cs.least_item.key < prev_key):
+        
+        # Process child stats if they exist (will be empty for leaf nodes)
+        if i < len(child_stats):
+            cs = child_stats[i]
+            
+            max_child_height = max(max_child_height, cs.gnode_height)
+
+            if node_rank >= 2 and entry.item.value is not None:
+                stats.internal_has_replicas = False
+            
+            # Accumulate counts for common values
+            stats.gnode_count += cs.gnode_count
+            stats.item_count += cs.item_count
+            stats.item_slot_count += cs.item_slot_count
+            stats.leaf_count += cs.leaf_count
+            stats.real_item_count += cs.real_item_count
+
+            # Update boolean flags
+            if stats.is_heap and not ((node_rank > cs.rank) and cs.is_heap):
+                stats.is_heap = False
+                
+            stats.internal_has_replicas &= cs.internal_has_replicas
+            stats.internal_packed &= cs.internal_packed
+            stats.linked_leaf_nodes &= cs.linked_leaf_nodes
+            
+            # Additional search tree property checks with child stats
+            if stats.is_search_tree:
+                if not cs.is_search_tree:
+                    stats.is_search_tree = False
+                elif cs.least_item and cs.least_item.key < prev_key:
                     stats.is_search_tree = False
                 elif cs.greatest_item and cs.greatest_item.key >= current_key:
                     stats.is_search_tree = False
-        
+
         prev_key = current_key
     
     # Calculate final height
