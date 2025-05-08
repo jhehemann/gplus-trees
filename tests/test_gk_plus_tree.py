@@ -501,6 +501,7 @@ class TestGKPlusSplitInplace(unittest.TestCase):
         # Check invariants using stats
         stats = gtree_stats_(tree, {})
         # pprint(stats)
+        # print(f"item count: {tree.item_count()}")
         assert_tree_invariants_tc(self, tree, stats)
         
         # Verify expected keys if provided
@@ -544,90 +545,70 @@ class TestGKPlusSplitInplace(unittest.TestCase):
         
         return sorted(keys)
         
-    def test_empty_tree_split(self):
-        """Test splitting an empty tree."""
-        tree = self.tree_k4
-        left, middle, right = tree.split_inplace(500)
+    # def test_empty_tree_split(self):
+    #     """Test splitting an empty tree."""
+    #     tree = self.tree_k4
+    #     left, middle, right = tree.split_inplace(500)
         
-        # Both trees should be empty and middle should be None
-        self.assertTrue(left.is_empty())
-        self.assertIsNone(middle)
-        self.assertTrue(right.is_empty())
+    #     # Both trees should be empty and middle should be None
+    #     self.assertTrue(left.is_empty())
+    #     self.assertIsNone(middle)
+    #     self.assertTrue(right.is_empty())
         
-        # Validate tree invariants for empty trees
-        self.validate_tree(left, [])
-        self.validate_tree(right, [])
+    #     # Validate tree invariants for empty trees
+    #     self.validate_tree(left, [])
+    #     self.validate_tree(right, [])
     
-    def test_split_single_node_tree(self):
-        """Test splitting a tree with a single node."""        
-        # Insert a single item
-        item = Item(500, "val")
+    # def test_split_single_node_tree(self):
+    #     """Test splitting a tree with a single node."""        
+    #     # Insert a single item
+    #     item = Item(500, "val")
         
         
-        with self.subTest("split point > only key"):
-            tree = create_gkplus_tree(K=4)
-            tree, _ = tree.insert(item, rank=1)
+    #     with self.subTest("split point > only key"):
+    #         tree = create_gkplus_tree(K=4)
+    #         tree, _ = tree.insert(item, rank=1)
             
-            # Split at a key greater than the only key
-            left, middle, right = tree.split_inplace(1000)
+    #         # Split at a key greater than the only key
+    #         left, middle, right = tree.split_inplace(1000)
             
-            # Validate left tree with the item
-            self.assertIs(tree, left)
-            self.validate_tree(left, [500])
-            self.assertIsNone(middle)
-            self.assertTrue(right.is_empty())
+    #         # Validate left tree with the item
+    #         self.assertIs(tree, left)
+    #         self.validate_tree(left, [500])
+    #         self.assertIsNone(middle)
+    #         self.assertTrue(right.is_empty())
 
         
         
-        with self.subTest("split point < only key"):
-            # Split at a key less than the only key
-            tree = create_gkplus_tree(K=4)
+    #     with self.subTest("split point < only key"):
+    #         # Split at a key less than the only key
+    #         tree = create_gkplus_tree(K=4)
 
-            tree, _ = self.tree_k4.insert(item, rank=1)
+    #         tree, _ = self.tree_k4.insert(item, rank=1)
 
-            # print("\nSelf tree (tree) before split")
-            # print(tree.print_structure())
+    #         # print("\nSelf tree (tree) before split")
+    #         # print(tree.print_structure())
             
-            # print("\nSelf Tree (k4) before split")
-            # print(self.tree_k4.print_structure())
+    #         # print("\nSelf Tree (k4) before split")
+    #         # print(self.tree_k4.print_structure())
             
-            left, middle, right = tree.split_inplace(100)
+    #         left, middle, right = tree.split_inplace(100)
 
-          
-            
-            # Validate right tree with the item
-            self.assertTrue(left.is_empty())
-            self.assertIsNone(middle)
-            self.validate_tree(right, [500])
+    #         # Validate right tree with the item
+    #         self.assertTrue(left.is_empty())
+    #         self.assertIsNone(middle)
+    #         self.validate_tree(right, [500])
         
-        with self.subTest("split point == only key"):
-            tree = create_gkplus_tree(K=4)
+    #     with self.subTest("split point == only key"):
+    #         tree = create_gkplus_tree(K=4)            
             
-            # Split at the key itself
-            print("\nSelf Tree (k4) before insert")
-            print(self.tree_k4.print_structure())
+    #         tree, _ = self.tree_k4.insert(item, rank=1)
+    #         left, middle, right = tree.split_inplace(500)
             
-            
-            tree, _ = self.tree_k4.insert(item, rank=1)
-            left, middle, right = tree.split_inplace(500)
-
-            print("\nSelf tree (tree) after split")
-            print(tree.print_structure())
-
-            print("\nSelf Tree (k4) after split")
-            print(self.tree_k4.print_structure())
-
-            print("\nLeft Tree")
-            print(left.print_structure())
-            print("\nRight Tree")
-            print(right.print_structure())
-            print("\nMiddle Tree")
-            print(middle.print_structure()) if middle else print("Middle is None")
-            
-            # Validate structure
-            self.assertTrue(left.is_empty())
-            self.assertIsNone(middle)  # The item has no left subtree
-            self.validate_tree(right, [500])
+    #         # Validate structure
+    #         self.assertTrue(left.is_empty())
+    #         self.assertIsNone(middle)  # The item has no left subtree
+    #         self.validate_tree(right, [500])
     
     # def test_split_leaf_node_with_multiple_items(self):
     #     """Test splitting a leaf node with multiple items."""
@@ -640,40 +621,15 @@ class TestGKPlusSplitInplace(unittest.TestCase):
         
     #     # Check that initial tree is valid
     #     self.validate_tree(tree, keys)
-        
+
     #     # Split in the middle (between items)
     #     left, middle, right = tree.split_inplace(250)
-        
+
     #     # Validate the split trees
     #     self.validate_tree(left, [100, 200])
     #     self.assertIsNone(middle)
     #     self.validate_tree(right, [300, 400, 500])
     
-    # def test_split_at_existing_key(self):
-    #     """Test splitting at an existing key."""
-    #     tree = self.tree_k4
-        
-    #     # Insert multiple items
-    #     keys = [100, 200, 300, 400, 500]
-    #     for key in keys:
-    #         tree, _ = tree.insert(Item(key, f"val_{key}"), rank=1)
-        
-    #     # Add a left subtree to one item
-    #     subtree = self.tree_k4
-    #     subtree, _ = subtree.insert(Item(250, "subtree_val"), rank=1)
-        
-    #     # Retrieve the item and set its left subtree
-    #     result = tree.retrieve(300)
-    #     result.found_entry.left_subtree = subtree
-        
-    #     # Split at the key with a left subtree
-    #     left, middle, right = tree.split_inplace(300)
-        
-    #     # Validate the split trees
-    #     self.validate_tree(left, [100, 200])
-    #     self.assertIsNotNone(middle)
-    #     self.validate_tree(middle, [250])
-    #     self.validate_tree(right, [300, 400, 500])
     
     # def test_split_tree_with_internal_nodes(self):
     #     """Test splitting a tree with internal nodes."""

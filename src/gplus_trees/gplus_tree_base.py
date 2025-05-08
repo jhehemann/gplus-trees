@@ -592,35 +592,6 @@ class GPlusTreeBase(AbstractSetDataStructure):
         elif node.rank == 1 and hasattr(node, 'next') and node.next is None:
                 result.append(f"{prefix}    Next: Empty")
         return "\n".join(result)
-    
-    # Add a method to get performance metrics
-    @classmethod
-    def get_performance_report(cls, sort_by: str = 'total_time') -> str:
-        """
-        Get a formatted report of performance metrics.
-        
-        Args:
-            sort_by: Field to sort by ('total_time', 'avg_time', 'call_count', etc.)
-            
-        Returns:
-            str: Formatted performance report
-        """
-        return PerformanceTracker.get_instance().report(sort_by=sort_by)
-    
-    @classmethod
-    def reset_performance_metrics(cls) -> None:
-        """Reset all performance metrics."""
-        PerformanceTracker.get_instance().reset()
-    
-    @classmethod
-    def enable_performance_tracking(cls) -> None:
-        """Enable performance tracking."""
-        PerformanceTracker.get_instance().enable()
-    
-    @classmethod
-    def disable_performance_tracking(cls) -> None:
-        """Disable performance tracking."""
-        PerformanceTracker.get_instance().disable()
 
 @dataclass
 class Stats:
@@ -835,9 +806,9 @@ def gtree_stats_(t: GPlusTreeBase,
 
         # Check leaf_count and real_item_count consistency
         if leaf_count != stats.leaf_count or item_count != stats.real_item_count:
-            print(f"Leaf count mismatch: iter {leaf_count} != stats {stats.leaf_count}")
-            print(f"Or Item count mismatch: iter {item_count} != stats {stats.item_count}")
-            print(f"Or real_item_count mismatch: iter {item_count} != stats {stats.real_item_count}")
+            # print(f"Leaf count mismatch: iter {leaf_count} != stats {stats.leaf_count}")
+            # print(f"Or Item count mismatch: iter {item_count} != stats {stats.item_count}")
+            # print(f"Or real_item_count mismatch: iter {item_count} != stats {stats.real_item_count}")
             stats.linked_leaf_nodes = False
             stats.leaf_count = max(leaf_count, stats.leaf_count)
             

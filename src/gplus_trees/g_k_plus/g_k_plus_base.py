@@ -192,10 +192,10 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
         Returns:
             RetrievalResult: The minimum entry and the next entry (if any).
         """        
-        first_leaf = next(self.iter_leaf_nodes(), None)
-        if first_leaf is None or not first_leaf.set:
+        if self.is_empty():
             return RetrievalResult(None, None)
         
+        first_leaf = next(self.iter_leaf_nodes(), None)
         return first_leaf.set.get_min()
     
     def get_max(self) -> RetrievalResult:
@@ -818,8 +818,18 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
                 cur.node.set = left_split
                 cur.node._invalidate_tree_size()
 
-                if key_subtree:
-                    print(f"Highest node containing split key found. Updating current node's right subtree with key subtree.")
+                if left_parent is None:
+                    logger.debug("Left parent is None, set the left tree to cur and update self reference to this node.")
+                    # Reuse left split as the root node for the left return tree
+                    left_return = self = cur
+                
+                if is_leaf:
+                    logger.debug(f"Is leaf: {is_leaf} --> Set l_last_leaf to cur.")
+                    # Prepare for updating 'next' pointers
+                    # do not rearrange subtres at leaf level
+                    l_last_leaf = cur
+                elif key_subtree:
+                    logger.debug(f"Highest node containing split key found. Updating current node's right subtree with key subtree.")
                     # Highest node containing split key found
                     # All entries in its left subtree are less than key and
                     # are part of the left return tree
@@ -827,15 +837,6 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
                 elif next_entry:
                     cur.node.right_subtree = next_entry.left_subtree
                 
-                if left_parent is None:
-                    logger.debug("Left parent is None, set the left tree to cur and update self reference to this node.")
-                    # Reuse left split as the root node for the left return tree
-                    left_return = self = cur
-
-                if is_leaf:
-                    logger.debug(f"Is leaf: {is_leaf} --> Set l_last_leaf to cur.")
-                    l_last_leaf = cur
-
                 # Check if we need to update the left parent reference
                 if key_node_found:
                     next_left_parent = left_parent
