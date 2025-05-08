@@ -282,13 +282,6 @@ def repeated_experiment(
             f"{total:13.6f}"
             f"{pct:10.2f}%"
         )
-    
-    # # Add method-level performance breakdown
-    # logging.info("")
-    # logging.info("Method-level performance breakdown:")
-    # report = GPlusTreeBase.get_performance_report(sort_by='total_time')
-    # for line in report.split('\n'):
-    #     logging.info(line)
 
     logging.info(sep)
     t_all_1 = time.perf_counter() - t_all_0
@@ -311,10 +304,6 @@ if __name__ == "__main__":
             logging.StreamHandler()         # comment this out if you don't want console output
         ]
     )
-    
-    # # Enable performance tracking before experiments
-    # GPlusTreeBase.enable_performance_tracking()
-    # logging.info("Performance tracking enabled")
 
     # List of tree sizes to test.
     sizes = [1000]
@@ -332,13 +321,4 @@ if __name__ == "__main__":
             t0 = time.perf_counter()
             repeated_experiment(size=n, repetitions=repetitions, K=K)
             elapsed = time.perf_counter() - t0
-
-            # Reset performance metrics for next experiment
-            GPlusTreeBase.reset_performance_metrics()
             logging.info(f"Total experiment time: {elapsed:.3f} seconds")
-            # logging.info("Performance metrics reset for next experiment")
-
-    # # Disable tracking when completely done
-    # GPlusTreeBase.disable_performance_tracking()
-    # logging.info("")
-    # logging.info("Performance tracking disabled")
