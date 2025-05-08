@@ -54,6 +54,8 @@ def get_dummy(dim: int) -> Item:
     Returns:
         Item: A dummy item with key=-(dim) and value=None
     """
+    return Item(-1, None)
+
     # Check if we already have a dummy item for this dimension in cache
     if dim in _DUMMY_ITEM_CACHE:
         return _DUMMY_ITEM_CACHE[dim]
@@ -715,6 +717,8 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
         key_node_found = False
 
         while True:
+            logger.debug("")
+            logger.debug(f"New iteration with cur: {cur}")
             node = cur.node
             is_leaf = node.rank == 1
 
@@ -740,7 +744,7 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
             # --- Handle right side of the split ---
             # Determine if we need a new tree for the right split
             if r_count > 0:     # incl. dummy items
-                logger.debug(f"Right split item count is >0: {r_count}")
+                logger.debug(f"Right split item count is > 0: {r_count}")
                 right_split = right_split.insert(dummy, None)
                 right_node = NodeClass(
                     node.rank, right_split, node.right_subtree
@@ -784,6 +788,12 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
                     right_node = NodeClass(1, right_split, None)
                     new_tree = TreeClass()
                     new_tree.node = right_node
+
+                    # Update parent reference
+                    if right_entry is not None:
+                        right_entry.left_subtree = new_tree
+                    else:
+                        right_parent.node.right_subtree = new_tree
                     
                     # Prepare for updating 'next' pointers
                     # r_first_leaf = new_tree
@@ -937,4 +947,3 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
         for node in self.iter_leaf_nodes():
             for entry in node.set:
                 yield entry
-                
