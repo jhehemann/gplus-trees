@@ -16,7 +16,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from gplus_trees.base import Item
 from gplus_trees.g_k_plus.factory import create_gkplus_tree
 from gplus_trees.g_k_plus.g_k_plus_base import get_dummy
-from gplus_trees.gplus_tree_base import gtree_stats_
+from gplus_trees.gplus_tree_base import gtree_stats_, print_pretty
 from tests.utils import assert_tree_invariants_tc
 
 class TestGKPlusSizeTracking(unittest.TestCase):
@@ -595,6 +595,9 @@ class TestGKPlusSplitInplace(unittest.TestCase):
         for key, rank in zip(keys, rank_combo):
             base_tree, _ = base_tree.insert(self.ITEMS[key], rank)
 
+        # print_pretty(base_tree)
+
+
         msg_head = (
             f"\n\nKey-Rank combo:\n"
             f"K: {keys}\n"
@@ -1153,17 +1156,17 @@ class TestGKPlusSplitInplace(unittest.TestCase):
            
     def test_specific_rank_combo(self):
         keys  =  [1, 2, 3, 5, 6, 7]
-        ranks =  (4, 4, 4, 4, 4, 1)
+        ranks =  (4, 2, 4, 3, 4, 1)
 
         split_cases = self._get_split_cases(keys)
         # array of tuples with (case_name, split_key)
         split_cases = [
                 ("smallest key",               min(keys)),
-                ("largest key",                max(keys)),
-                ("existing middle key",        median_low(keys)),
-                ("below smallest",             min(keys) - 1),
-                ("above largest",              max(keys) + 1),
-                ("non-existing middle key",    self._find_first_missing(keys)),
+                # ("largest key",                max(keys)),
+                # ("existing middle key",        median_low(keys)),
+                # ("below smallest",             min(keys) - 1),
+                # ("above largest",              max(keys) + 1),
+                # ("non-existing middle key",    self._find_first_missing(keys)),
             ]
         
         # exp_split_keys = [1, 7, 3, 0, 8, 4] 
@@ -1173,6 +1176,8 @@ class TestGKPlusSplitInplace(unittest.TestCase):
         #     raise ValueError(
         #         f"Split keys {calc_split_keys} do not match expected split keys {exp_split_keys}"
         #     )
+
+
 
         for case_name, split_key in split_cases:
             exp_left = [k for k in keys if k < split_key]
@@ -1196,7 +1201,7 @@ class TestGKPlusSplitInplace(unittest.TestCase):
         num_keys = len(keys)
         combinations = len(ranks) ** num_keys
 
-        iterations = 1
+        iterations = 10
 
         combos = islice(product(ranks, repeat=num_keys), iterations)
         

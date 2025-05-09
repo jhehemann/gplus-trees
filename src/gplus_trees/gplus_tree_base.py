@@ -845,4 +845,122 @@ def collect_leaf_keys(tree: 'GPlusTreeBase') -> list[str]:
                 out.append(e.item.key)
     return out
 
+def _find_capacity(set_cls):
+    """
+    Walks set_cls.SetClass until we find a subclass of KListBase,
+    then returns its KListNodeClass.CAPACITY.
+    """
+    cls = set_cls
+    # keep following the `.SetClass` link...
+    while not issubclass(cls, KListBase):
+        cls = cls.SetClass
+    # now cls is a KListBase, so its node class has the capacity
+    return cls.KListNodeClass.CAPACITY
+
+def print_prett(tree):
+    """
+    Print the B+-tree so that all nodes on the same layer
+    appear on the same line, correctly indented.
+    """
+    # 1) Determine indent unit from the tree’s capacity
+    capacity    = _find_capacity(tree.SetClass)
+    indent_unit = capacity
+    print(f"Indent unit: {indent_unit}")
+
+    layers = collections.defaultdict(list)  # rank -> list of (indent, segment)
+
+    def _collect(node):
+        rank       = node.rank
+        indent     = indent_unit ** rank 
+        keys_line  = " | ".join(str(entry.item.key) for entry in node.set)
+        layers[rank-1].append((indent, keys_line))
+
+        # Recurse left‐to‐right
+        for entry in node.set:
+            if entry.left_subtree is not None:
+                _collect(entry.left_subtree.node)
+        if node.right_subtree is not None:
+            _collect(node.right_subtree.node)
+
+    _collect(tree.node)
+
+def print_pretty(tree):
+    """
+    Prints a B+-tree so:
+      • Lines go from highest rank down to 1.
+      • Within a line, nodes appear left→right in traversal order.
+      • All columns have the same width, so initial indent and
+        inter-node spacing are uniform.
+    """
+    SEP = " | "
+
+    # 1) First pass: collect each node's text and track max length
+    layers_raw  = collections.defaultdict(list)  # rank -> list of node-strings
+    max_len     = 0
+
+    def collect(node, parent=None):
+        nonlocal max_len
+        rank     = node.rank
+        parent_rank = parent.rank if parent else 0
+
+        rank_diff = parent_rank - rank
+        fill_rank = parent_rank - 1
+        while fill_rank > rank:
+            layers_raw[fill_rank].append("")
+            fill_rank -= 1
+        
+        text     = SEP.join(str(e.item.key) for e in node.set)
+        layers_raw[rank].append(text)
+        max_len = max(max_len, len(text))
+
+        # recurse left→right
+        for e in node.set:
+            if e.left_subtree:
+                collect(e.left_subtree.node, node)
+        if node.right_subtree:
+            collect(node.right_subtree.node, node)
+
+    collect(tree.node, None)
+
+    # 2) Define a fixed column width: widest text + 1 space padding
+    column_width = max_len + 1
+
+    # 3) Build “slots” per layer, padding every entry to column_width
+    #    and inserting blanks where no node lives.
+    all_ranks = sorted(layers_raw.keys(), reverse=True)
+    # we’ll assume every line has the same number of “slots” = max number
+    # of nodes in any single layer:
+    max_slots = max(len(v) for v in layers_raw.values())
+
+    layers = {}
+    for rank in all_ranks:
+        texts = layers_raw[rank]
+        # pad or truncate texts list to max_slots
+        padded = [
+            (txt.center(column_width) if i < len(texts) else " " * column_width)
+            for i, txt in enumerate(texts + [""] * max_slots)
+        ][:max_slots]
+        layers[rank] = padded
+
+    # 4) Now print, prefixing each line by an indent proportional to rank
+    #    (so higher nodes are shifted right to reflect depth).
+    for rank in all_ranks:
+        prefix = " " * ((rank-1) * column_width) + " " * 2
+        line   = "".join(layers[rank])
+        print(f"Rank {rank}:{prefix}{line}\n\n")
+
+
+    # def _recurse(node):
+    #     indent = " " * ((node.rank - 1) * indent_unit)
+    #     entries = list(node.set)
+    #     print(indent + " | ".join(str(e.item.key) for e in entries))
+
+    #     for e in entries:
+    #         if e.left_subtree:
+    #             _recurse(e.left_subtree)
+    #     if node.right_subtree:
+    #         _recurse(node.right_subtree)
+
+    # _recurse(tree.node)
+
 
