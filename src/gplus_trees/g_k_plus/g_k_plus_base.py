@@ -30,7 +30,7 @@ handler = logging.StreamHandler()
 formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(message)s')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 # Prevent propagation to the root logger to avoid duplicate logs
 logger.propagate = False
 
@@ -217,11 +217,14 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
         Returns:
             GKPlusNodeBase: The maximum node in the tree.
         """
-        cur = self.node
-        while cur.node.rank > 1:
-            cur = cur.right_subtree.node
+        if self.is_empty():
+            return None
         
-        return cur.node
+        node = self.node
+        while node.right_subtree is not None:
+            node = node.right_subtree.node
+        
+        return node
     
     @classmethod
     def with_dimension(cls: Type[t], dim: int) -> Type[t]:
@@ -718,7 +721,7 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
 
         while True:
             logger.debug("")
-            logger.debug(f"New iteration with cur: {cur}")
+            logger.debug(f"New iteration with cur: {cur.node.set}")
             node = cur.node
             is_leaf = node.rank == 1
 
@@ -839,7 +842,7 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
                     logger.debug(f"Is leaf: {is_leaf} --> Set l_last_leaf to cur.")
                     # Prepare for updating 'next' pointers
                     # do not rearrange subtres at leaf level
-                    l_last_leaf = cur
+                    l_last_leaf = cur.node
                 elif key_subtree:
                     logger.debug(f"Highest node containing split key found. Updating current node's right subtree with key subtree.")
                     # Highest node containing split key found
@@ -863,10 +866,17 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
                 if is_leaf:
                     logger.debug(f"Is leaf: {is_leaf}")
                     if left_parent:
-                        logger.debug("Left parent exists, so leaf is not collapsed. Update leaf next pointers.")
-                        logger.debug(f"Find the previous leaf node by traversing the left parent to unlink leaf nodes.")
-                        # find the previous leaf node by traversing the left parent
-                        l_last_leaf = left_parent.get_max_leaf()
+                        if l_count == 0:
+                            logger.debug("Left parent exists, so leaf is not collapsed. Update leaf next pointers.")
+                            logger.debug(f"Find the previous leaf node by traversing the left parent to unlink leaf nodes.")
+                            # find the previous leaf node by traversing the left parent
+                            l_last_leaf = left_parent.get_max_leaf()
+                        else:
+                            logger.debug("Left parent exists, so leaf is not collapsed. Set l_last_leaf to cur and update leaf next pointers.")
+                            
+                            l_last_leaf = cur.node
+                            logger.debug(f"l_last_leaf.next: {l_last_leaf.next}")
+
                     else:
                         logger.debug("Left parent is None at leaf. Only dummy item in left tree --> return empty left.")
                         # No non-dummy entry in left tree - return empty left tree
@@ -888,7 +898,7 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
                 else:
                     logger.debug("We are at an internal node --> Collapsing single-item nodes (Note: Dummy items are counted)")                    
                     if key_subtree:
-                        print(f"Highest node containing split key found. Using split key's left subtree as new subtree.")
+                        logger.debug(f"Highest node containing split key found. Using split key's left subtree as new subtree.")
                         # Highest node containing split key found
                         # All entries in its left subtree are less than key and
                         # are part of the left return tree
@@ -926,7 +936,7 @@ class GKPlusTreeBase(GPlusTreeBase, GKTreeSetDataStructure):
                 if l_last_leaf:
                     # logger.debug("Left leaf node exists.")
                     # logger.debug("Setting its next pointer to None.")
-                    l_last_leaf.node.next = None
+                    l_last_leaf.next = None
 
                 # prepare key entry subtree for return
                 return_subtree = res.found_entry.left_subtree if res.found_entry else None
