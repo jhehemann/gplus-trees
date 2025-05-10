@@ -6,6 +6,7 @@ from typing import Dict, Optional, Tuple, Any, Type
 from dataclasses import dataclass, asdict
 from pprint import pprint
 import collections
+import math
 
 from gplus_trees.base import (
     AbstractSetDataStructure,
@@ -892,6 +893,15 @@ def print_pretty(tree):
       • All columns have the same width, so initial indent and
         inter-node spacing are uniform.
     """
+    if tree is None:
+        return f"{type(tree).__name__}: None"
+
+    if not (isinstance(tree, GPlusTreeBase) or isinstance(tree.node, KListBase)):
+        raise TypeError(f"print_pretty() expects GPlusTreeBase or KListBase, got {type(tree).__name__}")
+
+    if tree.is_empty():
+        return f"{type(tree).__name__}: Empty"
+    
     SEP = " | "
 
     # 1) First pass: collect each node's text and track max length
@@ -903,7 +913,6 @@ def print_pretty(tree):
         rank     = node.rank
         parent_rank = parent.rank if parent else 0
 
-        rank_diff = parent_rank - rank
         fill_rank = parent_rank - 1
         while fill_rank > rank:
             layers_raw[fill_rank].append("")
@@ -927,40 +936,49 @@ def print_pretty(tree):
 
     # 3) Build “slots” per layer, padding every entry to column_width
     #    and inserting blanks where no node lives.
-    all_ranks = sorted(layers_raw.keys(), reverse=True)
+    all_ranks = sorted(layers_raw.keys())
     # we’ll assume every line has the same number of “slots” = max number
     # of nodes in any single layer:
     max_slots = max(len(v) for v in layers_raw.values())
-
+    
     layers = {}
+    column_counts = [len(layers_raw[rank]) for rank in all_ranks]
+
     for rank in all_ranks:
         texts = layers_raw[rank]
         # pad or truncate texts list to max_slots
         padded = [
-            (txt.center(column_width) if i < len(texts) else " " * column_width)
+            ("" + txt.center(column_width) + "  " if i < len(texts) else "" + " " * column_width + "")
             for i, txt in enumerate(texts + [""] * max_slots)
         ][:max_slots]
         layers[rank] = padded
-
-    # 4) Now print, prefixing each line by an indent proportional to rank
+        
+    # 4) Now accumulate, prefixing each line by an indent proportional to rank
     #    (so higher nodes are shifted right to reflect depth).
-    for rank in all_ranks:
-        prefix = " " * ((rank-1) * column_width) + " " * 2
+    out_lines = []
+    cumm_indent = 0.0      # cumulative indent (number of columns)
+    for i, rank in enumerate(all_ranks):
+        # indent to reflect depth
+        # prefix = " " * ((rank - 1) * column_width) + "  "
+        if i == 0:
+            # first line: no indent
+            prefix = "  "
+        else:
+            # print(layers[i+1])
+            column_diff = column_counts[i-1] - column_counts[i]
+            # print(f"all_ranks[{i-1}]: {all_ranks[i-1]}")
+            # print(f"\nrank: {rank}")
+            # print(f"column_diff: {column_diff}")
+            cumm_indent += float(column_diff) / 2
+            
+            # print(f"cumm_indent: {cumm_indent}")
+            spaces = int(math.floor(((2 + column_width) * cumm_indent) + 0.5))
+            # print(f"spaces: {spaces}")
+            prefix = "  " + spaces * " "
+            # prefix = ""
         line   = "".join(layers[rank])
-        print(f"Rank {rank}:{prefix}{line}\n\n")
+        out_lines.append(f"Rank {rank}:{prefix}{line}")
 
-
-    # def _recurse(node):
-    #     indent = " " * ((node.rank - 1) * indent_unit)
-    #     entries = list(node.set)
-    #     print(indent + " | ".join(str(e.item.key) for e in entries))
-
-    #     for e in entries:
-    #         if e.left_subtree:
-    #             _recurse(e.left_subtree)
-    #     if node.right_subtree:
-    #         _recurse(node.right_subtree)
-
-    # _recurse(tree.node)
-
-
+    # join with newlines and return
+    return "\n\n".join(reversed(out_lines)) + "\n\n"
+    

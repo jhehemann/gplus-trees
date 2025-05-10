@@ -595,15 +595,12 @@ class TestGKPlusSplitInplace(unittest.TestCase):
         for key, rank in zip(keys, rank_combo):
             base_tree, _ = base_tree.insert(self.ITEMS[key], rank)
 
-        # print_pretty(base_tree)
-
-
         msg_head = (
             f"\n\nKey-Rank combo:\n"
             f"K: {keys}\n"
             f"R: {rank_combo}"
-            f"\n\nTree before split:\n"
-            f"{base_tree.print_structure()}"
+            f"\n\nTREE BEFORE SPLIT:\n"
+            f"{print_pretty(base_tree)}"
         )
 
         # deep-copy and split
@@ -612,9 +609,9 @@ class TestGKPlusSplitInplace(unittest.TestCase):
 
         msg = f"\n\nSplit at {case_name}: {split_key}" + msg_head
         msg += self.ASSERTION_MESSAGE_TEMPLATE.format(
-            left=left.print_structure(),
-            middle=middle,
-            right=right.print_structure(),
+            left=print_pretty(left),
+            middle=print_pretty(middle),
+            right=print_pretty(right),
         )
 
         # assertions
@@ -1155,8 +1152,8 @@ class TestGKPlusSplitInplace(unittest.TestCase):
             
            
     def test_specific_rank_combo(self):
-        keys  =  [1, 2, 3, 5, 6, 7]
-        ranks =  (4, 2, 4, 3, 4, 1)
+        keys  =  [1, 2, 3, 5, 6, 7, 8]
+        ranks =  (3, 4, 3, 3, 2, 2, 1)
 
         split_cases = self._get_split_cases(keys)
         # array of tuples with (case_name, split_key)
